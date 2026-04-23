@@ -25,9 +25,23 @@ function strokesOnHole(hcp: number, holeHcpIdx: number): number {
   return s;
 }
 
-// Course-adjusted (playing) handicap relative to the field's lowest handicap.
-function courseHandicap(playerHcp: number, fieldMinHcp: number): number {
-  return Math.max(0, Math.round((playerHcp || 0) - (fieldMinHcp || 0)));
+type HandicapMode = "net" | "gross";
+type CourseInputs = { slope?: number | null; rating?: number | null; totalPar?: number | null };
+
+// WHS Course Handicap = Index × (Slope/113) + (Course Rating − Par), rounded.
+function whsCourseHandicap(idx: number, course: CourseInputs): number {
+  const slopeAdjust = (course.slope ?? 113) / 113;
+  const ratingDiff = (course.rating != null && course.totalPar != null)
+    ? (course.rating - course.totalPar)
+    : 0;
+  return Math.round((idx || 0) * slopeAdjust + ratingDiff);
+}
+
+function effectiveHandicap(playerHcp: number, fieldMinHcp: number, mode: HandicapMode, course: CourseInputs): number {
+  const ch = whsCourseHandicap(playerHcp, course);
+  if (mode === "gross") return Math.max(0, ch);
+  const minCh = whsCourseHandicap(fieldMinHcp, course);
+  return Math.max(0, ch - minCh);
 }
 
 function formatHandicap(h: number): string {
@@ -155,6 +169,10 @@ export default function RoundPage() {
   const [setupGames, setSetupGames] = useState<Record<string, boolean>>({});
   const [setupCourse, setSetupCourse] = useState("");
   const [setupDate, setSetupDate] = useState("");
+  const [setupHandicapMode, setSetupHandicapMode] = useState<HandicapMode>("net");
+  const [setupTeeBox, setSetupTeeBox] = useState("");
+  const [setupRating, setSetupRating] = useState("");
+  const [setupSlope, setSetupSlope] = useState("");
   const setupInitialized = useRef(false);
 
   useEffect(() => {
@@ -170,11 +188,17 @@ export default function RoundPage() {
       });
       setSetupCourse(round.course ?? "");
       setSetupDate(round.date ?? "");
+      setSetupHandicapMode((round.handicapMode as HandicapMode | undefined) ?? "net");
+      setSetupTeeBox(round.teeBox ?? "");
+      setSetupRating(round.courseRating != null ? String(round.courseRating) : "");
+      setSetupSlope(round.courseSlope != null ? String(round.courseSlope) : "");
       setupInitialized.current = true;
     }
   }, [round]);
 
   function handleSaveSetup() {
+    const ratingNum = parseFloat(setupRating);
+    const slopeNum = parseInt(setupSlope);
     updateRound.mutate(
       {
         tripId,
@@ -192,6 +216,10 @@ export default function RoundPage() {
             bestBall: false,
             matchPlay: false,
           },
+          handicapMode: setupHandicapMode,
+          teeBox: setupTeeBox.trim() || null,
+          courseRating: isNaN(ratingNum) ? null : ratingNum,
+          courseSlope: isNaN(slopeNum) ? null : slopeNum,
         },
       },
       {
@@ -204,14 +232,22 @@ export default function RoundPage() {
 
   const par = (round?.par as number[]) || Array(18).fill(4);
   const holeHcp = (round?.holeHcp as number[]) || Array.from({ length: 18 }, (_, i) => i + 1);
+  const handicapMode: HandicapMode = (round?.handicapMode as HandicapMode | undefined) ?? "net";
+  const course: CourseInputs = {
+    slope: round?.courseSlope ?? null,
+    rating: round?.courseRating ?? null,
+    totalPar: par.reduce((a, b) => a + b, 0),
+  };
 
-  // Course-adjusted (playing) handicaps relative to the field's lowest handicap.
-  // Lowest handicapper plays scratch; others receive the integer difference.
+  // Playing handicap per player. In "net" mode the lowest handicap plays
+  // scratch and others receive the integer difference from the WHS course
+  // handicap formula; in "gross" mode each player plays their full course
+  // handicap.
   const fieldMinHcp = players && players.length > 0
     ? Math.min(...players.map(p => p.handicap || 0))
     : 0;
   const playingHcps = new Map<number, number>(
-    (players ?? []).map(p => [p.id, courseHandicap(p.handicap, fieldMinHcp)])
+    (players ?? []).map(p => [p.id, effectiveHandicap(p.handicap, fieldMinHcp, handicapMode, course)])
   );
 
   const SUBTABS: { id: SubTab; label: string; icon: typeof Trophy }[] = [
@@ -592,6 +628,70 @@ export default function RoundPage() {
                   style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              <div>
+                <label className="block text-xs font-sans mb-1" style={{ color: "hsl(38 20% 38%)" }}>Tee Box</label>
+                <input
+                  value={setupTeeBox}
+                  onChange={e => setSetupTeeBox(e.target.value)}
+                  placeholder="Blue"
+                  className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-sans mb-1" style={{ color: "hsl(38 20% 38%)" }}>Rating</label>
+                <input
+                  type="number" step="0.1" min="55" max="80"
+                  value={setupRating}
+                  onChange={e => setSetupRating(e.target.value)}
+                  placeholder="71.4"
+                  className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-sans mb-1" style={{ color: "hsl(38 20% 38%)" }}>Slope</label>
+                <input
+                  type="number" min="55" max="155"
+                  value={setupSlope}
+                  onChange={e => setSetupSlope(e.target.value)}
+                  placeholder="113"
+                  className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Handicap mode */}
+          <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
+            <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Handicap</h3>
+            <p className="text-xs font-sans mb-3" style={{ color: "hsl(38 20% 45%)" }}>
+              {setupHandicapMode === "net"
+                ? "Net: lowest handicap plays scratch, others play the difference."
+                : "Gross: every player plays their full handicap."}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["net", "gross"] as const).map(mode => {
+                const selected = setupHandicapMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setSetupHandicapMode(mode)}
+                    className="py-2 rounded-lg text-sm font-sans font-semibold uppercase tracking-widest transition-all"
+                    style={{
+                      background: selected ? "hsl(42 52% 59%)" : "white",
+                      color: selected ? "hsl(38 30% 12%)" : "hsl(38 20% 38%)",
+                      border: selected ? "1.5px solid hsl(42 52% 59%)" : "1.5px solid hsl(38 25% 72%)",
+                    }}
+                  >
+                    {mode}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

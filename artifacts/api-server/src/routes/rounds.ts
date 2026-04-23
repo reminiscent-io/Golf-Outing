@@ -59,6 +59,10 @@ router.post("/trips/:tripId/rounds", async (req, res): Promise<void> => {
     par: (parsed.data.par as number[] | undefined) ?? DEFAULT_PAR,
     holeHcp: (parsed.data.holeHcp as number[] | undefined) ?? DEFAULT_HCP,
     gamesConfig: parsed.data.gamesConfig ?? DEFAULT_GAMES,
+    handicapMode: parsed.data.handicapMode ?? "net",
+    teeBox: parsed.data.teeBox ?? null,
+    courseRating: parsed.data.courseRating ?? null,
+    courseSlope: parsed.data.courseSlope ?? null,
   }).returning();
   res.status(201).json(GetRoundResponse.parse(ser(round)));
 });
@@ -95,6 +99,10 @@ router.patch("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> =
   if (parsed.data.par !== undefined) updateData.par = parsed.data.par;
   if (parsed.data.holeHcp !== undefined) updateData.holeHcp = parsed.data.holeHcp;
   if (parsed.data.gamesConfig !== undefined) updateData.gamesConfig = parsed.data.gamesConfig;
+  if (parsed.data.handicapMode !== undefined) updateData.handicapMode = parsed.data.handicapMode;
+  if (parsed.data.teeBox !== undefined) updateData.teeBox = parsed.data.teeBox;
+  if (parsed.data.courseRating !== undefined) updateData.courseRating = parsed.data.courseRating;
+  if (parsed.data.courseSlope !== undefined) updateData.courseSlope = parsed.data.courseSlope;
 
   const [round] = await db.update(roundsTable).set(updateData)
     .where(and(eq(roundsTable.id, params.data.roundId), eq(roundsTable.tripId, params.data.tripId)))

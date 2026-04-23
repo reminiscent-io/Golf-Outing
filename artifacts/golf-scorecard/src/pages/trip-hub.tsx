@@ -68,6 +68,10 @@ export default function TripHubPage() {
   const [newRoundName, setNewRoundName] = useState("");
   const [newRoundCourse, setNewRoundCourse] = useState("");
   const [newRoundDate, setNewRoundDate] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [newRoundTeeBox, setNewRoundTeeBox] = useState("");
+  const [newRoundRating, setNewRoundRating] = useState("");
+  const [newRoundSlope, setNewRoundSlope] = useState("");
 
   function handleAddPlayer(e: React.FormEvent) {
     e.preventDefault();
@@ -109,6 +113,8 @@ export default function TripHubPage() {
   function handleAddRound(e: React.FormEvent) {
     e.preventDefault();
     if (!newRoundName.trim()) return;
+    const ratingNum = parseFloat(newRoundRating);
+    const slopeNum = parseInt(newRoundSlope);
     createRound.mutate(
       {
         tripId,
@@ -116,6 +122,9 @@ export default function TripHubPage() {
           name: newRoundName.trim(),
           course: newRoundCourse || null,
           date: newRoundDate || null,
+          teeBox: newRoundTeeBox.trim() || null,
+          courseRating: isNaN(ratingNum) ? null : ratingNum,
+          courseSlope: isNaN(slopeNum) ? null : slopeNum,
         },
       },
       {
@@ -125,6 +134,10 @@ export default function TripHubPage() {
           setNewRoundName("");
           setNewRoundCourse("");
           setNewRoundDate("");
+          setShowAdvanced(false);
+          setNewRoundTeeBox("");
+          setNewRoundRating("");
+          setNewRoundSlope("");
           navigate(`/trips/${tripId}/rounds/${round.id}`);
         },
       }
@@ -249,6 +262,51 @@ export default function TripHubPage() {
                       />
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced(v => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-sans font-semibold uppercase tracking-widest"
+                    style={{ background: "white", border: "1.5px solid hsl(38 25% 72%)", color: "hsl(38 20% 38%)" }}
+                  >
+                    <span>Advanced · Tee box, Rating, Slope</span>
+                    <span style={{ transform: showAdvanced ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>&#8250;</span>
+                  </button>
+                  {showAdvanced && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Tee Box</label>
+                        <input
+                          value={newRoundTeeBox}
+                          onChange={e => setNewRoundTeeBox(e.target.value)}
+                          placeholder="Blue"
+                          className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                          style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Rating</label>
+                        <input
+                          type="number" step="0.1" min="55" max="80"
+                          value={newRoundRating}
+                          onChange={e => setNewRoundRating(e.target.value)}
+                          placeholder="71.4"
+                          className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
+                          style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Slope</label>
+                        <input
+                          type="number" min="55" max="155"
+                          value={newRoundSlope}
+                          onChange={e => setNewRoundSlope(e.target.value)}
+                          placeholder="113"
+                          className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
+                          style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button

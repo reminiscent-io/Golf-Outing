@@ -39,12 +39,18 @@ router.get("/trips/:tripId/rounds/:roundId/leaderboard", async (req, res): Promi
   });
 
   const minHcp = fieldMinHandicap(players);
+  const mode = (round.handicapMode ?? "net") as "net" | "gross";
+  const course = {
+    slope: round.courseSlope,
+    rating: round.courseRating,
+    totalPar: par.reduce((a, b) => a + b, 0),
+  };
   const stats = players.map(p => {
     const holeScores = allHoleScoresMap.get(p.id) || Array(18).fill(null);
-    return computePlayerStats(p, holeScores, par, holeHcp, minHcp);
+    return computePlayerStats(p, holeScores, par, holeHcp, minHcp, mode, course);
   });
 
-  const { skinsWon, perHole } = computeSkins(players, allHoleScoresMap, holeHcp, minHcp);
+  const { skinsWon, perHole } = computeSkins(players, allHoleScoresMap, holeHcp, minHcp, mode, course);
   const nassau = computeNassau(stats);
 
   const entries = stats.map(s => ({
@@ -128,12 +134,18 @@ router.get("/trips/:tripId/leaderboard", async (req, res): Promise<void> => {
     });
 
     const minHcp = fieldMinHandicap(players);
+    const mode = (round.handicapMode ?? "net") as "net" | "gross";
+    const course = {
+      slope: round.courseSlope,
+      rating: round.courseRating,
+      totalPar: par.reduce((a, b) => a + b, 0),
+    };
     const stats = players.map(p => {
       const holeScores = allHoleScoresMap.get(p.id) || Array(18).fill(null);
-      return computePlayerStats(p, holeScores, par, holeHcp, minHcp);
+      return computePlayerStats(p, holeScores, par, holeHcp, minHcp, mode, course);
     });
 
-    const { skinsWon } = computeSkins(players, allHoleScoresMap, holeHcp, minHcp);
+    const { skinsWon } = computeSkins(players, allHoleScoresMap, holeHcp, minHcp, mode, course);
 
     stats.forEach(s => {
       if (s.holesPlayed === 0) return;

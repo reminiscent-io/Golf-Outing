@@ -71,6 +71,8 @@ export interface GamesConfig {
   matchPlayMatches?: Match[];
 }
 
+export type HandicapMode = "net" | "gross";
+
 export interface Round {
   id: number;
   tripId: number;
@@ -84,6 +86,14 @@ export interface Round {
   /** 18 values - handicap stroke index for each hole (1-18) */
   holeHcp: number[];
   gamesConfig: GamesConfig;
+  /** net = course-adjusted (low plays scratch); gross = use raw handicap */
+  handicapMode: HandicapMode;
+  /** @nullable */
+  teeBox?: string | null;
+  /** @nullable */
+  courseRating?: number | null;
+  /** @nullable */
+  courseSlope?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -97,6 +107,13 @@ export interface CreateRoundBody {
   par?: number[];
   holeHcp?: number[];
   gamesConfig?: GamesConfig;
+  handicapMode?: HandicapMode;
+  /** @nullable */
+  teeBox?: string | null;
+  /** @nullable */
+  courseRating?: number | null;
+  /** @nullable */
+  courseSlope?: number | null;
 }
 
 export interface UpdateRoundBody {
@@ -108,6 +125,13 @@ export interface UpdateRoundBody {
   par?: number[];
   holeHcp?: number[];
   gamesConfig?: GamesConfig;
+  handicapMode?: HandicapMode;
+  /** @nullable */
+  teeBox?: string | null;
+  /** @nullable */
+  courseRating?: number | null;
+  /** @nullable */
+  courseSlope?: number | null;
 }
 
 export interface PlayerScore {

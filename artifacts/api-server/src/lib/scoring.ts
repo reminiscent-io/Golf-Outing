@@ -7,17 +7,44 @@ export function strokesOnHole(playerHcp: number, holeHcpIdx: number): number {
   return strokes;
 }
 
-// Course-adjusted (a.k.a. playing) handicap for a field of players: the lowest
-// handicap plays to scratch and others receive their differential, rounded to
-// a whole number of strokes for stroke allocation.
-export function courseHandicap(playerHcp: number, fieldMinHcp: number): number {
-  const diff = (Number(playerHcp) || 0) - (Number(fieldMinHcp) || 0);
-  return Math.max(0, Math.round(diff));
+export type HandicapMode = "net" | "gross";
+
+export type CourseInputs = {
+  slope?: number | null;
+  rating?: number | null;
+  totalPar?: number | null;
+};
+
+// WHS Course Handicap = Index × (Slope/113) + (Course Rating − Par), rounded.
+// When slope/rating aren't supplied, falls back to a straight rounded index.
+export function whsCourseHandicap(handicapIndex: number, course: CourseInputs = {}): number {
+  const idx = Number(handicapIndex) || 0;
+  const slopeAdjust = (course.slope ?? 113) / 113;
+  const ratingDiff = (course.rating != null && course.totalPar != null)
+    ? (course.rating - course.totalPar)
+    : 0;
+  return Math.round(idx * slopeAdjust + ratingDiff);
 }
 
 export function fieldMinHandicap(players: { handicap: number }[]): number {
   if (players.length === 0) return 0;
   return Math.min(...players.map(p => Number(p.handicap) || 0));
+}
+
+// Resolve the playing handicap used for per-hole stroke allocation. In "net"
+// mode each player's WHS Course Handicap is collapsed against the field's
+// minimum so the low handicap plays scratch; in "gross" mode every player
+// plays their full Course Handicap.
+export function effectiveHandicap(
+  playerHcp: number,
+  fieldMinHcp: number,
+  mode: HandicapMode,
+  course: CourseInputs = {}
+): number {
+  const ch = whsCourseHandicap(playerHcp, course);
+  if (mode === "gross") return Math.max(0, ch);
+  const minCh = whsCourseHandicap(fieldMinHcp, course);
+  return Math.max(0, ch - minCh);
 }
 
 export function netForHole(gross: number | null, playerHcp: number, holeHcpIdx: number): number | null {
@@ -61,7 +88,9 @@ export function computePlayerStats(
   holeScores: (number | null)[],
   par: number[],
   holeHcp: number[],
-  fieldMinHcp: number = 0
+  fieldMinHcp: number = 0,
+  mode: HandicapMode = "net",
+  course: CourseInputs = {}
 ): PlayerRoundStats {
   const grossHoles: (number | null)[] = [];
   const netHoles: (number | null)[] = [];
@@ -71,7 +100,7 @@ export function computePlayerStats(
   let sfTotal = 0;
   let holesPlayed = 0;
   let hasGross = false;
-  const playingHcp = courseHandicap(player.handicap, fieldMinHcp);
+  const playingHcp = effectiveHandicap(player.handicap, fieldMinHcp, mode, course);
 
   for (let h = 0; h < 18; h++) {
     const g = holeScores[h] ?? null;
@@ -128,14 +157,16 @@ export function computeSkins(
   players: { id: number; name: string; handicap: number }[],
   allHoleScores: Map<number, (number | null)[]>,
   holeHcp: number[],
-  fieldMinHcp: number = 0
+  fieldMinHcp: number = 0,
+  mode: HandicapMode = "net",
+  course: CourseInputs = {}
 ): { skinsWon: Record<number, number>; perHole: SkinHoleResult[] } {
   const skinsWon: Record<number, number> = {};
   players.forEach(p => { skinsWon[p.id] = 0; });
   let carry = 1;
   const perHole: SkinHoleResult[] = [];
   const playingHcps = new Map<number, number>(
-    players.map(p => [p.id, courseHandicap(p.handicap, fieldMinHcp)])
+    players.map(p => [p.id, effectiveHandicap(p.handicap, fieldMinHcp, mode, course)])
   );
 
   for (let h = 0; h < 18; h++) {

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, real, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { tripsTable } from "./trips";
@@ -21,6 +21,10 @@ export const roundsTable = pgTable("rounds", {
     matchPlay: false,
     matchPlayMatches: [],
   }),
+  handicapMode: text("handicap_mode", { enum: ["net", "gross"] }).notNull().default("net"),
+  teeBox: text("tee_box"),
+  courseRating: real("course_rating"),
+  courseSlope: integer("course_slope"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
