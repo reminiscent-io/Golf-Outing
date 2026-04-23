@@ -13,6 +13,13 @@ import {
   getGetTripLeaderboardQueryKey,
 } from "@workspace/api-client-react";
 import { ArrowLeft, Settings, Trophy, Grid3X3 } from "lucide-react";
+import {
+  searchCourses,
+  getCourseDetail,
+  type CourseSearchResult,
+  type CourseDetail,
+  type CourseTee,
+} from "@/lib/course-lookup";
 
 type SubTab = "scorecard" | "results" | "setup";
 
@@ -25,13 +32,36 @@ function strokesOnHole(hcp: number, holeHcpIdx: number): number {
   return s;
 }
 
-function netScore(gross: number, hcp: number, holeHcpIdx: number) {
-  return gross - strokesOnHole(hcp, holeHcpIdx);
+type HandicapMode = "net" | "gross";
+type CourseInputs = { slope?: number | null; rating?: number | null; totalPar?: number | null };
+
+// WHS Course Handicap = Index × (Slope/113) + (Course Rating − Par), rounded.
+function whsCourseHandicap(idx: number, course: CourseInputs): number {
+  const slopeAdjust = (course.slope ?? 113) / 113;
+  const ratingDiff = (course.rating != null && course.totalPar != null)
+    ? (course.rating - course.totalPar)
+    : 0;
+  return Math.round((idx || 0) * slopeAdjust + ratingDiff);
 }
 
-function scoreClass(gross: number | null, par: number, hcp: number, holeHcpIdx: number): string {
+function effectiveHandicap(playerHcp: number, fieldMinHcp: number, mode: HandicapMode, course: CourseInputs): number {
+  const ch = whsCourseHandicap(playerHcp, course);
+  if (mode === "gross") return Math.max(0, ch);
+  const minCh = whsCourseHandicap(fieldMinHcp, course);
+  return Math.max(0, ch - minCh);
+}
+
+function formatHandicap(h: number): string {
+  return (Math.round(h * 10) / 10).toFixed(1);
+}
+
+function netScore(gross: number, playingHcp: number, holeHcpIdx: number) {
+  return gross - strokesOnHole(playingHcp, holeHcpIdx);
+}
+
+function scoreClass(gross: number | null, par: number, playingHcp: number, holeHcpIdx: number): string {
   if (gross == null) return "score-empty";
-  const net = netScore(gross, hcp, holeHcpIdx);
+  const net = netScore(gross, playingHcp, holeHcpIdx);
   const diff = net - par;
   if (diff <= -2) return "score-eagle";
   if (diff === -1) return "score-birdie";
@@ -40,9 +70,9 @@ function scoreClass(gross: number | null, par: number, hcp: number, holeHcpIdx: 
   return "score-double";
 }
 
-function scoreLabel(gross: number | null, par: number, hcp: number, holeHcpIdx: number): string {
+function scoreLabel(gross: number | null, par: number, playingHcp: number, holeHcpIdx: number): string {
   if (gross == null) return "";
-  const net = netScore(gross, hcp, holeHcpIdx);
+  const net = netScore(gross, playingHcp, holeHcpIdx);
   const diff = net - par;
   if (diff <= -3) return "Albatross";
   if (diff === -2) return "Eagle";
@@ -146,7 +176,78 @@ export default function RoundPage() {
   const [setupGames, setSetupGames] = useState<Record<string, boolean>>({});
   const [setupCourse, setSetupCourse] = useState("");
   const [setupDate, setSetupDate] = useState("");
+  const [setupHandicapMode, setSetupHandicapMode] = useState<HandicapMode>("net");
+  const [setupTeeBox, setSetupTeeBox] = useState("");
+  const [setupRating, setSetupRating] = useState("");
+  const [setupSlope, setSetupSlope] = useState("");
   const setupInitialized = useRef(false);
+
+  // Course lookup state for the Setup tab.
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupResults, setLookupResults] = useState<CourseSearchResult[]>([]);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(null);
+  const [selectedTeeId, setSelectedTeeId] = useState<string>("");
+
+  useEffect(() => {
+    const q = lookupQuery.trim();
+    if (q.length < 3) {
+      setLookupResults([]);
+      setLookupError(null);
+      setLookupLoading(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      setLookupLoading(true);
+      setLookupError(null);
+      searchCourses(q, ctrl.signal)
+        .then(r => setLookupResults(r.results))
+        .catch(err => {
+          if (ctrl.signal.aborted) return;
+          setLookupError(err?.message ?? "Search failed");
+          setLookupResults([]);
+        })
+        .finally(() => { if (!ctrl.signal.aborted) setLookupLoading(false); });
+    }, 300);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [lookupQuery]);
+
+  function applyTee(tee: CourseTee, clubName: string) {
+    setSetupTeeBox(tee.name);
+    setSetupRating(tee.rating != null ? String(tee.rating) : "");
+    setSetupSlope(tee.slope != null ? String(tee.slope) : "");
+    setSetupPar(tee.par);
+    setSetupHcp(tee.holeHcp);
+    setSelectedTeeId(tee.id);
+    if (!setupCourse.trim()) setSetupCourse(clubName);
+  }
+
+  async function pickCourse(result: CourseSearchResult) {
+    setLookupResults([]);
+    setLookupQuery(result.clubName);
+    setLookupError(null);
+    setLookupLoading(true);
+    try {
+      const detail = await getCourseDetail(result.id);
+      setSelectedCourse(detail);
+      setSelectedTeeId("");
+      if (detail.tees.length === 1) applyTee(detail.tees[0], detail.clubName);
+    } catch (err) {
+      setLookupError((err as Error)?.message ?? "Failed to load course");
+    } finally {
+      setLookupLoading(false);
+    }
+  }
+
+  function clearLookup() {
+    setLookupQuery("");
+    setLookupResults([]);
+    setSelectedCourse(null);
+    setSelectedTeeId("");
+    setLookupError(null);
+  }
 
   useEffect(() => {
     if (round && !setupInitialized.current) {
@@ -161,11 +262,17 @@ export default function RoundPage() {
       });
       setSetupCourse(round.course ?? "");
       setSetupDate(round.date ?? "");
+      setSetupHandicapMode((round.handicapMode as HandicapMode | undefined) ?? "net");
+      setSetupTeeBox(round.teeBox ?? "");
+      setSetupRating(round.courseRating != null ? String(round.courseRating) : "");
+      setSetupSlope(round.courseSlope != null ? String(round.courseSlope) : "");
       setupInitialized.current = true;
     }
   }, [round]);
 
   function handleSaveSetup() {
+    const ratingNum = parseFloat(setupRating);
+    const slopeNum = parseInt(setupSlope);
     updateRound.mutate(
       {
         tripId,
@@ -183,6 +290,10 @@ export default function RoundPage() {
             bestBall: false,
             matchPlay: false,
           },
+          handicapMode: setupHandicapMode,
+          teeBox: setupTeeBox.trim() || null,
+          courseRating: isNaN(ratingNum) ? null : ratingNum,
+          courseSlope: isNaN(slopeNum) ? null : slopeNum,
         },
       },
       {
@@ -195,6 +306,23 @@ export default function RoundPage() {
 
   const par = (round?.par as number[]) || Array(18).fill(4);
   const holeHcp = (round?.holeHcp as number[]) || Array.from({ length: 18 }, (_, i) => i + 1);
+  const handicapMode: HandicapMode = (round?.handicapMode as HandicapMode | undefined) ?? "net";
+  const course: CourseInputs = {
+    slope: round?.courseSlope ?? null,
+    rating: round?.courseRating ?? null,
+    totalPar: par.reduce((a, b) => a + b, 0),
+  };
+
+  // Playing handicap per player. In "net" mode the lowest handicap plays
+  // scratch and others receive the integer difference from the WHS course
+  // handicap formula; in "gross" mode each player plays their full course
+  // handicap.
+  const fieldMinHcp = players && players.length > 0
+    ? Math.min(...players.map(p => p.handicap || 0))
+    : 0;
+  const playingHcps = new Map<number, number>(
+    (players ?? []).map(p => [p.id, effectiveHandicap(p.handicap, fieldMinHcp, handicapMode, course)])
+  );
 
   const SUBTABS: { id: SubTab; label: string; icon: typeof Trophy }[] = [
     { id: "scorecard", label: "Scorecard", icon: Grid3X3 },
@@ -290,7 +418,12 @@ export default function RoundPage() {
                       <th key={p.id} className="px-2 py-2.5 text-center text-xs font-sans font-semibold"
                         style={{ color: "hsl(42 45% 80%)" }}>
                         <div style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
-                        <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 10 }}>HCP {p.handicap}</div>
+                        <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 10 }}>
+                          HCP {formatHandicap(p.handicap)}
+                          {(playingHcps.get(p.id) ?? 0) !== p.handicap && (
+                            <span style={{ color: "hsl(42 35% 50%)" }}> · CH {playingHcps.get(p.id) ?? 0}</span>
+                          )}
+                        </div>
                       </th>
                     ))}
                   </tr>
@@ -368,8 +501,8 @@ export default function RoundPage() {
                                 ) : (
                                   <button
                                     onClick={() => startEdit(p.id, holeIdx)}
-                                    className={`w-10 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], p.handicap, holeHcp[holeIdx])}`}
-                                    title={gross != null ? scoreLabel(gross, par[holeIdx], p.handicap, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
+                                    className={`w-10 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx])}`}
+                                    title={gross != null ? scoreLabel(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
                                   >
                                     {gross ?? "·"}
                                   </button>
@@ -545,6 +678,94 @@ export default function RoundPage() {
       {/* SETUP TAB */}
       {subTab === "setup" && (
         <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-5 space-y-6">
+          {/* Course lookup */}
+          <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
+            <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>Look up course</h3>
+            <p className="text-xs font-sans mb-2" style={{ color: "hsl(38 20% 45%)" }}>
+              Type a club name, pick a course and a tee to populate slope, rating, par and stroke index.
+            </p>
+            <div className="relative">
+              <input
+                value={lookupQuery}
+                onChange={e => { setLookupQuery(e.target.value); setSelectedCourse(null); setSelectedTeeId(""); }}
+                placeholder="e.g. Pinehurst"
+                className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+              />
+              {lookupLoading && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>…</span>
+              )}
+              {!selectedCourse && lookupResults.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg overflow-hidden max-h-60 overflow-y-auto"
+                  style={{ background: "white", border: "1.5px solid hsl(38 25% 72%)", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+                  {lookupResults.map(r => (
+                    <button
+                      type="button"
+                      key={r.id}
+                      onClick={() => pickCourse(r)}
+                      className="w-full text-left px-3 py-2 text-sm font-sans hover:opacity-80"
+                      style={{ color: "hsl(38 30% 14%)", borderBottom: "1px solid hsl(38 25% 88%)" }}
+                    >
+                      <div className="font-semibold">{r.clubName}{r.courseName ? ` — ${r.courseName}` : ""}</div>
+                      {r.location && (
+                        <div className="text-xs" style={{ color: "hsl(38 20% 45%)" }}>{r.location}</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {lookupError && (
+              <div className="text-xs font-sans mt-1" style={{ color: "hsl(0 55% 40%)" }}>{lookupError}</div>
+            )}
+            {selectedCourse && (
+              <div className="mt-2 rounded-lg px-3 py-2 flex items-center justify-between"
+                style={{ background: "hsl(42 30% 86%)", border: "1px solid hsl(38 25% 78%)" }}>
+                <div className="text-xs font-sans" style={{ color: "hsl(38 30% 14%)" }}>
+                  <div className="font-semibold">{selectedCourse.clubName}</div>
+                  {selectedCourse.courseName && (
+                    <div style={{ color: "hsl(38 20% 45%)" }}>{selectedCourse.courseName}</div>
+                  )}
+                </div>
+                <button type="button" onClick={clearLookup}
+                  className="text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>
+                  Clear
+                </button>
+              </div>
+            )}
+            {selectedCourse && selectedCourse.tees.length > 0 && (
+              <div className="mt-3">
+                <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>
+                  Tee box ({selectedCourse.tees.length})
+                </label>
+                <select
+                  value={selectedTeeId}
+                  onChange={e => {
+                    const tee = selectedCourse.tees.find(t => t.id === e.target.value);
+                    if (tee) applyTee(tee, selectedCourse.clubName);
+                  }}
+                  className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                >
+                  <option value="">Select a tee…</option>
+                  {selectedCourse.tees.map(t => {
+                    const meta = [
+                      t.gender,
+                      t.rating != null ? `CR ${t.rating}` : null,
+                      t.slope != null ? `SR ${t.slope}` : null,
+                      t.totalYards != null ? `${t.totalYards} yds` : null,
+                    ].filter(Boolean).join(" · ");
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {t.name}{meta ? ` (${meta})` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+          </div>
+
           {/* Course info */}
           <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
             <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-3" style={{ color: "hsl(38 20% 38%)" }}>Course Info</h3>
@@ -569,6 +790,70 @@ export default function RoundPage() {
                   style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              <div>
+                <label className="block text-xs font-sans mb-1" style={{ color: "hsl(38 20% 38%)" }}>Tee Box</label>
+                <input
+                  value={setupTeeBox}
+                  onChange={e => setSetupTeeBox(e.target.value)}
+                  placeholder="Blue"
+                  className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-sans mb-1" style={{ color: "hsl(38 20% 38%)" }}>Rating</label>
+                <input
+                  type="number" step="0.1" min="55" max="80"
+                  value={setupRating}
+                  onChange={e => setSetupRating(e.target.value)}
+                  placeholder="71.4"
+                  className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-sans mb-1" style={{ color: "hsl(38 20% 38%)" }}>Slope</label>
+                <input
+                  type="number" min="55" max="155"
+                  value={setupSlope}
+                  onChange={e => setSetupSlope(e.target.value)}
+                  placeholder="113"
+                  className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Handicap mode */}
+          <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
+            <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Handicap</h3>
+            <p className="text-xs font-sans mb-3" style={{ color: "hsl(38 20% 45%)" }}>
+              {setupHandicapMode === "net"
+                ? "Net: lowest handicap plays scratch, others play the difference."
+                : "Gross: every player plays their full handicap."}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["net", "gross"] as const).map(mode => {
+                const selected = setupHandicapMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setSetupHandicapMode(mode)}
+                    className="py-2 rounded-lg text-sm font-sans font-semibold uppercase tracking-widest transition-all"
+                    style={{
+                      background: selected ? "hsl(42 52% 59%)" : "white",
+                      color: selected ? "hsl(38 30% 12%)" : "hsl(38 20% 38%)",
+                      border: selected ? "1.5px solid hsl(42 52% 59%)" : "1.5px solid hsl(38 25% 72%)",
+                    }}
+                  >
+                    {mode}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

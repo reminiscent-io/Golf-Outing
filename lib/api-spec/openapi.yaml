@@ -486,7 +486,7 @@ components:
         name:
           type: string
         handicap:
-          type: integer
+          type: number
         createdAt:
           type: string
       required:
@@ -502,7 +502,7 @@ components:
         name:
           type: string
         handicap:
-          type: integer
+          type: number
       required:
         - name
         - handicap
@@ -513,7 +513,7 @@ components:
         name:
           type: string
         handicap:
-          type: integer
+          type: number
 
     Round:
       type: object
@@ -540,6 +540,16 @@ components:
           description: 18 values - handicap stroke index for each hole (1-18)
         gamesConfig:
           $ref: "#/components/schemas/GamesConfig"
+        handicapMode:
+          type: string
+          enum: [net, gross]
+          description: "net = course-adjusted (low plays scratch); gross = use raw handicap"
+        teeBox:
+          type: ["string", "null"]
+        courseRating:
+          type: ["number", "null"]
+        courseSlope:
+          type: ["integer", "null"]
         createdAt:
           type: string
         updatedAt:
@@ -551,6 +561,7 @@ components:
         - par
         - holeHcp
         - gamesConfig
+        - handicapMode
         - createdAt
         - updatedAt
 
@@ -634,6 +645,15 @@ components:
             type: integer
         gamesConfig:
           $ref: "#/components/schemas/GamesConfig"
+        handicapMode:
+          type: string
+          enum: [net, gross]
+        teeBox:
+          type: ["string", "null"]
+        courseRating:
+          type: ["number", "null"]
+        courseSlope:
+          type: ["integer", "null"]
       required:
         - name
 
@@ -656,6 +676,15 @@ components:
             type: integer
         gamesConfig:
           $ref: "#/components/schemas/GamesConfig"
+        handicapMode:
+          type: string
+          enum: [net, gross]
+        teeBox:
+          type: ["string", "null"]
+        courseRating:
+          type: ["number", "null"]
+        courseSlope:
+          type: ["integer", "null"]
 
     PlayerScore:
       type: object
@@ -700,7 +729,7 @@ components:
         playerName:
           type: string
         handicap:
-          type: integer
+          type: number
         grossTotal:
           type: ["integer", "null"]
         netTotal:
@@ -785,7 +814,7 @@ components:
         playerName:
           type: string
         handicap:
-          type: integer
+          type: number
         roundsPlayed:
           type: integer
         totalGross:

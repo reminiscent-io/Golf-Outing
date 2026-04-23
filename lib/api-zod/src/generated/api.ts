@@ -176,6 +176,10 @@ export const ListRoundsResponseItem = zod.object({
       )
       .optional(),
   }),
+  handicapMode: zod.enum(["net", "gross"]),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -222,6 +226,10 @@ export const CreateRoundBody = zod.object({
         .optional(),
     })
     .optional(),
+  handicapMode: zod.enum(["net", "gross"]).optional(),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
 });
 
 /**
@@ -268,6 +276,10 @@ export const GetRoundResponse = zod.object({
       )
       .optional(),
   }),
+  handicapMode: zod.enum(["net", "gross"]),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -314,6 +326,10 @@ export const UpdateRoundBody = zod.object({
         .optional(),
     })
     .optional(),
+  handicapMode: zod.enum(["net", "gross"]).optional(),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
 });
 
 export const UpdateRoundResponse = zod.object({
@@ -352,6 +368,10 @@ export const UpdateRoundResponse = zod.object({
       )
       .optional(),
   }),
+  handicapMode: zod.enum(["net", "gross"]),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });

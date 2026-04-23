@@ -7,7 +7,7 @@ import {
   GetTripLeaderboardParams,
   GetTripLeaderboardResponse,
 } from "@workspace/api-zod";
-import { computePlayerStats, computeSkins, computeNassau } from "../lib/scoring";
+import { computePlayerStats, computeSkins, computeNassau, fieldMinHandicap } from "../lib/scoring";
 
 const router: IRouter = Router();
 
@@ -38,12 +38,19 @@ router.get("/trips/:tripId/rounds/:roundId/leaderboard", async (req, res): Promi
     allHoleScoresMap.set(s.playerId, s.holeScores as (number | null)[]);
   });
 
+  const minHcp = fieldMinHandicap(players);
+  const mode = (round.handicapMode ?? "net") as "net" | "gross";
+  const course = {
+    slope: round.courseSlope,
+    rating: round.courseRating,
+    totalPar: par.reduce((a, b) => a + b, 0),
+  };
   const stats = players.map(p => {
     const holeScores = allHoleScoresMap.get(p.id) || Array(18).fill(null);
-    return computePlayerStats(p, holeScores, par, holeHcp);
+    return computePlayerStats(p, holeScores, par, holeHcp, minHcp, mode, course);
   });
 
-  const { skinsWon, perHole } = computeSkins(players, allHoleScoresMap, holeHcp);
+  const { skinsWon, perHole } = computeSkins(players, allHoleScoresMap, holeHcp, minHcp, mode, course);
   const nassau = computeNassau(stats);
 
   const entries = stats.map(s => ({
@@ -126,12 +133,19 @@ router.get("/trips/:tripId/leaderboard", async (req, res): Promise<void> => {
       allHoleScoresMap.set(s.playerId, s.holeScores as (number | null)[]);
     });
 
+    const minHcp = fieldMinHandicap(players);
+    const mode = (round.handicapMode ?? "net") as "net" | "gross";
+    const course = {
+      slope: round.courseSlope,
+      rating: round.courseRating,
+      totalPar: par.reduce((a, b) => a + b, 0),
+    };
     const stats = players.map(p => {
       const holeScores = allHoleScoresMap.get(p.id) || Array(18).fill(null);
-      return computePlayerStats(p, holeScores, par, holeHcp);
+      return computePlayerStats(p, holeScores, par, holeHcp, minHcp, mode, course);
     });
 
-    const { skinsWon } = computeSkins(players, allHoleScoresMap, holeHcp);
+    const { skinsWon } = computeSkins(players, allHoleScoresMap, holeHcp, minHcp, mode, course);
 
     stats.forEach(s => {
       if (s.holesPlayed === 0) return;
