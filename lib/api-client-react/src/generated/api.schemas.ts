@@ -22,12 +22,15 @@ export interface CreateTripBody {
   name: string;
   /** @nullable */
   description?: string | null;
+  /** Plaintext soft gate password. Stored lowercased-compared. Empty string disables the gate. */
+  password?: string;
 }
 
 export interface UpdateTripBody {
   name?: string;
   /** @nullable */
   description?: string | null;
+  password?: string;
 }
 
 export interface Player {
@@ -47,6 +50,17 @@ export interface UpdatePlayerBody {
   name?: string;
   handicap?: number;
 }
+
+/**
+ * net = course-adjusted (low plays scratch); gross = use raw handicap
+ */
+export type RoundHandicapMode =
+  (typeof RoundHandicapMode)[keyof typeof RoundHandicapMode];
+
+export const RoundHandicapMode = {
+  net: "net",
+  gross: "gross",
+} as const;
 
 export interface Team {
   id: string;
@@ -71,8 +85,6 @@ export interface GamesConfig {
   matchPlayMatches?: Match[];
 }
 
-export type HandicapMode = "net" | "gross";
-
 export interface Round {
   id: number;
   tripId: number;
@@ -87,7 +99,7 @@ export interface Round {
   holeHcp: number[];
   gamesConfig: GamesConfig;
   /** net = course-adjusted (low plays scratch); gross = use raw handicap */
-  handicapMode: HandicapMode;
+  handicapMode: RoundHandicapMode;
   /** @nullable */
   teeBox?: string | null;
   /** @nullable */
@@ -98,6 +110,14 @@ export interface Round {
   updatedAt: string;
 }
 
+export type CreateRoundBodyHandicapMode =
+  (typeof CreateRoundBodyHandicapMode)[keyof typeof CreateRoundBodyHandicapMode];
+
+export const CreateRoundBodyHandicapMode = {
+  net: "net",
+  gross: "gross",
+} as const;
+
 export interface CreateRoundBody {
   name: string;
   /** @nullable */
@@ -107,7 +127,7 @@ export interface CreateRoundBody {
   par?: number[];
   holeHcp?: number[];
   gamesConfig?: GamesConfig;
-  handicapMode?: HandicapMode;
+  handicapMode?: CreateRoundBodyHandicapMode;
   /** @nullable */
   teeBox?: string | null;
   /** @nullable */
@@ -115,6 +135,14 @@ export interface CreateRoundBody {
   /** @nullable */
   courseSlope?: number | null;
 }
+
+export type UpdateRoundBodyHandicapMode =
+  (typeof UpdateRoundBodyHandicapMode)[keyof typeof UpdateRoundBodyHandicapMode];
+
+export const UpdateRoundBodyHandicapMode = {
+  net: "net",
+  gross: "gross",
+} as const;
 
 export interface UpdateRoundBody {
   name?: string;
@@ -125,7 +153,7 @@ export interface UpdateRoundBody {
   par?: number[];
   holeHcp?: number[];
   gamesConfig?: GamesConfig;
-  handicapMode?: HandicapMode;
+  handicapMode?: UpdateRoundBodyHandicapMode;
   /** @nullable */
   teeBox?: string | null;
   /** @nullable */

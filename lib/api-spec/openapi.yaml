@@ -465,6 +465,9 @@ components:
           type: string
         description:
           type: ["string", "null"]
+        password:
+          type: string
+          description: Plaintext soft gate password. Stored lowercased-compared. Empty string disables the gate.
       required:
         - name
 
@@ -475,6 +478,8 @@ components:
           type: string
         description:
           type: ["string", "null"]
+        password:
+          type: string
 
     Player:
       type: object
