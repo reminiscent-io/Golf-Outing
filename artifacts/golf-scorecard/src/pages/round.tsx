@@ -8,6 +8,8 @@ import {
   useGetRoundLeaderboard,
   useUpsertScore,
   useUpdateRound,
+  getGetRoundQueryKey,
+  getListPlayersQueryKey,
   getGetScoresQueryKey,
   getGetRoundLeaderboardQueryKey,
   getGetTripLeaderboardQueryKey,
@@ -91,13 +93,17 @@ export default function RoundPage() {
   const queryClient = useQueryClient();
   const [subTab, setSubTab] = useState<SubTab>("scorecard");
 
-  const { data: round, isLoading: roundLoading } = useGetRound(tripId, roundId, { query: { enabled: !!tripId && !!roundId } });
-  const { data: players } = useListPlayers(tripId, { query: { enabled: !!tripId } });
+  const { data: round, isLoading: roundLoading } = useGetRound(tripId, roundId, {
+    query: { queryKey: getGetRoundQueryKey(tripId, roundId), enabled: !!tripId && !!roundId },
+  });
+  const { data: players } = useListPlayers(tripId, {
+    query: { queryKey: getListPlayersQueryKey(tripId), enabled: !!tripId },
+  });
   const { data: scoreRows, isLoading: scoresLoading } = useGetScores(tripId, roundId, {
-    query: { enabled: !!tripId && !!roundId, refetchInterval: 10000 },
+    query: { queryKey: getGetScoresQueryKey(tripId, roundId), enabled: !!tripId && !!roundId, refetchInterval: 10000 },
   });
   const { data: leaderboard, isLoading: lbLoading } = useGetRoundLeaderboard(tripId, roundId, {
-    query: { enabled: subTab === "results", refetchInterval: 10000 },
+    query: { queryKey: getGetRoundLeaderboardQueryKey(tripId, roundId), enabled: subTab === "results", refetchInterval: 10000 },
   });
 
   const upsertScore = useUpsertScore();
@@ -253,7 +259,7 @@ export default function RoundPage() {
     if (round && !setupInitialized.current) {
       setSetupPar((round.par as number[]) || Array(18).fill(4));
       setSetupHcp((round.holeHcp as number[]) || Array.from({ length: 18 }, (_, i) => i + 1));
-      const gc = round.gamesConfig as Record<string, boolean>;
+      const gc = round.gamesConfig as unknown as Record<string, boolean>;
       setSetupGames({
         stableford: gc?.stableford ?? true,
         skins: gc?.skins ?? true,
