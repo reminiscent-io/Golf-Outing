@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -19,6 +19,13 @@ import {
   ArrowLeft, Plus, Trash2, ChevronRight, Trophy, Flag,
   Users, Calendar, Edit3, Check, X
 } from "lucide-react";
+import {
+  searchCourses,
+  getCourseDetail,
+  type CourseSearchResult,
+  type CourseDetail,
+  type CourseTee,
+} from "@/lib/course-lookup";
 
 type Tab = "leaderboard" | "rounds" | "players";
 
@@ -72,6 +79,79 @@ export default function TripHubPage() {
   const [newRoundTeeBox, setNewRoundTeeBox] = useState("");
   const [newRoundRating, setNewRoundRating] = useState("");
   const [newRoundSlope, setNewRoundSlope] = useState("");
+  // Course lookup state (drives the Advanced panel's auto-fill).
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupResults, setLookupResults] = useState<CourseSearchResult[]>([]);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(null);
+  const [selectedTeeId, setSelectedTeeId] = useState<string>("");
+  const [lookupPar, setLookupPar] = useState<number[] | null>(null);
+  const [lookupHcp, setLookupHcp] = useState<number[] | null>(null);
+
+  // Debounced autocomplete search. Runs after the user pauses typing.
+  useEffect(() => {
+    const q = lookupQuery.trim();
+    if (q.length < 3) {
+      setLookupResults([]);
+      setLookupError(null);
+      setLookupLoading(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      setLookupLoading(true);
+      setLookupError(null);
+      searchCourses(q, ctrl.signal)
+        .then(r => setLookupResults(r.results))
+        .catch(err => {
+          if (ctrl.signal.aborted) return;
+          setLookupError(err?.message ?? "Search failed");
+          setLookupResults([]);
+        })
+        .finally(() => {
+          if (!ctrl.signal.aborted) setLookupLoading(false);
+        });
+    }, 300);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [lookupQuery]);
+
+  function applyTee(tee: CourseTee, clubName: string) {
+    setNewRoundTeeBox(tee.name);
+    setNewRoundRating(tee.rating != null ? String(tee.rating) : "");
+    setNewRoundSlope(tee.slope != null ? String(tee.slope) : "");
+    setLookupPar(tee.par);
+    setLookupHcp(tee.holeHcp);
+    setSelectedTeeId(tee.id);
+    if (!newRoundCourse.trim()) setNewRoundCourse(clubName);
+  }
+
+  async function pickCourse(result: CourseSearchResult) {
+    setLookupResults([]);
+    setLookupQuery(result.clubName);
+    setLookupError(null);
+    setLookupLoading(true);
+    try {
+      const detail = await getCourseDetail(result.id);
+      setSelectedCourse(detail);
+      setSelectedTeeId("");
+      if (detail.tees.length === 1) applyTee(detail.tees[0], detail.clubName);
+    } catch (err) {
+      setLookupError((err as Error)?.message ?? "Failed to load course");
+    } finally {
+      setLookupLoading(false);
+    }
+  }
+
+  function clearLookup() {
+    setLookupQuery("");
+    setLookupResults([]);
+    setSelectedCourse(null);
+    setSelectedTeeId("");
+    setLookupPar(null);
+    setLookupHcp(null);
+    setLookupError(null);
+  }
 
   function handleAddPlayer(e: React.FormEvent) {
     e.preventDefault();
@@ -125,6 +205,8 @@ export default function TripHubPage() {
           teeBox: newRoundTeeBox.trim() || null,
           courseRating: isNaN(ratingNum) ? null : ratingNum,
           courseSlope: isNaN(slopeNum) ? null : slopeNum,
+          ...(lookupPar ? { par: lookupPar } : {}),
+          ...(lookupHcp ? { holeHcp: lookupHcp } : {}),
         },
       },
       {
@@ -138,6 +220,7 @@ export default function TripHubPage() {
           setNewRoundTeeBox("");
           setNewRoundRating("");
           setNewRoundSlope("");
+          clearLookup();
           navigate(`/trips/${tripId}/rounds/${round.id}`);
         },
       }
@@ -272,39 +355,137 @@ export default function TripHubPage() {
                     <span style={{ transform: showAdvanced ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>&#8250;</span>
                   </button>
                   {showAdvanced && (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-3">
+                      {/* Course lookup */}
                       <div>
-                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Tee Box</label>
-                        <input
-                          value={newRoundTeeBox}
-                          onChange={e => setNewRoundTeeBox(e.target.value)}
-                          placeholder="Blue"
-                          className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
-                          style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
-                        />
+                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>
+                          Look up course
+                        </label>
+                        <div className="relative">
+                          <input
+                            value={lookupQuery}
+                            onChange={e => { setLookupQuery(e.target.value); setSelectedCourse(null); setSelectedTeeId(""); }}
+                            placeholder="Start typing a club or course name…"
+                            className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                            style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                          />
+                          {lookupLoading && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>…</span>
+                          )}
+                          {!selectedCourse && lookupResults.length > 0 && (
+                            <div className="absolute z-20 mt-1 w-full rounded-lg overflow-hidden max-h-60 overflow-y-auto"
+                              style={{ background: "white", border: "1.5px solid hsl(38 25% 72%)", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+                              {lookupResults.map(r => (
+                                <button
+                                  type="button"
+                                  key={r.id}
+                                  onClick={() => pickCourse(r)}
+                                  className="w-full text-left px-3 py-2 text-sm font-sans hover:opacity-80"
+                                  style={{ color: "hsl(38 30% 14%)", borderBottom: "1px solid hsl(38 25% 88%)" }}
+                                >
+                                  <div className="font-semibold">{r.clubName}{r.courseName ? ` — ${r.courseName}` : ""}</div>
+                                  {r.location && (
+                                    <div className="text-xs" style={{ color: "hsl(38 20% 45%)" }}>{r.location}</div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {lookupError && (
+                          <div className="text-xs font-sans mt-1" style={{ color: "hsl(0 55% 40%)" }}>{lookupError}</div>
+                        )}
+                        {selectedCourse && (
+                          <div className="mt-2 rounded-lg px-3 py-2 flex items-center justify-between"
+                            style={{ background: "hsl(42 30% 86%)", border: "1px solid hsl(38 25% 78%)" }}>
+                            <div className="text-xs font-sans" style={{ color: "hsl(38 30% 14%)" }}>
+                              <div className="font-semibold">{selectedCourse.clubName}</div>
+                              {selectedCourse.courseName && (
+                                <div style={{ color: "hsl(38 20% 45%)" }}>{selectedCourse.courseName}</div>
+                              )}
+                            </div>
+                            <button type="button" onClick={clearLookup}
+                              className="text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>
+                              Clear
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Rating</label>
-                        <input
-                          type="number" step="0.1" min="55" max="80"
-                          value={newRoundRating}
-                          onChange={e => setNewRoundRating(e.target.value)}
-                          placeholder="71.4"
-                          className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
-                          style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
-                        />
+
+                      {/* Tee selector (shown after a course is picked) */}
+                      {selectedCourse && selectedCourse.tees.length > 0 && (
+                        <div>
+                          <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>
+                            Tee box ({selectedCourse.tees.length})
+                          </label>
+                          <select
+                            value={selectedTeeId}
+                            onChange={e => {
+                              const tee = selectedCourse.tees.find(t => t.id === e.target.value);
+                              if (tee) applyTee(tee, selectedCourse.clubName);
+                            }}
+                            className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                            style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                          >
+                            <option value="">Select a tee…</option>
+                            {selectedCourse.tees.map(t => {
+                              const parts = [t.name];
+                              if (t.gender) parts.push(t.gender);
+                              const meta = [
+                                t.rating != null ? `CR ${t.rating}` : null,
+                                t.slope != null ? `SR ${t.slope}` : null,
+                                t.totalYards != null ? `${t.totalYards} yds` : null,
+                              ].filter(Boolean).join(" · ");
+                              return (
+                                <option key={t.id} value={t.id}>
+                                  {parts.join(" · ")}{meta ? ` (${meta})` : ""}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Manual fields — auto-filled after a tee is selected, editable either way */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Tee Box</label>
+                          <input
+                            value={newRoundTeeBox}
+                            onChange={e => setNewRoundTeeBox(e.target.value)}
+                            placeholder="Blue"
+                            className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                            style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Rating</label>
+                          <input
+                            type="number" step="0.1" min="55" max="80"
+                            value={newRoundRating}
+                            onChange={e => setNewRoundRating(e.target.value)}
+                            placeholder="71.4"
+                            className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
+                            style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Slope</label>
+                          <input
+                            type="number" min="55" max="155"
+                            value={newRoundSlope}
+                            onChange={e => setNewRoundSlope(e.target.value)}
+                            placeholder="113"
+                            className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
+                            style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Slope</label>
-                        <input
-                          type="number" min="55" max="155"
-                          value={newRoundSlope}
-                          onChange={e => setNewRoundSlope(e.target.value)}
-                          placeholder="113"
-                          className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
-                          style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
-                        />
-                      </div>
+                      {lookupPar && lookupHcp && (
+                        <div className="text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>
+                          Par totals {lookupPar.reduce((a,b)=>a+b,0)} · stroke indexes loaded from selected tee. You can still tweak holes later in Setup.
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -13,6 +13,13 @@ import {
   getGetTripLeaderboardQueryKey,
 } from "@workspace/api-client-react";
 import { ArrowLeft, Settings, Trophy, Grid3X3 } from "lucide-react";
+import {
+  searchCourses,
+  getCourseDetail,
+  type CourseSearchResult,
+  type CourseDetail,
+  type CourseTee,
+} from "@/lib/course-lookup";
 
 type SubTab = "scorecard" | "results" | "setup";
 
@@ -174,6 +181,73 @@ export default function RoundPage() {
   const [setupRating, setSetupRating] = useState("");
   const [setupSlope, setSetupSlope] = useState("");
   const setupInitialized = useRef(false);
+
+  // Course lookup state for the Setup tab.
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupResults, setLookupResults] = useState<CourseSearchResult[]>([]);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(null);
+  const [selectedTeeId, setSelectedTeeId] = useState<string>("");
+
+  useEffect(() => {
+    const q = lookupQuery.trim();
+    if (q.length < 3) {
+      setLookupResults([]);
+      setLookupError(null);
+      setLookupLoading(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      setLookupLoading(true);
+      setLookupError(null);
+      searchCourses(q, ctrl.signal)
+        .then(r => setLookupResults(r.results))
+        .catch(err => {
+          if (ctrl.signal.aborted) return;
+          setLookupError(err?.message ?? "Search failed");
+          setLookupResults([]);
+        })
+        .finally(() => { if (!ctrl.signal.aborted) setLookupLoading(false); });
+    }, 300);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [lookupQuery]);
+
+  function applyTee(tee: CourseTee, clubName: string) {
+    setSetupTeeBox(tee.name);
+    setSetupRating(tee.rating != null ? String(tee.rating) : "");
+    setSetupSlope(tee.slope != null ? String(tee.slope) : "");
+    setSetupPar(tee.par);
+    setSetupHcp(tee.holeHcp);
+    setSelectedTeeId(tee.id);
+    if (!setupCourse.trim()) setSetupCourse(clubName);
+  }
+
+  async function pickCourse(result: CourseSearchResult) {
+    setLookupResults([]);
+    setLookupQuery(result.clubName);
+    setLookupError(null);
+    setLookupLoading(true);
+    try {
+      const detail = await getCourseDetail(result.id);
+      setSelectedCourse(detail);
+      setSelectedTeeId("");
+      if (detail.tees.length === 1) applyTee(detail.tees[0], detail.clubName);
+    } catch (err) {
+      setLookupError((err as Error)?.message ?? "Failed to load course");
+    } finally {
+      setLookupLoading(false);
+    }
+  }
+
+  function clearLookup() {
+    setLookupQuery("");
+    setLookupResults([]);
+    setSelectedCourse(null);
+    setSelectedTeeId("");
+    setLookupError(null);
+  }
 
   useEffect(() => {
     if (round && !setupInitialized.current) {
@@ -604,6 +678,94 @@ export default function RoundPage() {
       {/* SETUP TAB */}
       {subTab === "setup" && (
         <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-5 space-y-6">
+          {/* Course lookup */}
+          <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
+            <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>Look up course</h3>
+            <p className="text-xs font-sans mb-2" style={{ color: "hsl(38 20% 45%)" }}>
+              Type a club name, pick a course and a tee to populate slope, rating, par and stroke index.
+            </p>
+            <div className="relative">
+              <input
+                value={lookupQuery}
+                onChange={e => { setLookupQuery(e.target.value); setSelectedCourse(null); setSelectedTeeId(""); }}
+                placeholder="e.g. Pinehurst"
+                className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+              />
+              {lookupLoading && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>…</span>
+              )}
+              {!selectedCourse && lookupResults.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg overflow-hidden max-h-60 overflow-y-auto"
+                  style={{ background: "white", border: "1.5px solid hsl(38 25% 72%)", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+                  {lookupResults.map(r => (
+                    <button
+                      type="button"
+                      key={r.id}
+                      onClick={() => pickCourse(r)}
+                      className="w-full text-left px-3 py-2 text-sm font-sans hover:opacity-80"
+                      style={{ color: "hsl(38 30% 14%)", borderBottom: "1px solid hsl(38 25% 88%)" }}
+                    >
+                      <div className="font-semibold">{r.clubName}{r.courseName ? ` — ${r.courseName}` : ""}</div>
+                      {r.location && (
+                        <div className="text-xs" style={{ color: "hsl(38 20% 45%)" }}>{r.location}</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {lookupError && (
+              <div className="text-xs font-sans mt-1" style={{ color: "hsl(0 55% 40%)" }}>{lookupError}</div>
+            )}
+            {selectedCourse && (
+              <div className="mt-2 rounded-lg px-3 py-2 flex items-center justify-between"
+                style={{ background: "hsl(42 30% 86%)", border: "1px solid hsl(38 25% 78%)" }}>
+                <div className="text-xs font-sans" style={{ color: "hsl(38 30% 14%)" }}>
+                  <div className="font-semibold">{selectedCourse.clubName}</div>
+                  {selectedCourse.courseName && (
+                    <div style={{ color: "hsl(38 20% 45%)" }}>{selectedCourse.courseName}</div>
+                  )}
+                </div>
+                <button type="button" onClick={clearLookup}
+                  className="text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>
+                  Clear
+                </button>
+              </div>
+            )}
+            {selectedCourse && selectedCourse.tees.length > 0 && (
+              <div className="mt-3">
+                <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>
+                  Tee box ({selectedCourse.tees.length})
+                </label>
+                <select
+                  value={selectedTeeId}
+                  onChange={e => {
+                    const tee = selectedCourse.tees.find(t => t.id === e.target.value);
+                    if (tee) applyTee(tee, selectedCourse.clubName);
+                  }}
+                  className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                >
+                  <option value="">Select a tee…</option>
+                  {selectedCourse.tees.map(t => {
+                    const meta = [
+                      t.gender,
+                      t.rating != null ? `CR ${t.rating}` : null,
+                      t.slope != null ? `SR ${t.slope}` : null,
+                      t.totalYards != null ? `${t.totalYards} yds` : null,
+                    ].filter(Boolean).join(" · ");
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {t.name}{meta ? ` (${meta})` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+          </div>
+
           {/* Course info */}
           <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
             <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-3" style={{ color: "hsl(38 20% 38%)" }}>Course Info</h3>
