@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, real, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { tripsTable } from "./trips";
@@ -7,7 +7,7 @@ export const playersTable = pgTable("players", {
   id: serial("id").primaryKey(),
   tripId: integer("trip_id").notNull().references(() => tripsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  handicap: integer("handicap").notNull().default(18),
+  handicap: real("handicap").notNull().default(18),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

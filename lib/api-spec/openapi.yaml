@@ -486,7 +486,7 @@ components:
         name:
           type: string
         handicap:
-          type: integer
+          type: number
         createdAt:
           type: string
       required:
@@ -502,7 +502,7 @@ components:
         name:
           type: string
         handicap:
-          type: integer
+          type: number
       required:
         - name
         - handicap
@@ -513,7 +513,7 @@ components:
         name:
           type: string
         handicap:
-          type: integer
+          type: number
 
     Round:
       type: object
@@ -700,7 +700,7 @@ components:
         playerName:
           type: string
         handicap:
-          type: integer
+          type: number
         grossTotal:
           type: ["integer", "null"]
         netTotal:
@@ -785,7 +785,7 @@ components:
         playerName:
           type: string
         handicap:
-          type: integer
+          type: number
         roundsPlayed:
           type: integer
         totalGross:

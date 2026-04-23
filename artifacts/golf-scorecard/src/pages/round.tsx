@@ -25,13 +25,22 @@ function strokesOnHole(hcp: number, holeHcpIdx: number): number {
   return s;
 }
 
-function netScore(gross: number, hcp: number, holeHcpIdx: number) {
-  return gross - strokesOnHole(hcp, holeHcpIdx);
+// Course-adjusted (playing) handicap relative to the field's lowest handicap.
+function courseHandicap(playerHcp: number, fieldMinHcp: number): number {
+  return Math.max(0, Math.round((playerHcp || 0) - (fieldMinHcp || 0)));
 }
 
-function scoreClass(gross: number | null, par: number, hcp: number, holeHcpIdx: number): string {
+function formatHandicap(h: number): string {
+  return (Math.round(h * 10) / 10).toFixed(1);
+}
+
+function netScore(gross: number, playingHcp: number, holeHcpIdx: number) {
+  return gross - strokesOnHole(playingHcp, holeHcpIdx);
+}
+
+function scoreClass(gross: number | null, par: number, playingHcp: number, holeHcpIdx: number): string {
   if (gross == null) return "score-empty";
-  const net = netScore(gross, hcp, holeHcpIdx);
+  const net = netScore(gross, playingHcp, holeHcpIdx);
   const diff = net - par;
   if (diff <= -2) return "score-eagle";
   if (diff === -1) return "score-birdie";
@@ -40,9 +49,9 @@ function scoreClass(gross: number | null, par: number, hcp: number, holeHcpIdx: 
   return "score-double";
 }
 
-function scoreLabel(gross: number | null, par: number, hcp: number, holeHcpIdx: number): string {
+function scoreLabel(gross: number | null, par: number, playingHcp: number, holeHcpIdx: number): string {
   if (gross == null) return "";
-  const net = netScore(gross, hcp, holeHcpIdx);
+  const net = netScore(gross, playingHcp, holeHcpIdx);
   const diff = net - par;
   if (diff <= -3) return "Albatross";
   if (diff === -2) return "Eagle";
@@ -196,6 +205,15 @@ export default function RoundPage() {
   const par = (round?.par as number[]) || Array(18).fill(4);
   const holeHcp = (round?.holeHcp as number[]) || Array.from({ length: 18 }, (_, i) => i + 1);
 
+  // Course-adjusted (playing) handicaps relative to the field's lowest handicap.
+  // Lowest handicapper plays scratch; others receive the integer difference.
+  const fieldMinHcp = players && players.length > 0
+    ? Math.min(...players.map(p => p.handicap || 0))
+    : 0;
+  const playingHcps = new Map<number, number>(
+    (players ?? []).map(p => [p.id, courseHandicap(p.handicap, fieldMinHcp)])
+  );
+
   const SUBTABS: { id: SubTab; label: string; icon: typeof Trophy }[] = [
     { id: "scorecard", label: "Scorecard", icon: Grid3X3 },
     { id: "results", label: "Results", icon: Trophy },
@@ -290,7 +308,12 @@ export default function RoundPage() {
                       <th key={p.id} className="px-2 py-2.5 text-center text-xs font-sans font-semibold"
                         style={{ color: "hsl(42 45% 80%)" }}>
                         <div style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
-                        <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 10 }}>HCP {p.handicap}</div>
+                        <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 10 }}>
+                          HCP {formatHandicap(p.handicap)}
+                          {(playingHcps.get(p.id) ?? 0) !== p.handicap && (
+                            <span style={{ color: "hsl(42 35% 50%)" }}> · CH {playingHcps.get(p.id) ?? 0}</span>
+                          )}
+                        </div>
                       </th>
                     ))}
                   </tr>
@@ -368,8 +391,8 @@ export default function RoundPage() {
                                 ) : (
                                   <button
                                     onClick={() => startEdit(p.id, holeIdx)}
-                                    className={`w-10 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], p.handicap, holeHcp[holeIdx])}`}
-                                    title={gross != null ? scoreLabel(gross, par[holeIdx], p.handicap, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
+                                    className={`w-10 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx])}`}
+                                    title={gross != null ? scoreLabel(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
                                   >
                                     {gross ?? "·"}
                                   </button>

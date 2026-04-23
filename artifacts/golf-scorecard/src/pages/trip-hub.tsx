@@ -22,6 +22,16 @@ import {
 
 type Tab = "leaderboard" | "rounds" | "players";
 
+function parseHandicap(raw: string): number {
+  const v = parseFloat(raw);
+  if (isNaN(v)) return 18;
+  return Math.round(v * 10) / 10;
+}
+
+function formatHandicap(h: number): string {
+  return (Math.round(h * 10) / 10).toFixed(1);
+}
+
 export default function TripHubPage() {
   const { tripId: tripIdStr } = useParams<{ tripId: string }>();
   const tripId = Number(tripIdStr);
@@ -63,7 +73,7 @@ export default function TripHubPage() {
     e.preventDefault();
     if (!newPlayerName.trim()) return;
     createPlayer.mutate(
-      { tripId, data: { name: newPlayerName.trim(), handicap: parseInt(newPlayerHcp) || 18 } },
+      { tripId, data: { name: newPlayerName.trim(), handicap: parseHandicap(newPlayerHcp) } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListPlayersQueryKey(tripId) });
@@ -78,7 +88,7 @@ export default function TripHubPage() {
 
   function handleUpdatePlayer(playerId: number) {
     updatePlayer.mutate(
-      { tripId, playerId, data: { name: editPlayerName, handicap: parseInt(editPlayerHcp) || 18 } },
+      { tripId, playerId, data: { name: editPlayerName, handicap: parseHandicap(editPlayerHcp) } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListPlayersQueryKey(tripId) });
@@ -350,7 +360,7 @@ export default function TripHubPage() {
                           <span className="text-xs font-sans font-semibold w-5 text-center" style={{ color: "hsl(38 20% 50%)" }}>{idx + 1}</span>
                           <div>
                             <div className="font-sans font-semibold text-sm" style={{ color: "hsl(38 30% 14%)" }}>{p.playerName}</div>
-                            <div className="text-xs" style={{ color: "hsl(38 20% 38%)" }}>HCP {p.handicap}</div>
+                            <div className="text-xs" style={{ color: "hsl(38 20% 38%)" }}>HCP {formatHandicap(p.handicap)}</div>
                           </div>
                         </div>
                         <div className="text-right font-serif text-sm font-semibold" style={{ color: idx === 0 ? "hsl(158 45% 30%)" : "hsl(38 30% 18%)" }}>
@@ -412,6 +422,7 @@ export default function TripHubPage() {
                       type="number"
                       min="0"
                       max="54"
+                      step="0.1"
                       value={newPlayerHcp}
                       onChange={e => setNewPlayerHcp(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg text-sm font-sans text-center outline-none"
@@ -449,10 +460,10 @@ export default function TripHubPage() {
                     />
                     <input
                       type="number"
-                      min="0" max="54"
+                      min="0" max="54" step="0.1"
                       value={editPlayerHcp}
                       onChange={e => setEditPlayerHcp(e.target.value)}
-                      className="w-14 px-2 py-1.5 rounded-lg text-sm font-sans text-center outline-none"
+                      className="w-16 px-2 py-1.5 rounded-lg text-sm font-sans text-center outline-none"
                       style={{ background: "white", border: "1.5px solid hsl(38 25% 72%)", color: "hsl(38 30% 14%)" }}
                     />
                     <button onClick={() => handleUpdatePlayer(p.id)} className="p-1.5 rounded-lg" style={{ color: "hsl(148 45% 40%)" }}>
@@ -471,12 +482,12 @@ export default function TripHubPage() {
                       </div>
                       <div>
                         <div className="font-sans font-semibold text-sm" style={{ color: "hsl(38 30% 14%)" }}>{p.name}</div>
-                        <div className="text-xs" style={{ color: "hsl(38 20% 38%)" }}>HCP {p.handicap}</div>
+                        <div className="text-xs" style={{ color: "hsl(38 20% 38%)" }}>HCP {formatHandicap(p.handicap)}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => { setEditingPlayerId(p.id); setEditPlayerName(p.name); setEditPlayerHcp(String(p.handicap)); }}
+                        onClick={() => { setEditingPlayerId(p.id); setEditPlayerName(p.name); setEditPlayerHcp(formatHandicap(p.handicap)); }}
                         className="p-1.5 rounded-lg" style={{ color: "hsl(38 20% 50%)" }}>
                         <Edit3 size={14} />
                       </button>

@@ -7,6 +7,19 @@ export function strokesOnHole(playerHcp: number, holeHcpIdx: number): number {
   return strokes;
 }
 
+// Course-adjusted (a.k.a. playing) handicap for a field of players: the lowest
+// handicap plays to scratch and others receive their differential, rounded to
+// a whole number of strokes for stroke allocation.
+export function courseHandicap(playerHcp: number, fieldMinHcp: number): number {
+  const diff = (Number(playerHcp) || 0) - (Number(fieldMinHcp) || 0);
+  return Math.max(0, Math.round(diff));
+}
+
+export function fieldMinHandicap(players: { handicap: number }[]): number {
+  if (players.length === 0) return 0;
+  return Math.min(...players.map(p => Number(p.handicap) || 0));
+}
+
 export function netForHole(gross: number | null, playerHcp: number, holeHcpIdx: number): number | null {
   if (gross == null) return null;
   return gross - strokesOnHole(playerHcp, holeHcpIdx);
@@ -47,7 +60,8 @@ export function computePlayerStats(
   player: { id: number; name: string; handicap: number },
   holeScores: (number | null)[],
   par: number[],
-  holeHcp: number[]
+  holeHcp: number[],
+  fieldMinHcp: number = 0
 ): PlayerRoundStats {
   const grossHoles: (number | null)[] = [];
   const netHoles: (number | null)[] = [];
@@ -57,11 +71,12 @@ export function computePlayerStats(
   let sfTotal = 0;
   let holesPlayed = 0;
   let hasGross = false;
+  const playingHcp = courseHandicap(player.handicap, fieldMinHcp);
 
   for (let h = 0; h < 18; h++) {
     const g = holeScores[h] ?? null;
     if (g != null) {
-      const n = g - strokesOnHole(player.handicap, holeHcp[h]);
+      const n = g - strokesOnHole(playingHcp, holeHcp[h]);
       const sf = stablefordPoints(n, par[h]);
       grossHoles[h] = g;
       netHoles[h] = n;
@@ -112,19 +127,23 @@ export type SkinHoleResult = {
 export function computeSkins(
   players: { id: number; name: string; handicap: number }[],
   allHoleScores: Map<number, (number | null)[]>,
-  holeHcp: number[]
+  holeHcp: number[],
+  fieldMinHcp: number = 0
 ): { skinsWon: Record<number, number>; perHole: SkinHoleResult[] } {
   const skinsWon: Record<number, number> = {};
   players.forEach(p => { skinsWon[p.id] = 0; });
   let carry = 1;
   const perHole: SkinHoleResult[] = [];
+  const playingHcps = new Map<number, number>(
+    players.map(p => [p.id, courseHandicap(p.handicap, fieldMinHcp)])
+  );
 
   for (let h = 0; h < 18; h++) {
     const entries = players.map(p => {
       const scores = allHoleScores.get(p.id) || [];
       const g = scores[h] ?? null;
       if (g == null) return null;
-      return { id: p.id, name: p.name, net: g - strokesOnHole(p.handicap, holeHcp[h]) };
+      return { id: p.id, name: p.name, net: g - strokesOnHole(playingHcps.get(p.id) ?? 0, holeHcp[h]) };
     }).filter((e): e is { id: number; name: string; net: number } => e != null);
 
     if (entries.length < 2) {
