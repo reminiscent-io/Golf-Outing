@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, roundsTable } from "@workspace/db";
+import { ser } from "../lib/serialize";
 import {
   CreateRoundBody,
   CreateRoundParams,
@@ -59,7 +60,7 @@ router.post("/trips/:tripId/rounds", async (req, res): Promise<void> => {
     holeHcp: (parsed.data.holeHcp as number[] | undefined) ?? DEFAULT_HCP,
     gamesConfig: parsed.data.gamesConfig ?? DEFAULT_GAMES,
   }).returning();
-  res.status(201).json(GetRoundResponse.parse(round));
+  res.status(201).json(GetRoundResponse.parse(ser(round)));
 });
 
 router.get("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => {
@@ -73,7 +74,7 @@ router.get("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => 
     res.status(404).json({ error: "Round not found" });
     return;
   }
-  res.json(GetRoundResponse.parse(round));
+  res.json(GetRoundResponse.parse(ser(round)));
 });
 
 router.patch("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => {
@@ -102,7 +103,7 @@ router.patch("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> =
     res.status(404).json({ error: "Round not found" });
     return;
   }
-  res.json(UpdateRoundResponse.parse(round));
+  res.json(UpdateRoundResponse.parse(ser(round)));
 });
 
 router.delete("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => {

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, tripsTable } from "@workspace/db";
+import { ser } from "../lib/serialize";
 import {
   CreateTripBody,
   GetTripParams,
@@ -16,7 +17,7 @@ const router: IRouter = Router();
 
 router.get("/trips", async (_req, res): Promise<void> => {
   const trips = await db.select().from(tripsTable).orderBy(tripsTable.createdAt);
-  res.json(ListTripsResponse.parse(trips));
+  res.json(ListTripsResponse.parse(ser(trips)));
 });
 
 router.post("/trips", async (req, res): Promise<void> => {
@@ -26,7 +27,7 @@ router.post("/trips", async (req, res): Promise<void> => {
     return;
   }
   const [trip] = await db.insert(tripsTable).values(parsed.data).returning();
-  res.status(201).json(GetTripResponse.parse(trip));
+  res.status(201).json(GetTripResponse.parse(ser(trip)));
 });
 
 router.get("/trips/:tripId", async (req, res): Promise<void> => {
@@ -40,7 +41,7 @@ router.get("/trips/:tripId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Trip not found" });
     return;
   }
-  res.json(GetTripResponse.parse(trip));
+  res.json(GetTripResponse.parse(ser(trip)));
 });
 
 router.patch("/trips/:tripId", async (req, res): Promise<void> => {
@@ -59,7 +60,7 @@ router.patch("/trips/:tripId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Trip not found" });
     return;
   }
-  res.json(UpdateTripResponse.parse(trip));
+  res.json(UpdateTripResponse.parse(ser(trip)));
 });
 
 router.delete("/trips/:tripId", async (req, res): Promise<void> => {

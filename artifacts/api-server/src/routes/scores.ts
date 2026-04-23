@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, scoresTable, roundsTable, playersTable } from "@workspace/db";
+import { ser } from "../lib/serialize";
 import {
   GetScoresParams,
   GetScoresResponse,
@@ -21,7 +22,7 @@ router.get("/trips/:tripId/rounds/:roundId/scores", async (req, res): Promise<vo
   const scores = await db.select().from(scoresTable)
     .where(eq(scoresTable.roundId, params.data.roundId));
 
-  res.json(GetScoresResponse.parse(scores));
+  res.json(GetScoresResponse.parse(ser(scores)));
 });
 
 router.put("/trips/:tripId/rounds/:roundId/scores", async (req, res): Promise<void> => {
@@ -66,7 +67,7 @@ router.put("/trips/:tripId/rounds/:roundId/scores", async (req, res): Promise<vo
       .returning();
   }
 
-  res.json(UpsertScoreResponse.parse(scoreRow));
+  res.json(UpsertScoreResponse.parse(ser(scoreRow)));
 });
 
 export default router;

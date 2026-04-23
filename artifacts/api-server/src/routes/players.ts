@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, playersTable } from "@workspace/db";
+import { ser } from "../lib/serialize";
 import {
   CreatePlayerBody,
   CreatePlayerParams,
@@ -21,7 +22,7 @@ router.get("/trips/:tripId/players", async (req, res): Promise<void> => {
     return;
   }
   const players = await db.select().from(playersTable).where(eq(playersTable.tripId, params.data.tripId)).orderBy(playersTable.createdAt);
-  res.json(ListPlayersResponse.parse(players));
+  res.json(ListPlayersResponse.parse(ser(players)));
 });
 
 router.post("/trips/:tripId/players", async (req, res): Promise<void> => {
@@ -61,7 +62,7 @@ router.patch("/trips/:tripId/players/:playerId", async (req, res): Promise<void>
     res.status(404).json({ error: "Player not found" });
     return;
   }
-  res.json(UpdatePlayerResponse.parse(player));
+  res.json(UpdatePlayerResponse.parse(ser(player)));
 });
 
 router.delete("/trips/:tripId/players/:playerId", async (req, res): Promise<void> => {
