@@ -3,20 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Golf Trip Live Scorecard API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: trips
+    description: Golf trip operations
+  - name: players
+    description: Player operations
+  - name: rounds
+    description: Round operations
+  - name: scores
+    description: Score entry operations
+  - name: leaderboard
+    description: Leaderboard & stats
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +34,401 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /trips:
+    get:
+      operationId: listTrips
+      tags: [trips]
+      summary: List all golf trips
+      responses:
+        "200":
+          description: List of trips
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trip"
+    post:
+      operationId: createTrip
+      tags: [trips]
+      summary: Create a new golf trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTripBody"
+      responses:
+        "201":
+          description: Created trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trip"
+
+  /trips/{tripId}:
+    get:
+      operationId: getTrip
+      tags: [trips]
+      summary: Get a trip by ID
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trip"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateTrip
+      tags: [trips]
+      summary: Update a trip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTripBody"
+      responses:
+        "200":
+          description: Updated trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trip"
+    delete:
+      operationId: deleteTrip
+      tags: [trips]
+      summary: Delete a trip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /trips/{tripId}/players:
+    get:
+      operationId: listPlayers
+      tags: [players]
+      summary: List players in a trip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Player"
+    post:
+      operationId: createPlayer
+      tags: [players]
+      summary: Add a player to a trip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlayerBody"
+      responses:
+        "201":
+          description: Created player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+
+  /trips/{tripId}/players/{playerId}:
+    patch:
+      operationId: updatePlayer
+      tags: [players]
+      summary: Update a player
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlayerBody"
+      responses:
+        "200":
+          description: Updated player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+    delete:
+      operationId: deletePlayer
+      tags: [players]
+      summary: Remove a player
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /trips/{tripId}/rounds:
+    get:
+      operationId: listRounds
+      tags: [rounds]
+      summary: List rounds in a trip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of rounds
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Round"
+    post:
+      operationId: createRound
+      tags: [rounds]
+      summary: Create a round in a trip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoundBody"
+      responses:
+        "201":
+          description: Created round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Round"
+
+  /trips/{tripId}/rounds/{roundId}:
+    get:
+      operationId: getRound
+      tags: [rounds]
+      summary: Get a round
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Round"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateRound
+      tags: [rounds]
+      summary: Update a round (course info, par, hcp index, games config)
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoundBody"
+      responses:
+        "200":
+          description: Updated round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Round"
+    delete:
+      operationId: deleteRound
+      tags: [rounds]
+      summary: Delete a round
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /trips/{tripId}/rounds/{roundId}/scores:
+    get:
+      operationId: getScores
+      tags: [scores]
+      summary: Get all scores for a round
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: All scores for the round (array of per-player score entries)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerScore"
+    put:
+      operationId: upsertScore
+      tags: [scores]
+      summary: Set/update a single hole score for a player
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertScoreBody"
+      responses:
+        "200":
+          description: Updated score entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerScore"
+
+  /trips/{tripId}/rounds/{roundId}/leaderboard:
+    get:
+      operationId: getRoundLeaderboard
+      tags: [leaderboard]
+      summary: Get computed leaderboard for a round (net stroke, stableford, skins, nassau)
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Leaderboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundLeaderboard"
+
+  /trips/{tripId}/leaderboard:
+    get:
+      operationId: getTripLeaderboard
+      tags: [leaderboard]
+      summary: Get trip-wide leaderboard (aggregated across all rounds)
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trip leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripLeaderboard"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +439,384 @@ components:
       required:
         - status
 
+    Trip:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - createdAt
+        - updatedAt
+
+    CreateTripBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+      required:
+        - name
+
+    UpdateTripBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+
+    Player:
+      type: object
+      properties:
+        id:
+          type: integer
+        tripId:
+          type: integer
+        name:
+          type: string
+        handicap:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - tripId
+        - name
+        - handicap
+        - createdAt
+
+    CreatePlayerBody:
+      type: object
+      properties:
+        name:
+          type: string
+        handicap:
+          type: integer
+      required:
+        - name
+        - handicap
+
+    UpdatePlayerBody:
+      type: object
+      properties:
+        name:
+          type: string
+        handicap:
+          type: integer
+
+    Round:
+      type: object
+      properties:
+        id:
+          type: integer
+        tripId:
+          type: integer
+        name:
+          type: string
+        course:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        par:
+          type: array
+          items:
+            type: integer
+          description: 18 values - par for each hole
+        holeHcp:
+          type: array
+          items:
+            type: integer
+          description: 18 values - handicap stroke index for each hole (1-18)
+        gamesConfig:
+          $ref: "#/components/schemas/GamesConfig"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - tripId
+        - name
+        - par
+        - holeHcp
+        - gamesConfig
+        - createdAt
+        - updatedAt
+
+    GamesConfig:
+      type: object
+      properties:
+        stableford:
+          type: boolean
+        skins:
+          type: boolean
+        nassau:
+          type: boolean
+        netStroke:
+          type: boolean
+        bestBall:
+          type: boolean
+        bestBallTeams:
+          type: array
+          items:
+            $ref: "#/components/schemas/Team"
+        matchPlay:
+          type: boolean
+        matchPlayMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+      required:
+        - stableford
+        - skins
+        - nassau
+        - netStroke
+        - bestBall
+        - matchPlay
+
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        playerIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - id
+        - name
+        - playerIds
+
+    Match:
+      type: object
+      properties:
+        id:
+          type: string
+        playerA:
+          type: integer
+        playerB:
+          type: integer
+      required:
+        - id
+        - playerA
+        - playerB
+
+    CreateRoundBody:
+      type: object
+      properties:
+        name:
+          type: string
+        course:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        par:
+          type: array
+          items:
+            type: integer
+        holeHcp:
+          type: array
+          items:
+            type: integer
+        gamesConfig:
+          $ref: "#/components/schemas/GamesConfig"
+      required:
+        - name
+
+    UpdateRoundBody:
+      type: object
+      properties:
+        name:
+          type: string
+        course:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        par:
+          type: array
+          items:
+            type: integer
+        holeHcp:
+          type: array
+          items:
+            type: integer
+        gamesConfig:
+          $ref: "#/components/schemas/GamesConfig"
+
+    PlayerScore:
+      type: object
+      properties:
+        id:
+          type: integer
+        roundId:
+          type: integer
+        playerId:
+          type: integer
+        holeScores:
+          type: array
+          items:
+            type: ["integer", "null"]
+          description: 18 values - gross score per hole (null = not entered)
+      required:
+        - id
+        - roundId
+        - playerId
+        - holeScores
+
+    UpsertScoreBody:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        hole:
+          type: integer
+          description: Hole number 1-18
+        score:
+          type: ["integer", "null"]
+          description: Gross score (null to clear)
+      required:
+        - playerId
+        - hole
+
+    PlayerLeaderboardEntry:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        handicap:
+          type: integer
+        grossTotal:
+          type: ["integer", "null"]
+        netTotal:
+          type: ["integer", "null"]
+        stablefordTotal:
+          type: ["integer", "null"]
+        skinsWon:
+          type: integer
+        holesPlayed:
+          type: integer
+      required:
+        - playerId
+        - playerName
+        - handicap
+        - skinsWon
+        - holesPlayed
+
+    SkinHoleResult:
+      type: object
+      properties:
+        hole:
+          type: integer
+        winnerId:
+          type: ["integer", "null"]
+        winnerName:
+          type: ["string", "null"]
+        carry:
+          type: integer
+        tied:
+          type: boolean
+      required:
+        - hole
+        - carry
+        - tied
+
+    NassauResult:
+      type: object
+      properties:
+        frontWinnerIds:
+          type: array
+          items:
+            type: integer
+        backWinnerIds:
+          type: array
+          items:
+            type: integer
+        totalWinnerIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - frontWinnerIds
+        - backWinnerIds
+        - totalWinnerIds
+
+    RoundLeaderboard:
+      type: object
+      properties:
+        roundId:
+          type: integer
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerLeaderboardEntry"
+        skinResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkinHoleResult"
+        nassauResult:
+          $ref: "#/components/schemas/NassauResult"
+      required:
+        - roundId
+        - entries
+        - skinResults
+        - nassauResult
+
+    TripPlayerSummary:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        handicap:
+          type: integer
+        roundsPlayed:
+          type: integer
+        totalGross:
+          type: ["integer", "null"]
+        totalNet:
+          type: ["integer", "null"]
+        totalStableford:
+          type: ["integer", "null"]
+        totalSkinsWon:
+          type: integer
+        bestRoundGross:
+          type: ["integer", "null"]
+      required:
+        - playerId
+        - playerName
+        - handicap
+        - roundsPlayed
+        - totalSkinsWon
+
+    TripLeaderboard:
+      type: object
+      properties:
+        tripId:
+          type: integer
+        tripName:
+          type: string
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/TripPlayerSummary"
+      required:
+        - tripId
+        - tripName
+        - players
