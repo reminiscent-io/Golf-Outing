@@ -12,6 +12,8 @@ async function main() {
     `);
 
     // 2. Backfill: rank by player_id within each (round_id, group_number).
+    //    Scoped to rows where slot_index IS NULL so re-runs don't clobber
+    //    any user-rearranged slot ordering from the UI.
     await client.query(`
       WITH ranked AS (
         SELECT id,
@@ -20,6 +22,7 @@ async function main() {
             ORDER BY player_id
           ) AS rn
         FROM round_group_assignments
+        WHERE slot_index IS NULL
       )
       UPDATE round_group_assignments rga
       SET slot_index = ranked.rn

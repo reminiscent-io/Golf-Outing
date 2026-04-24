@@ -26,11 +26,11 @@ Before starting:
 
 **Files:**
 - Modify: `lib/db/src/schema/round-group-assignments.ts`
-- Create: `scripts/migrate-add-slot-index.ts`
+- Create: `scripts/src/migrate-add-slot-index.ts` (wired up as `migrate-add-slot-index` in `scripts/package.json`)
 
 - [ ] **Step 1: Write the migration script**
 
-Create `scripts/migrate-add-slot-index.ts`:
+Create `scripts/src/migrate-add-slot-index.ts`:
 
 ```ts
 import { pool } from "@workspace/db";
@@ -47,6 +47,8 @@ async function main() {
     `);
 
     // 2. Backfill: rank by player_id within each (round_id, group_number).
+    //    Scoped to rows where slot_index IS NULL so re-runs don't clobber
+    //    any user-rearranged slot ordering from the UI.
     await client.query(`
       WITH ranked AS (
         SELECT id,
@@ -55,6 +57,7 @@ async function main() {
             ORDER BY player_id
           ) AS rn
         FROM round_group_assignments
+        WHERE slot_index IS NULL
       )
       UPDATE round_group_assignments rga
       SET slot_index = ranked.rn
@@ -98,7 +101,7 @@ main().catch((err) => {
 - [ ] **Step 2: Run the migration**
 
 ```bash
-pnpm exec tsx scripts/migrate-add-slot-index.ts
+pnpm --filter @workspace/scripts run migrate-add-slot-index
 ```
 
 Expected output:
@@ -150,7 +153,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/db/src/schema/round-group-assignments.ts scripts/migrate-add-slot-index.ts
+git add lib/db/src/schema/round-group-assignments.ts scripts/src/migrate-add-slot-index.ts scripts/package.json
 git commit -m "Add slot_index to round_group_assignments with backfill migration"
 ```
 
