@@ -1,13 +1,13 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, roundsTable, playersTable, scoresTable, tripsTable } from "@workspace/db";
+import { db, roundsTable, playersTable, scoresTable, tripsTable, roundGroupAssignmentsTable } from "@workspace/db";
 import {
   GetRoundLeaderboardParams,
   GetRoundLeaderboardResponse,
   GetTripLeaderboardParams,
   GetTripLeaderboardResponse,
 } from "@workspace/api-zod";
-import { computePlayerStats, computeSkins, computeNassau, fieldMinHandicap } from "../lib/scoring";
+import { computePlayerStats, computeSkins, computeTeamNassau, fieldMinHandicap } from "../lib/scoring";
 
 const router: IRouter = Router();
 
@@ -51,7 +51,22 @@ router.get("/trips/:tripId/rounds/:roundId/leaderboard", async (req, res): Promi
   });
 
   const { skinsWon, perHole } = computeSkins(players, allHoleScoresMap, holeHcp, minHcp, mode, course);
-  const nassau = computeNassau(stats);
+
+  const assignments = await db.select({
+    playerId: roundGroupAssignmentsTable.playerId,
+    groupNumber: roundGroupAssignmentsTable.groupNumber,
+    slotIndex: roundGroupAssignmentsTable.slotIndex,
+  }).from(roundGroupAssignmentsTable).where(eq(roundGroupAssignmentsTable.roundId, roundId));
+
+  const playerById = new Map(players.map(p => [p.id, p]));
+  const slots = assignments
+    .map(a => {
+      const p = playerById.get(a.playerId);
+      return p ? { playerId: p.id, playerName: p.name, handicap: p.handicap, groupNumber: a.groupNumber, slotIndex: a.slotIndex } : null;
+    })
+    .filter((s): s is NonNullable<typeof s> => s != null);
+
+  const nassau = computeTeamNassau(slots, allHoleScoresMap, par, holeHcp, minHcp, mode, course);
 
   const entries = stats.map(s => ({
     playerId: s.playerId,
@@ -74,11 +89,7 @@ router.get("/trips/:tripId/rounds/:roundId/leaderboard", async (req, res): Promi
       carry: h.carry,
       tied: h.tied,
     })),
-    nassauResult: {
-      frontWinnerIds: nassau.frontWinnerIds,
-      backWinnerIds: nassau.backWinnerIds,
-      totalWinnerIds: nassau.totalWinnerIds,
-    },
+    nassauResult: { matches: nassau.matches },
   };
 
   res.json(GetRoundLeaderboardResponse.parse(result));
