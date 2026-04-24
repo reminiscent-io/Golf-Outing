@@ -6,6 +6,7 @@ import roundsRouter from "./rounds";
 import scoresRouter from "./scores";
 import leaderboardRouter from "./leaderboard";
 import coursesRouter from "./courses";
+import groupsRouter from "./groups";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(roundsRouter);
 router.use(scoresRouter);
 router.use(leaderboardRouter);
 router.use(coursesRouter);
+router.use(groupsRouter);
 
 export default router;

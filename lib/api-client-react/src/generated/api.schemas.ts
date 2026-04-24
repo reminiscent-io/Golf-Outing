@@ -247,3 +247,12 @@ export interface TripLeaderboard {
   tripName: string;
   players: TripPlayerSummary[];
 }
+
+export interface RoundGroupAssignment {
+  playerId: number;
+  groupNumber: number;
+}
+
+export interface RoundGroupAssignments {
+  assignments: RoundGroupAssignment[];
+}

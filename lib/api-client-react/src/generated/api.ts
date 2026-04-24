@@ -26,6 +26,7 @@ import type {
   Player,
   PlayerScore,
   Round,
+  RoundGroupAssignments,
   RoundLeaderboard,
   Trip,
   TripLeaderboard,
@@ -1666,6 +1667,191 @@ export function useGetRoundLeaderboard<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List foursome assignments for a round
+ */
+export const getListRoundGroupsUrl = (tripId: number, roundId: number) => {
+  return `/api/trips/${tripId}/rounds/${roundId}/groups`;
+};
+
+export const listRoundGroups = async (
+  tripId: number,
+  roundId: number,
+  options?: RequestInit,
+): Promise<RoundGroupAssignments> => {
+  return customFetch<RoundGroupAssignments>(
+    getListRoundGroupsUrl(tripId, roundId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListRoundGroupsQueryKey = (tripId: number, roundId: number) => {
+  return [`/api/trips/${tripId}/rounds/${roundId}/groups`] as const;
+};
+
+export const getListRoundGroupsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRoundGroups>>,
+  TError = ErrorType<unknown>,
+>(
+  tripId: number,
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRoundGroups>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListRoundGroupsQueryKey(tripId, roundId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoundGroups>>> = ({
+    signal,
+  }) => listRoundGroups(tripId, roundId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(tripId && roundId),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRoundGroups>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRoundGroupsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRoundGroups>>
+>;
+export type ListRoundGroupsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List foursome assignments for a round
+ */
+
+export function useListRoundGroups<
+  TData = Awaited<ReturnType<typeof listRoundGroups>>,
+  TError = ErrorType<unknown>,
+>(
+  tripId: number,
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRoundGroups>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRoundGroupsQueryOptions(tripId, roundId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Replace all foursome assignments for a round
+ */
+export const getPutRoundGroupsUrl = (tripId: number, roundId: number) => {
+  return `/api/trips/${tripId}/rounds/${roundId}/groups`;
+};
+
+export const putRoundGroups = async (
+  tripId: number,
+  roundId: number,
+  roundGroupAssignments: RoundGroupAssignments,
+  options?: RequestInit,
+): Promise<RoundGroupAssignments> => {
+  return customFetch<RoundGroupAssignments>(
+    getPutRoundGroupsUrl(tripId, roundId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(roundGroupAssignments),
+    },
+  );
+};
+
+export const getPutRoundGroupsMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putRoundGroups>>,
+    TError,
+    { tripId: number; roundId: number; data: BodyType<RoundGroupAssignments> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putRoundGroups>>,
+  TError,
+  { tripId: number; roundId: number; data: BodyType<RoundGroupAssignments> },
+  TContext
+> => {
+  const mutationKey = ["putRoundGroups"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putRoundGroups>>,
+    { tripId: number; roundId: number; data: BodyType<RoundGroupAssignments> }
+  > = (props) => {
+    const { tripId, roundId, data } = props ?? {};
+
+    return putRoundGroups(tripId, roundId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutRoundGroupsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putRoundGroups>>
+>;
+export type PutRoundGroupsMutationBody = BodyType<RoundGroupAssignments>;
+export type PutRoundGroupsMutationError = ErrorType<void>;
+
+/**
+ * @summary Replace all foursome assignments for a round
+ */
+export const usePutRoundGroups = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putRoundGroups>>,
+    TError,
+    { tripId: number; roundId: number; data: BodyType<RoundGroupAssignments> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof putRoundGroups>>,
+  TError,
+  { tripId: number; roundId: number; data: BodyType<RoundGroupAssignments> },
+  TContext
+> => {
+  return useMutation(getPutRoundGroupsMutationOptions(options));
+};
 
 /**
  * @summary Get trip-wide leaderboard (aggregated across all rounds)

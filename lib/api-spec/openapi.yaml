@@ -20,6 +20,8 @@ tags:
     description: Score entry operations
   - name: leaderboard
     description: Leaderboard & stats
+  - name: groups
+    description: Per-round foursome assignments
 
 paths:
   /healthz:
@@ -438,6 +440,62 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoundLeaderboard"
+
+  /trips/{tripId}/rounds/{roundId}/groups:
+    get:
+      operationId: listRoundGroups
+      tags: [groups]
+      summary: List foursome assignments for a round
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Group assignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundGroupAssignments"
+    put:
+      operationId: putRoundGroups
+      tags: [groups]
+      summary: Replace all foursome assignments for a round
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoundGroupAssignments"
+      responses:
+        "200":
+          description: Saved assignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundGroupAssignments"
+        "400":
+          description: One or more players do not belong to this trip
+        "404":
+          description: Round not found or not part of the trip
 
   /trips/{tripId}/leaderboard:
     get:
@@ -899,3 +957,24 @@ components:
         - tripId
         - tripName
         - players
+
+    RoundGroupAssignment:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        groupNumber:
+          type: integer
+      required:
+        - playerId
+        - groupNumber
+
+    RoundGroupAssignments:
+      type: object
+      properties:
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoundGroupAssignment"
+      required:
+        - assignments

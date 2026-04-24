@@ -498,6 +498,49 @@ export const GetRoundLeaderboardResponse = zod.object({
 });
 
 /**
+ * @summary List foursome assignments for a round
+ */
+export const ListRoundGroupsParams = zod.object({
+  tripId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const ListRoundGroupsResponse = zod.object({
+  assignments: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      groupNumber: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Replace all foursome assignments for a round
+ */
+export const PutRoundGroupsParams = zod.object({
+  tripId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const PutRoundGroupsBody = zod.object({
+  assignments: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      groupNumber: zod.number(),
+    }),
+  ),
+});
+
+export const PutRoundGroupsResponse = zod.object({
+  assignments: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      groupNumber: zod.number(),
+    }),
+  ),
+});
+
+/**
  * @summary Get trip-wide leaderboard (aggregated across all rounds)
  */
 export const GetTripLeaderboardParams = zod.object({
