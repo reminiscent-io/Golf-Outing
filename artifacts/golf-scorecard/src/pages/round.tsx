@@ -688,7 +688,9 @@ export default function RoundPage() {
               </div>
 
               {/* Team Nassau — one card per group match */}
-              {leaderboard.nassauResult?.matches && leaderboard.nassauResult.matches.length > 0 && (
+              {(round?.gamesConfig as { nassau?: boolean } | undefined)?.nassau !== false &&
+                leaderboard.nassauResult?.matches &&
+                leaderboard.nassauResult.matches.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="font-sans font-semibold text-xs uppercase tracking-widest" style={{ color: "hsl(42 52% 59%)" }}>
                     Team Nassau
@@ -700,7 +702,7 @@ export default function RoundPage() {
                     const teamBName = m.teamBPlayerIds.map(nameFor).join(" / ") || "—";
                     const outcomeLabel = (side: "A" | "B" | "halved" | null, margin: number) => {
                       if (side == null) return "—";
-                      if (side === "halved") return margin === 0 ? "All square" : "Halved";
+                      if (side === "halved") return "All square";
                       return `${side === "A" ? `Team ${m.teamA}` : `Team ${m.teamB}`} ${margin} up`;
                     };
                     return (
