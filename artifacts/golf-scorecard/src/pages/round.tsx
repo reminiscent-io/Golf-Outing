@@ -23,6 +23,7 @@ import {
   type CourseTee,
 } from "@/lib/course-lookup";
 import { SignedInAs } from "@/components/signed-in-as";
+import { RoundGroupsEditor } from "@/components/round-groups-editor";
 
 type SubTab = "scorecard" | "results" | "setup";
 
@@ -688,6 +689,12 @@ export default function RoundPage() {
       {/* SETUP TAB */}
       {subTab === "setup" && (
         <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-5 space-y-6">
+          <section className="mb-6">
+            <h2 className="text-sm font-sans font-600 uppercase tracking-widest mb-3" style={{ color: "hsl(42 52% 59%)" }}>
+              Groups
+            </h2>
+            <RoundGroupsEditor tripId={tripId} roundId={roundId} />
+          </section>
           {/* Course lookup */}
           <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
             <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>Look up course</h3>
