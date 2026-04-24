@@ -37,7 +37,7 @@ router.get("/trips/:tripId/rounds", async (req, res): Promise<void> => {
     return;
   }
   const rounds = await db.select().from(roundsTable).where(eq(roundsTable.tripId, params.data.tripId)).orderBy(roundsTable.createdAt);
-  res.json(ListRoundsResponse.parse(rounds));
+  res.json(ListRoundsResponse.parse(ser(rounds)));
 });
 
 router.post("/trips/:tripId/rounds", async (req, res): Promise<void> => {
