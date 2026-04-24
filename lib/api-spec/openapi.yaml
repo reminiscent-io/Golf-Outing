@@ -124,6 +124,35 @@ paths:
         "204":
           description: Deleted
 
+  /trips/{tripId}/auth:
+    post:
+      operationId: authenticateTrip
+      tags: [trips]
+      summary: Verify a trip's soft-gate password
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthenticateTripBody"
+      responses:
+        "200":
+          description: Password accepted (or trip has no password set)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticateTripResponse"
+        "401":
+          description: Password rejected
+        "404":
+          description: Trip not found
+
   /trips/{tripId}/players:
     get:
       operationId: listPlayers
@@ -480,6 +509,22 @@ components:
           type: ["string", "null"]
         password:
           type: string
+
+    AuthenticateTripBody:
+      type: object
+      properties:
+        password:
+          type: string
+      required:
+        - password
+
+    AuthenticateTripResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
 
     Player:
       type: object

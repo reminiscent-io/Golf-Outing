@@ -84,6 +84,21 @@ export const DeleteTripParams = zod.object({
 });
 
 /**
+ * @summary Verify a trip's soft-gate password
+ */
+export const AuthenticateTripParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const AuthenticateTripBody = zod.object({
+  password: zod.string(),
+});
+
+export const AuthenticateTripResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary List players in a trip
  */
 export const ListPlayersParams = zod.object({

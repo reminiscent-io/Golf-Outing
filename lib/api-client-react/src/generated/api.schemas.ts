@@ -33,6 +33,14 @@ export interface UpdateTripBody {
   password?: string;
 }
 
+export interface AuthenticateTripBody {
+  password: string;
+}
+
+export interface AuthenticateTripResponse {
+  ok: boolean;
+}
+
 export interface Player {
   id: number;
   tripId: number;

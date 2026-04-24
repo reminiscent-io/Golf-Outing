@@ -3,6 +3,9 @@ import { eq } from "drizzle-orm";
 import { db, tripsTable } from "@workspace/db";
 import { ser } from "../lib/serialize";
 import {
+  AuthenticateTripParams,
+  AuthenticateTripBody,
+  AuthenticateTripResponse,
   CreateTripBody,
   GetTripParams,
   GetTripResponse,
@@ -71,6 +74,31 @@ router.delete("/trips/:tripId", async (req, res): Promise<void> => {
   }
   await db.delete(tripsTable).where(eq(tripsTable.id, params.data.tripId));
   res.sendStatus(204);
+});
+
+router.post("/trips/:tripId/auth", async (req, res): Promise<void> => {
+  const params = AuthenticateTripParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const parsed = AuthenticateTripBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [trip] = await db.select().from(tripsTable).where(eq(tripsTable.id, params.data.tripId));
+  if (!trip) {
+    res.status(404).json({ error: "Trip not found" });
+    return;
+  }
+  const stored = (trip.password ?? "").toLowerCase();
+  const provided = parsed.data.password.toLowerCase();
+  if (stored === "" || stored === provided) {
+    res.json(AuthenticateTripResponse.parse({ ok: true }));
+    return;
+  }
+  res.status(401).json({ error: "Password rejected" });
 });
 
 export default router;

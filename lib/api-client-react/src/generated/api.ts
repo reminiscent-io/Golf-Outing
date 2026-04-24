@@ -17,6 +17,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AuthenticateTripBody,
+  AuthenticateTripResponse,
   CreatePlayerBody,
   CreateRoundBody,
   CreateTripBody,
@@ -514,6 +516,93 @@ export const useDeleteTrip = <
   TContext
 > => {
   return useMutation(getDeleteTripMutationOptions(options));
+};
+
+/**
+ * @summary Verify a trip's soft-gate password
+ */
+export const getAuthenticateTripUrl = (tripId: number) => {
+  return `/api/trips/${tripId}/auth`;
+};
+
+export const authenticateTrip = async (
+  tripId: number,
+  authenticateTripBody: AuthenticateTripBody,
+  options?: RequestInit,
+): Promise<AuthenticateTripResponse> => {
+  return customFetch<AuthenticateTripResponse>(getAuthenticateTripUrl(tripId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(authenticateTripBody),
+  });
+};
+
+export const getAuthenticateTripMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authenticateTrip>>,
+    TError,
+    { tripId: number; data: BodyType<AuthenticateTripBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authenticateTrip>>,
+  TError,
+  { tripId: number; data: BodyType<AuthenticateTripBody> },
+  TContext
+> => {
+  const mutationKey = ["authenticateTrip"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authenticateTrip>>,
+    { tripId: number; data: BodyType<AuthenticateTripBody> }
+  > = (props) => {
+    const { tripId, data } = props ?? {};
+
+    return authenticateTrip(tripId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthenticateTripMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authenticateTrip>>
+>;
+export type AuthenticateTripMutationBody = BodyType<AuthenticateTripBody>;
+export type AuthenticateTripMutationError = ErrorType<void>;
+
+/**
+ * @summary Verify a trip's soft-gate password
+ */
+export const useAuthenticateTrip = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authenticateTrip>>,
+    TError,
+    { tripId: number; data: BodyType<AuthenticateTripBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof authenticateTrip>>,
+  TError,
+  { tripId: number; data: BodyType<AuthenticateTripBody> },
+  TContext
+> => {
+  return useMutation(getAuthenticateTripMutationOptions(options));
 };
 
 /**
