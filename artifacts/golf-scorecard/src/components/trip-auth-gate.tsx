@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useAuthenticateTrip, useListPlayers, getListPlayersQueryKey } from "@workspace/api-client-react";
 import { useTripIdentity, setTripIdentity } from "@/lib/trip-identity";
 
@@ -9,7 +9,7 @@ type Props = {
 
 export function TripAuthGate({ tripId, children }: Props) {
   const identity = useTripIdentity(tripId);
-  const [step, setStep] = useState<"password" | "identity">("password");
+  const [step, setStep] = useState<"probing" | "password" | "identity">("probing");
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | "">("");
@@ -22,8 +22,24 @@ export function TripAuthGate({ tripId, children }: Props) {
     },
   });
 
+  useEffect(() => {
+    if (identity) return;
+    authenticate.mutate(
+      { tripId, data: { password: "" } },
+      {
+        onSuccess: () => setStep("identity"),
+        onError: () => setStep("password"),
+      }
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId, identity]);
+
   if (identity) {
     return <>{children}</>;
+  }
+
+  if (step === "probing") {
+    return null;
   }
 
   function handlePasswordSubmit(e: React.FormEvent) {
@@ -63,6 +79,7 @@ export function TripAuthGate({ tripId, children }: Props) {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
+              disabled={authenticate.isPending}
               className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
               style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
             />
