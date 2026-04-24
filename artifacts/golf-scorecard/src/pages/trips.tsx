@@ -17,17 +17,19 @@ export default function TripsPage() {
   const deleteTrip = useDeleteTrip();
   const [showCreate, setShowCreate] = useState(false);
   const [tripName, setTripName] = useState("");
+  const [tripPassword, setTripPassword] = useState("");
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!tripName.trim()) return;
     createTrip.mutate(
-      { data: { name: tripName.trim() } },
+      { data: { name: tripName.trim(), password: tripPassword } },
       {
         onSuccess: (trip) => {
           queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() });
           setShowCreate(false);
           setTripName("");
+          setTripPassword("");
           navigate(`/trips/${trip.id}`);
         },
       }
@@ -82,6 +84,21 @@ export default function TripsPage() {
               value={tripName}
               onChange={e => setTripName(e.target.value)}
               placeholder="The Family Cup 2025..."
+              className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
+              style={{
+                background: "white",
+                color: "hsl(38 30% 14%)",
+                border: "1.5px solid hsl(38 25% 72%)",
+              }}
+            />
+            <label className="block text-xs font-sans font-600 uppercase tracking-widest mb-2 mt-3" style={{ color: "hsl(38 20% 38%)" }}>
+              Password (optional)
+            </label>
+            <input
+              type="password"
+              value={tripPassword}
+              onChange={e => setTripPassword(e.target.value)}
+              placeholder="leave blank for open access"
               className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
               style={{
                 background: "white",
