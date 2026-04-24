@@ -9,12 +9,15 @@ import {
 } from "@workspace/api-client-react";
 import { Plus, X } from "lucide-react";
 
-type Assignment = { playerId: number; groupNumber: number };
+type Assignment = { playerId: number; groupNumber: number; slotIndex: number };
+type Source = { from: "unassigned" } | { from: "slot"; groupNumber: number; slotIndex: number };
 
 type Props = {
   tripId: number;
   roundId: number;
 };
+
+const SLOTS_PER_GROUP = 4;
 
 export function RoundGroupsEditor({ tripId, roundId }: Props) {
   const queryClient = useQueryClient();
@@ -35,9 +38,7 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
       },
       onError: (_err, { tripId: tid, roundId: rid }, ctx) => {
         const qk = getListRoundGroupsQueryKey(tid, rid);
-        if (ctx?.prev !== undefined) {
-          queryClient.setQueryData(qk, ctx.prev);
-        }
+        if (ctx?.prev !== undefined) queryClient.setQueryData(qk, ctx.prev);
         queryClient.invalidateQueries({ queryKey: qk });
       },
       onSettled: (_data, _err, { tripId: tid, roundId: rid }) => {
@@ -48,18 +49,14 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
 
   const serverAssignments: Assignment[] = groupsData?.assignments ?? [];
 
-  // Derive the set of group numbers that should be shown. Start with server
-  // groups; the user can locally append an empty Group N+1 via "Add group".
+  // Group numbers currently in use. Always include at least Group 1.
   const serverGroupNumbers = useMemo(() => {
     const s = new Set<number>(serverAssignments.map(a => a.groupNumber));
-    // Always show at least Group 1 so there's somewhere to drop.
     s.add(1);
     return Array.from(s).sort((a, b) => a - b);
   }, [serverAssignments]);
 
   const [extraGroups, setExtraGroups] = useState<number[]>([]);
-
-  // Drop any "extra" groups that have since been populated on the server.
   useEffect(() => {
     setExtraGroups(prev => prev.filter(n => !serverGroupNumbers.includes(n)));
   }, [serverGroupNumbers]);
@@ -69,22 +66,44 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
     return Array.from(s).sort((a, b) => a - b);
   }, [serverGroupNumbers, extraGroups]);
 
-  const assignmentByPlayer = useMemo(() => {
-    const m = new Map<number, number>();
-    serverAssignments.forEach(a => m.set(a.playerId, a.groupNumber));
+  // slotAt.get(`${groupNumber}:${slotIndex}`) = playerId
+  const slotAt = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of serverAssignments) m.set(`${a.groupNumber}:${a.slotIndex}`, a.playerId);
     return m;
   }, [serverAssignments]);
 
-  const unassignedPlayers = (players ?? []).filter(p => !assignmentByPlayer.has(p.id));
+  const assignedPlayerIds = useMemo(
+    () => new Set(serverAssignments.map(a => a.playerId)),
+    [serverAssignments]
+  );
+  const unassignedPlayers = (players ?? []).filter(p => !assignedPlayerIds.has(p.id));
 
-  function save(nextAssignments: Assignment[]) {
-    putGroups.mutate({ tripId, roundId, data: { assignments: nextAssignments } });
+  function save(next: Assignment[]) {
+    putGroups.mutate({ tripId, roundId, data: { assignments: next } });
   }
 
-  function movePlayer(playerId: number, toGroup: number | "unassigned") {
-    const others = serverAssignments.filter(a => a.playerId !== playerId);
-    const next = toGroup === "unassigned" ? others : [...others, { playerId, groupNumber: toGroup }];
-    save(next);
+  // Move a player into a specific slot, possibly swapping with the current occupant.
+  function moveToSlot(playerId: number, source: Source, target: { groupNumber: number; slotIndex: number }) {
+    const existing = serverAssignments.filter(a => a.playerId !== playerId);
+    const occupantId = slotAt.get(`${target.groupNumber}:${target.slotIndex}`) ?? null;
+
+    let working = existing.filter(a => !(occupantId != null && a.playerId === occupantId));
+
+    working.push({ playerId, groupNumber: target.groupNumber, slotIndex: target.slotIndex });
+
+    if (occupantId != null) {
+      if (source.from === "slot") {
+        working.push({ playerId: occupantId, groupNumber: source.groupNumber, slotIndex: source.slotIndex });
+      }
+      // If source was unassigned, displaced occupant goes to unassigned — no append needed.
+    }
+
+    save(working);
+  }
+
+  function moveToUnassigned(playerId: number) {
+    save(serverAssignments.filter(a => a.playerId !== playerId));
   }
 
   function addGroup() {
@@ -93,13 +112,12 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
   }
 
   function removeEmptyGroup(groupNumber: number) {
-    // Only allowed for empty groups; handler skipped if any assignment matches.
     if (serverAssignments.some(a => a.groupNumber === groupNumber)) return;
     setExtraGroups(prev => prev.filter(n => n !== groupNumber));
   }
 
-  function onDragStart(e: React.DragEvent, playerId: number) {
-    e.dataTransfer.setData("text/plain", String(playerId));
+  function onDragStart(e: React.DragEvent, playerId: number, source: Source) {
+    e.dataTransfer.setData("text/plain", JSON.stringify({ playerId, source }));
     e.dataTransfer.effectAllowed = "move";
   }
 
@@ -108,43 +126,64 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
     e.dataTransfer.dropEffect = "move";
   }
 
-  function onDrop(e: React.DragEvent, target: number | "unassigned") {
-    e.preventDefault();
+  function readDrag(e: React.DragEvent): { playerId: number; source: Source } | null {
     const raw = e.dataTransfer.getData("text/plain");
-    const playerId = Number(raw);
-    if (!playerId) return;
-    movePlayer(playerId, target);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.playerId !== "number") return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  function onDropSlot(e: React.DragEvent, groupNumber: number, slotIndex: number) {
+    e.preventDefault();
+    const drag = readDrag(e);
+    if (!drag) return;
+    moveToSlot(drag.playerId, drag.source, { groupNumber, slotIndex });
+  }
+
+  function onDropUnassigned(e: React.DragEvent) {
+    e.preventDefault();
+    const drag = readDrag(e);
+    if (!drag) return;
+    moveToUnassigned(drag.playerId);
   }
 
   return (
     <div className="overflow-x-auto">
       <div className="flex gap-3 min-w-max py-2">
         {unassignedPlayers.length > 0 && (
-          <GroupColumn
-            title="Unassigned"
+          <UnassignedColumn
             players={unassignedPlayers.map(p => ({ id: p.id, name: p.name }))}
             onDragStart={onDragStart}
             onDragOver={onDragOver}
-            onDrop={e => onDrop(e, "unassigned")}
+            onDrop={onDropUnassigned}
           />
         )}
         {allGroupNumbers.map(gn => {
-          const assigned = serverAssignments
-            .filter(a => a.groupNumber === gn)
-            .map(a => {
-              const p = players?.find(pl => pl.id === a.playerId);
-              return p ? { id: p.id, name: p.name } : null;
-            })
-            .filter((x): x is { id: number; name: string } => x !== null);
-          const canRemove = assigned.length === 0 && extraGroups.includes(gn);
+          const teamA = (gn - 1) * 2 + 1;
+          const teamB = (gn - 1) * 2 + 2;
+          const slots = Array.from({ length: SLOTS_PER_GROUP }, (_, i) => {
+            const slotIndex = i + 1;
+            const playerId = slotAt.get(`${gn}:${slotIndex}`) ?? null;
+            const player = playerId != null ? players?.find(p => p.id === playerId) ?? null : null;
+            return { slotIndex, playerId, player };
+          });
+          const isEmpty = slots.every(s => s.playerId == null);
+          const canRemove = isEmpty && extraGroups.includes(gn);
           return (
             <GroupColumn
               key={gn}
-              title={`Group ${gn}`}
-              players={assigned}
+              groupNumber={gn}
+              teamA={teamA}
+              teamB={teamB}
+              slots={slots}
               onDragStart={onDragStart}
               onDragOver={onDragOver}
-              onDrop={e => onDrop(e, gn)}
+              onDropSlot={onDropSlot}
               onRemove={canRemove ? () => removeEmptyGroup(gn) : undefined}
             />
           );
@@ -162,16 +201,14 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
   );
 }
 
-type GroupColumnProps = {
-  title: string;
+type UnassignedProps = {
   players: Array<{ id: number; name: string }>;
-  onDragStart: (e: React.DragEvent, playerId: number) => void;
+  onDragStart: (e: React.DragEvent, playerId: number, source: Source) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
-  onRemove?: () => void;
 };
 
-function GroupColumn({ title, players, onDragStart, onDragOver, onDrop, onRemove }: GroupColumnProps) {
+function UnassignedColumn({ players, onDragStart, onDragOver, onDrop }: UnassignedProps) {
   return (
     <div
       onDragOver={onDragOver}
@@ -179,22 +216,15 @@ function GroupColumn({ title, players, onDragStart, onDragOver, onDrop, onRemove
       className="min-w-[180px] w-[180px] rounded-xl p-3"
       style={{ background: "hsl(158 35% 14%)", border: "1px solid hsl(158 40% 20%)" }}
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-sans font-600 uppercase tracking-widest" style={{ color: "hsl(42 52% 59%)" }}>
-          {title}
-        </div>
-        {onRemove && (
-          <button onClick={onRemove} className="hover:opacity-80" style={{ color: "hsl(42 20% 55%)" }}>
-            <X size={14} />
-          </button>
-        )}
+      <div className="mb-2 text-xs font-sans font-600 uppercase tracking-widest" style={{ color: "hsl(42 52% 59%)" }}>
+        Unassigned
       </div>
       <div className="space-y-2 min-h-[40px]">
         {players.map(p => (
           <div
             key={p.id}
             draggable
-            onDragStart={e => onDragStart(e, p.id)}
+            onDragStart={e => onDragStart(e, p.id, { from: "unassigned" })}
             className="px-2.5 py-2 rounded-lg cursor-grab active:cursor-grabbing text-sm font-sans"
             style={{ background: "hsl(42 45% 91%)", color: "hsl(38 30% 14%)" }}
           >
@@ -202,6 +232,106 @@ function GroupColumn({ title, players, onDragStart, onDragOver, onDrop, onRemove
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+type GroupProps = {
+  groupNumber: number;
+  teamA: number;
+  teamB: number;
+  slots: Array<{ slotIndex: number; playerId: number | null; player: { id: number; name: string } | null }>;
+  onDragStart: (e: React.DragEvent, playerId: number, source: Source) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDropSlot: (e: React.DragEvent, groupNumber: number, slotIndex: number) => void;
+  onRemove?: () => void;
+};
+
+function GroupColumn({ groupNumber, teamA, teamB, slots, onDragStart, onDragOver, onDropSlot, onRemove }: GroupProps) {
+  const teamASlots = slots.filter(s => s.slotIndex <= 2);
+  const teamBSlots = slots.filter(s => s.slotIndex >= 3);
+
+  return (
+    <div
+      className="min-w-[180px] w-[180px] rounded-xl p-3"
+      style={{ background: "hsl(158 35% 14%)", border: "1px solid hsl(158 40% 20%)" }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-sans font-600 uppercase tracking-widest" style={{ color: "hsl(42 52% 59%)" }}>
+          Group {groupNumber}
+        </div>
+        {onRemove && (
+          <button onClick={onRemove} className="hover:opacity-80" style={{ color: "hsl(42 20% 55%)" }}>
+            <X size={14} />
+          </button>
+        )}
+      </div>
+      <TeamSection label={`Team ${teamA}`} groupNumber={groupNumber} slots={teamASlots} onDragStart={onDragStart} onDragOver={onDragOver} onDropSlot={onDropSlot} />
+      <div className="my-2 text-[10px] font-sans text-center uppercase tracking-widest" style={{ color: "hsl(42 20% 45%)" }}>
+        vs
+      </div>
+      <TeamSection label={`Team ${teamB}`} groupNumber={groupNumber} slots={teamBSlots} onDragStart={onDragStart} onDragOver={onDragOver} onDropSlot={onDropSlot} />
+    </div>
+  );
+}
+
+type TeamSectionProps = {
+  label: string;
+  groupNumber: number;
+  slots: Array<{ slotIndex: number; playerId: number | null; player: { id: number; name: string } | null }>;
+  onDragStart: (e: React.DragEvent, playerId: number, source: Source) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDropSlot: (e: React.DragEvent, groupNumber: number, slotIndex: number) => void;
+};
+
+function TeamSection({ label, groupNumber, slots, onDragStart, onDragOver, onDropSlot }: TeamSectionProps) {
+  return (
+    <div>
+      <div className="mb-1 text-[10px] font-sans font-600 uppercase tracking-widest" style={{ color: "hsl(42 35% 60%)" }}>
+        {label}
+      </div>
+      <div className="space-y-1.5">
+        {slots.map(s => (
+          <SlotCell
+            key={s.slotIndex}
+            groupNumber={groupNumber}
+            slotIndex={s.slotIndex}
+            player={s.player}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDropSlot={onDropSlot}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type SlotCellProps = {
+  groupNumber: number;
+  slotIndex: number;
+  player: { id: number; name: string } | null;
+  onDragStart: (e: React.DragEvent, playerId: number, source: Source) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDropSlot: (e: React.DragEvent, groupNumber: number, slotIndex: number) => void;
+};
+
+function SlotCell({ groupNumber, slotIndex, player, onDragStart, onDragOver, onDropSlot }: SlotCellProps) {
+  const filled = player != null;
+  return (
+    <div
+      onDragOver={onDragOver}
+      onDrop={e => onDropSlot(e, groupNumber, slotIndex)}
+      className="px-2.5 py-2 rounded-lg text-sm font-sans"
+      style={
+        filled
+          ? { background: "hsl(42 45% 91%)", color: "hsl(38 30% 14%)" }
+          : { background: "transparent", color: "hsl(42 20% 50%)", border: "1.5px dashed hsl(158 40% 22%)" }
+      }
+      draggable={filled}
+      onDragStart={filled && player ? e => onDragStart(e, player.id, { from: "slot", groupNumber, slotIndex }) : undefined}
+    >
+      {filled ? player!.name : "—"}
     </div>
   );
 }
