@@ -491,9 +491,42 @@ export const GetRoundLeaderboardResponse = zod.object({
     }),
   ),
   nassauResult: zod.object({
-    frontWinnerIds: zod.array(zod.number()),
-    backWinnerIds: zod.array(zod.number()),
-    totalWinnerIds: zod.array(zod.number()),
+    matches: zod.array(
+      zod.object({
+        groupNumber: zod.number(),
+        teamA: zod.number(),
+        teamB: zod.number(),
+        teamAPlayerIds: zod.array(zod.number()),
+        teamBPlayerIds: zod.array(zod.number()),
+        front: zod
+          .union([
+            zod.literal("A"),
+            zod.literal("B"),
+            zod.literal("halved"),
+            zod.literal(null),
+          ])
+          .nullable(),
+        back: zod
+          .union([
+            zod.literal("A"),
+            zod.literal("B"),
+            zod.literal("halved"),
+            zod.literal(null),
+          ])
+          .nullable(),
+        total: zod
+          .union([
+            zod.literal("A"),
+            zod.literal("B"),
+            zod.literal("halved"),
+            zod.literal(null),
+          ])
+          .nullable(),
+        frontMargin: zod.number(),
+        backMargin: zod.number(),
+        totalMargin: zod.number(),
+      }),
+    ),
   }),
 });
 
@@ -505,11 +538,17 @@ export const ListRoundGroupsParams = zod.object({
   roundId: zod.coerce.number(),
 });
 
+export const listRoundGroupsResponseAssignmentsItemSlotIndexMax = 4;
+
 export const ListRoundGroupsResponse = zod.object({
   assignments: zod.array(
     zod.object({
       playerId: zod.number(),
-      groupNumber: zod.number(),
+      groupNumber: zod.number().min(1),
+      slotIndex: zod
+        .number()
+        .min(1)
+        .max(listRoundGroupsResponseAssignmentsItemSlotIndexMax),
     }),
   ),
 });
@@ -522,20 +561,32 @@ export const PutRoundGroupsParams = zod.object({
   roundId: zod.coerce.number(),
 });
 
+export const putRoundGroupsBodyAssignmentsItemSlotIndexMax = 4;
+
 export const PutRoundGroupsBody = zod.object({
   assignments: zod.array(
     zod.object({
       playerId: zod.number(),
-      groupNumber: zod.number(),
+      groupNumber: zod.number().min(1),
+      slotIndex: zod
+        .number()
+        .min(1)
+        .max(putRoundGroupsBodyAssignmentsItemSlotIndexMax),
     }),
   ),
 });
+
+export const putRoundGroupsResponseAssignmentsItemSlotIndexMax = 4;
 
 export const PutRoundGroupsResponse = zod.object({
   assignments: zod.array(
     zod.object({
       playerId: zod.number(),
-      groupNumber: zod.number(),
+      groupNumber: zod.number().min(1),
+      slotIndex: zod
+        .number()
+        .min(1)
+        .max(putRoundGroupsResponseAssignmentsItemSlotIndexMax),
     }),
   ),
 });
