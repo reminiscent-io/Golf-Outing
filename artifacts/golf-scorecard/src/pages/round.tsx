@@ -22,6 +22,7 @@ import {
   type CourseDetail,
   type CourseTee,
 } from "@/lib/course-lookup";
+import { SignedInAs } from "@/components/signed-in-as";
 
 type SubTab = "scorecard" | "results" | "setup";
 
@@ -365,6 +366,9 @@ export default function RoundPage() {
               {round.date && <span>{round.date}</span>}
             </div>
           )}
+          <div className="mt-2">
+            <SignedInAs tripId={tripId} />
+          </div>
         </div>
       </div>
 

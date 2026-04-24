@@ -27,6 +27,7 @@ import {
   type CourseDetail,
   type CourseTee,
 } from "@/lib/course-lookup";
+import { SignedInAs } from "@/components/signed-in-as";
 
 type Tab = "leaderboard" | "rounds" | "players";
 
@@ -278,6 +279,9 @@ export default function TripHubPage() {
             <span>{players?.length ?? 0} players</span>
             <span>·</span>
             <span>{rounds?.length ?? 0} rounds</span>
+          </div>
+          <div className="mt-2">
+            <SignedInAs tripId={tripId} />
           </div>
         </div>
       </div>
