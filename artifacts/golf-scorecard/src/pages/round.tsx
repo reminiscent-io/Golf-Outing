@@ -687,24 +687,49 @@ export default function RoundPage() {
                   ))}
               </div>
 
-              {/* Nassau */}
-              {leaderboard.nassauResult && (
-                <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
-                  <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-3" style={{ color: "hsl(38 20% 38%)" }}>Nassau</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: "Front 9", ids: leaderboard.nassauResult.frontWinnerIds },
-                      { label: "Back 9", ids: leaderboard.nassauResult.backWinnerIds },
-                      { label: "Total 18", ids: leaderboard.nassauResult.totalWinnerIds },
-                    ].map(({ label, ids }) => (
-                      <div key={label} className="rounded-lg p-3 text-center" style={{ background: "hsl(158 35% 20%)" }}>
-                        <div className="text-[10px] font-sans uppercase tracking-widest mb-1" style={{ color: "hsl(42 20% 55%)" }}>{label}</div>
-                        <div className="font-serif text-sm font-semibold" style={{ color: "hsl(42 52% 59%)" }}>
-                          {ids.length === 0 ? "—" : ids.map(id => leaderboard.entries.find(e => e.playerId === id)?.playerName?.split(" ")[0]).join(", ")}
+              {/* Team Nassau — one card per group match */}
+              {leaderboard.nassauResult?.matches && leaderboard.nassauResult.matches.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="font-sans font-semibold text-xs uppercase tracking-widest" style={{ color: "hsl(42 52% 59%)" }}>
+                    Team Nassau
+                  </h3>
+                  {leaderboard.nassauResult.matches.map(m => {
+                    const nameFor = (id: number) =>
+                      leaderboard.entries.find(e => e.playerId === id)?.playerName?.split(" ")[0] ?? `#${id}`;
+                    const teamAName = m.teamAPlayerIds.map(nameFor).join(" / ") || "—";
+                    const teamBName = m.teamBPlayerIds.map(nameFor).join(" / ") || "—";
+                    const outcomeLabel = (side: "A" | "B" | "halved" | null, margin: number) => {
+                      if (side == null) return "—";
+                      if (side === "halved") return margin === 0 ? "All square" : "Halved";
+                      return `${side === "A" ? `Team ${m.teamA}` : `Team ${m.teamB}`} ${margin} up`;
+                    };
+                    return (
+                      <div key={m.groupNumber} className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
+                        <div className="flex items-baseline justify-between mb-2">
+                          <div className="font-sans font-semibold text-xs uppercase tracking-widest" style={{ color: "hsl(38 20% 38%)" }}>
+                            Group {m.groupNumber}
+                          </div>
+                          <div className="font-sans text-xs" style={{ color: "hsl(38 20% 45%)" }}>
+                            Team {m.teamA} ({teamAName}) vs Team {m.teamB} ({teamBName})
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { label: "Front 9", side: m.front, margin: m.frontMargin },
+                            { label: "Back 9", side: m.back, margin: m.backMargin },
+                            { label: "Total 18", side: m.total, margin: m.totalMargin },
+                          ].map(seg => (
+                            <div key={seg.label} className="rounded-lg p-3 text-center" style={{ background: "hsl(158 35% 20%)" }}>
+                              <div className="text-[10px] font-sans uppercase tracking-widest mb-1" style={{ color: "hsl(42 20% 55%)" }}>{seg.label}</div>
+                              <div className="font-serif text-sm font-semibold" style={{ color: "hsl(42 52% 59%)" }}>
+                                {outcomeLabel(seg.side, seg.margin)}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -941,7 +966,7 @@ export default function RoundPage() {
               {(["stableford", "skins", "nassau", "netStroke"] as const).map(game => (
                 <label key={game} className="flex items-center justify-between cursor-pointer py-1.5">
                   <span className="font-sans text-sm font-semibold" style={{ color: "hsl(38 30% 14%)" }}>
-                    {game === "netStroke" ? "Net Stroke Play" : game.charAt(0).toUpperCase() + game.slice(1)}
+                    {game === "netStroke" ? "Net Stroke Play" : game === "nassau" ? "Team Nassau" : game.charAt(0).toUpperCase() + game.slice(1)}
                   </span>
                   <div
                     onClick={() => setSetupGames(g => ({ ...g, [game]: !g[game] }))}
