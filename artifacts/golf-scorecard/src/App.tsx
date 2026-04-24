@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useParams } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import TripsPage from "@/pages/trips";
 import TripHubPage from "@/pages/trip-hub";
 import RoundPage from "@/pages/round";
+import { TripAuthGate } from "@/components/trip-auth-gate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,12 +17,34 @@ const queryClient = new QueryClient({
   },
 });
 
+function GatedTripHub() {
+  const { tripId } = useParams<{ tripId: string }>();
+  const id = Number(tripId);
+  if (!id) return <NotFound />;
+  return (
+    <TripAuthGate tripId={id}>
+      <TripHubPage />
+    </TripAuthGate>
+  );
+}
+
+function GatedRound() {
+  const { tripId } = useParams<{ tripId: string; roundId: string }>();
+  const id = Number(tripId);
+  if (!id) return <NotFound />;
+  return (
+    <TripAuthGate tripId={id}>
+      <RoundPage />
+    </TripAuthGate>
+  );
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={TripsPage} />
-      <Route path="/trips/:tripId" component={TripHubPage} />
-      <Route path="/trips/:tripId/rounds/:roundId" component={RoundPage} />
+      <Route path="/trips/:tripId" component={GatedTripHub} />
+      <Route path="/trips/:tripId/rounds/:roundId" component={GatedRound} />
       <Route component={NotFound} />
     </Switch>
   );
