@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, Fragment } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -501,7 +501,7 @@ export default function RoundPage() {
                     const isSection = holeIdx === 9;
                     const outRow = holeIdx === 9;
                     return (
-                      <>
+                      <Fragment key={holeIdx}>
                         {holeIdx === 9 && (
                           <tr key="out" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
                             <td className="px-3 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
@@ -600,7 +600,7 @@ export default function RoundPage() {
                             })}
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                   {/* Total row */}
