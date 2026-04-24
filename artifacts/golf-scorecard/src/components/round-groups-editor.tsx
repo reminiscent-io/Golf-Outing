@@ -119,13 +119,15 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
   return (
     <div className="overflow-x-auto">
       <div className="flex gap-3 min-w-max py-2">
-        <GroupColumn
-          title="Unassigned"
-          players={unassignedPlayers.map(p => ({ id: p.id, name: p.name }))}
-          onDragStart={onDragStart}
-          onDragOver={onDragOver}
-          onDrop={e => onDrop(e, "unassigned")}
-        />
+        {unassignedPlayers.length > 0 && (
+          <GroupColumn
+            title="Unassigned"
+            players={unassignedPlayers.map(p => ({ id: p.id, name: p.name }))}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDrop={e => onDrop(e, "unassigned")}
+          />
+        )}
         {allGroupNumbers.map(gn => {
           const assigned = serverAssignments
             .filter(a => a.groupNumber === gn)

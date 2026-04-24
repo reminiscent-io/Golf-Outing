@@ -651,7 +651,7 @@ export default function RoundPage() {
 
               {/* Net Stroke & Stableford */}
               <div className="rounded-xl overflow-hidden" style={{ border: "1px solid hsl(158 40% 22%)" }}>
-                <div className="px-4 py-2.5 grid grid-cols-[2fr,1fr,1fr,1fr,1fr] text-xs font-sans font-semibold uppercase tracking-widest"
+                <div className="px-4 py-2.5 grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
                   style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
                   <span>Player</span>
                   <span className="text-right">Gross</span>
@@ -664,7 +664,7 @@ export default function RoundPage() {
                   .map((e, idx) => (
                     <div
                       key={e.playerId}
-                      className="px-4 py-3 grid grid-cols-[2fr,1fr,1fr,1fr,1fr] items-center"
+                      className="px-4 py-3 grid grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center"
                       style={{
                         background: idx === 0 ? "hsl(42 30% 88%)" : idx % 2 === 0 ? "hsl(42 20% 93%)" : "hsl(42 15% 90%)",
                         borderTop: "1px solid hsl(38 25% 78%)",
@@ -711,7 +711,7 @@ export default function RoundPage() {
               {/* Skins */}
               {leaderboard.skinResults && leaderboard.skinResults.some(s => s.winnerId != null || s.tied) && (
                 <div className="rounded-xl overflow-hidden" style={{ border: "1px solid hsl(158 40% 22%)" }}>
-                  <div className="px-4 py-2.5 grid grid-cols-[1fr,2fr,1fr] text-xs font-sans font-semibold uppercase tracking-widest"
+                  <div className="px-4 py-2.5 grid grid-cols-[1fr_2fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
                     style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
                     <span>Hole</span>
                     <span>Winner</span>
@@ -720,7 +720,7 @@ export default function RoundPage() {
                   {leaderboard.skinResults.map((s, idx) => (
                     <div
                       key={s.hole}
-                      className="px-4 py-2.5 grid grid-cols-[1fr,2fr,1fr] items-center"
+                      className="px-4 py-2.5 grid grid-cols-[1fr_2fr_1fr] items-center"
                       style={{
                         background: idx % 2 === 0 ? "hsl(42 20% 93%)" : "hsl(42 15% 90%)",
                         borderTop: "1px solid hsl(38 25% 78%)",
@@ -857,13 +857,13 @@ export default function RoundPage() {
                   style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs font-sans mb-1" style={{ color: "hsl(38 20% 38%)" }}>Date</label>
                 <input
                   type="date"
                   value={setupDate}
                   onChange={e => setSetupDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                  className="w-full min-w-0 px-3 py-2 rounded-lg text-sm font-sans outline-none"
                   style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
                 />
               </div>

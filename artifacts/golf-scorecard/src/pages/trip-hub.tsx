@@ -587,7 +587,7 @@ export default function TripHubPage() {
                 </div>
                 <div className="rounded-xl overflow-hidden" style={{ border: "1px solid hsl(158 40% 22%)" }}>
                   {/* Header row */}
-                  <div className="px-4 py-2.5 grid grid-cols-[2fr,1fr,1fr,1fr,1fr] text-xs font-sans font-semibold uppercase tracking-widest"
+                  <div className="px-4 py-2.5 grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
                     style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
                     <span>Player</span>
                     <span className="text-right">Stableford</span>
@@ -601,7 +601,7 @@ export default function TripHubPage() {
                     .map((p, idx) => (
                       <div
                         key={p.playerId}
-                        className="px-4 py-3.5 grid grid-cols-[2fr,1fr,1fr,1fr,1fr] items-center"
+                        className="px-4 py-3.5 grid grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center"
                         style={{
                           background: idx === 0 ? "hsl(42 30% 88%)" : idx % 2 === 0 ? "hsl(42 20% 93%)" : "hsl(42 15% 90%)",
                           borderTop: "1px solid hsl(38 25% 78%)",
