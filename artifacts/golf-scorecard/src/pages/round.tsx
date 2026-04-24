@@ -338,7 +338,9 @@ export default function RoundPage() {
       },
       {
         onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetRoundQueryKey(tripId, roundId) });
           queryClient.invalidateQueries({ queryKey: getGetRoundLeaderboardQueryKey(tripId, roundId) });
+          queryClient.invalidateQueries({ queryKey: getGetTripLeaderboardQueryKey(tripId) });
         },
       }
     );
