@@ -470,28 +470,28 @@ export default function RoundPage() {
                 </div>
               )}
             <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
-              <table className="w-full" style={{ minWidth: `${Math.max(700, 80 + visiblePlayers.length * 68)}px` }}>
+              <table className="w-full" style={{ minWidth: `${44 + 28 + visiblePlayers.length * 52}px` }}>
                 <colgroup>
-                  <col style={{ width: 64 }} />
                   <col style={{ width: 44 }} />
+                  <col style={{ width: 28 }} />
                   {visiblePlayers.map(p => (
-                    <col key={p.id} style={{ width: 64 }} />
+                    <col key={p.id} style={{ width: 52 }} />
                   ))}
                 </colgroup>
                 <thead>
                   <tr style={{ background: "hsl(158 65% 9%)", borderBottom: "2px solid hsl(42 52% 59%)" }}>
-                    <th className="px-3 py-2.5 text-left text-xs font-sans font-semibold uppercase tracking-wider sticky left-0 z-20"
+                    <th className="px-2 py-2 text-left text-xs font-sans font-semibold uppercase tracking-wider sticky left-0 z-20"
                       style={{ background: "hsl(158 65% 9%)", color: "hsl(42 20% 55%)" }}>Hole</th>
-                    <th className="px-2 py-2.5 text-center text-xs font-sans font-semibold uppercase tracking-wider"
+                    <th className="px-1 py-2 text-center text-xs font-sans font-semibold uppercase tracking-wider"
                       style={{ color: "hsl(42 20% 55%)" }}>Par</th>
                     {visiblePlayers.map(p => (
-                      <th key={p.id} className="px-2 py-2.5 text-center text-xs font-sans font-semibold"
+                      <th key={p.id} className="px-1 py-2 text-center text-xs font-sans font-semibold"
                         style={{ color: "hsl(42 45% 80%)", ...(identity?.playerId === p.id ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
-                        <div style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
-                        <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 10 }}>
-                          HCP {formatHandicap(p.handicap)}
+                        <div style={{ maxWidth: 46, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
+                        <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 9 }}>
+                          {formatHandicap(p.handicap)}
                           {(playingHcps.get(p.id) ?? 0) !== p.handicap && (
-                            <span style={{ color: "hsl(42 35% 50%)" }}> · CH {playingHcps.get(p.id) ?? 0}</span>
+                            <span style={{ color: "hsl(42 35% 50%)" }}>/{playingHcps.get(p.id) ?? 0}</span>
                           )}
                         </div>
                       </th>
@@ -506,9 +506,9 @@ export default function RoundPage() {
                       <Fragment key={holeIdx}>
                         {holeIdx === 9 && (
                           <tr key="out" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
-                            <td className="px-3 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
+                            <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
                               style={{ background: "hsl(158 50% 14%)", color: "hsl(42 52% 59%)" }}>OUT</td>
-                            <td className="px-2 py-2 text-center text-xs font-serif font-semibold"
+                            <td className="px-1 py-2 text-center text-xs font-serif font-semibold"
                               style={{ color: "hsl(42 45% 75%)" }}>
                               {par.slice(0, 9).reduce((a, b) => a + b, 0)}
                             </td>
@@ -517,7 +517,7 @@ export default function RoundPage() {
                               const holesIn = scores.slice(0, 9).filter(s => s != null).length;
                               const outTotal = holesIn > 0 ? scores.slice(0, 9).filter((s): s is number => s != null).reduce((a, b) => a + b, 0) : null;
                               return (
-                                <td key={p.id} className="px-2 py-2 text-center font-serif text-sm font-semibold"
+                                <td key={p.id} className="px-1 py-2 text-center font-serif text-sm font-semibold"
                                   style={{ color: "hsl(42 45% 80%)" }}>
                                   {outTotal ?? "—"}
                                 </td>
@@ -532,16 +532,16 @@ export default function RoundPage() {
                             borderBottom: "1px solid hsl(158 40% 18%)",
                           }}
                         >
-                          <td className="px-3 py-1.5 text-left sticky left-0 z-10"
+                          <td className="px-2 py-1 text-left sticky left-0 z-10"
                             style={{ background: holeIdx % 2 === 0 ? "hsl(158 45% 13%)" : "hsl(158 40% 15%)" }}>
-                            <div className="font-serif text-base font-semibold" style={{ color: "hsl(42 45% 75%)" }}>
+                            <div className="font-serif text-sm font-semibold leading-tight" style={{ color: "hsl(42 45% 75%)" }}>
                               {holeIdx + 1}
                             </div>
-                            <div className="text-[9px] font-sans" style={{ color: "hsl(42 15% 50%)" }}>
-                              HCP {holeHcp[holeIdx]}
+                            <div className="text-[8px] font-sans leading-tight" style={{ color: "hsl(42 15% 50%)" }}>
+                              {holeHcp[holeIdx]}
                             </div>
                           </td>
-                          <td className="px-2 py-1.5 text-center">
+                          <td className="px-1 py-1 text-center">
                             <span className="font-serif text-sm" style={{ color: "hsl(42 35% 65%)" }}>
                               {par[holeIdx]}
                             </span>
@@ -550,7 +550,7 @@ export default function RoundPage() {
                             const gross = getScore(p.id, holeIdx);
                             const isEditing = editingCell?.playerId === p.id && editingCell?.hole === holeIdx;
                             return (
-                              <td key={p.id} className="px-1.5 py-1.5 text-center">
+                              <td key={p.id} className="px-1 py-1 text-center">
                                 {isEditing ? (
                                   <input
                                     ref={inputRef}
@@ -561,7 +561,7 @@ export default function RoundPage() {
                                     onChange={e => setEditValue(e.target.value)}
                                     onBlur={() => commitEdit(p.id, holeIdx)}
                                     onKeyDown={e => handleKeyDown(e, p.id, holeIdx)}
-                                    className="w-10 h-8 text-center font-serif text-sm rounded-lg outline-none"
+                                    className="w-9 h-8 text-center font-serif text-sm rounded-lg outline-none"
                                     style={{
                                       background: "white",
                                       color: "hsl(38 30% 14%)",
@@ -571,7 +571,7 @@ export default function RoundPage() {
                                 ) : (
                                   <button
                                     onClick={() => startEdit(p.id, holeIdx)}
-                                    className={`w-10 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx])}`}
+                                    className={`w-9 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx])}`}
                                     title={gross != null ? scoreLabel(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
                                   >
                                     {gross ?? "·"}
@@ -583,9 +583,9 @@ export default function RoundPage() {
                         </tr>
                         {holeIdx === 17 && (
                           <tr key="in-total" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
-                            <td className="px-3 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
+                            <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
                               style={{ background: "hsl(158 50% 14%)", color: "hsl(42 52% 59%)" }}>IN</td>
-                            <td className="px-2 py-2 text-center text-xs font-serif font-semibold"
+                            <td className="px-1 py-2 text-center text-xs font-serif font-semibold"
                               style={{ color: "hsl(42 45% 75%)" }}>
                               {par.slice(9).reduce((a, b) => a + b, 0)}
                             </td>
@@ -594,7 +594,7 @@ export default function RoundPage() {
                               const holesIn = scores.slice(9).filter(s => s != null).length;
                               const inTotal = holesIn > 0 ? scores.slice(9).filter((s): s is number => s != null).reduce((a, b) => a + b, 0) : null;
                               return (
-                                <td key={p.id} className="px-2 py-2 text-center font-serif text-sm font-semibold"
+                                <td key={p.id} className="px-1 py-2 text-center font-serif text-sm font-semibold"
                                   style={{ color: "hsl(42 45% 80%)" }}>
                                   {inTotal ?? "—"}
                                 </td>
@@ -607,9 +607,9 @@ export default function RoundPage() {
                   })}
                   {/* Total row */}
                   <tr style={{ background: "hsl(158 60% 11%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
-                    <td className="px-3 py-3 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
+                    <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
                       style={{ background: "hsl(158 60% 11%)", color: "hsl(42 52% 59%)" }}>TOT</td>
-                    <td className="px-2 py-3 text-center font-serif text-sm font-semibold"
+                    <td className="px-1 py-2 text-center font-serif text-sm font-semibold"
                       style={{ color: "hsl(42 45% 75%)" }}>
                       {par.reduce((a, b) => a + b, 0)}
                     </td>
@@ -618,7 +618,7 @@ export default function RoundPage() {
                       const played = scores.filter(s => s != null).length;
                       const total = played > 0 ? scores.filter((s): s is number => s != null).reduce((a, b) => a + b, 0) : null;
                       return (
-                        <td key={p.id} className="px-2 py-3 text-center font-serif text-base font-semibold"
+                        <td key={p.id} className="px-1 py-2 text-center font-serif text-base font-semibold"
                           style={{ color: "hsl(42 52% 59%)" }}>
                           {total ?? "—"}
                         </td>
