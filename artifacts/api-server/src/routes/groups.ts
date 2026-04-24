@@ -29,6 +29,7 @@ router.get("/trips/:tripId/rounds/:roundId/groups", async (req, res): Promise<vo
   const rows = await db.select({
     playerId: roundGroupAssignmentsTable.playerId,
     groupNumber: roundGroupAssignmentsTable.groupNumber,
+    slotIndex: roundGroupAssignmentsTable.slotIndex,
   }).from(roundGroupAssignmentsTable).where(eq(roundGroupAssignmentsTable.roundId, params.data.roundId));
   res.json(ListRoundGroupsResponse.parse(ser({ assignments: rows })));
 });
@@ -68,6 +69,18 @@ router.put("/trips/:tripId/rounds/:roundId/groups", async (req, res): Promise<vo
     }
   }
 
+  // Reject duplicate (groupNumber, slotIndex) pairs within the request.
+  const slotKey = (groupNumber: number, slotIndex: number) => `${groupNumber}:${slotIndex}`;
+  const seenSlots = new Set<string>();
+  for (const a of parsed.data.assignments) {
+    const k = slotKey(a.groupNumber, a.slotIndex);
+    if (seenSlots.has(k)) {
+      res.status(400).json({ error: `Duplicate slot ${a.slotIndex} in group ${a.groupNumber}` });
+      return;
+    }
+    seenSlots.add(k);
+  }
+
   await db.transaction(async (tx) => {
     await tx.delete(roundGroupAssignmentsTable).where(eq(roundGroupAssignmentsTable.roundId, params.data.roundId));
     if (parsed.data.assignments.length > 0) {
@@ -76,6 +89,7 @@ router.put("/trips/:tripId/rounds/:roundId/groups", async (req, res): Promise<vo
           roundId: params.data.roundId,
           playerId: a.playerId,
           groupNumber: a.groupNumber,
+          slotIndex: a.slotIndex,
         }))
       );
     }

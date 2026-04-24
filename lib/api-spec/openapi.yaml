@@ -876,22 +876,57 @@ components:
     NassauResult:
       type: object
       properties:
-        frontWinnerIds:
+        matches:
           type: array
           items:
-            type: integer
-        backWinnerIds:
-          type: array
-          items:
-            type: integer
-        totalWinnerIds:
-          type: array
-          items:
-            type: integer
+            $ref: "#/components/schemas/TeamNassauMatch"
       required:
-        - frontWinnerIds
-        - backWinnerIds
-        - totalWinnerIds
+        - matches
+
+    TeamNassauMatch:
+      type: object
+      properties:
+        groupNumber:
+          type: integer
+        teamA:
+          type: integer
+        teamB:
+          type: integer
+        teamAPlayerIds:
+          type: array
+          items:
+            type: integer
+        teamBPlayerIds:
+          type: array
+          items:
+            type: integer
+        front:
+          type: ["string", "null"]
+          enum: ["A", "B", "halved", null]
+        back:
+          type: ["string", "null"]
+          enum: ["A", "B", "halved", null]
+        total:
+          type: ["string", "null"]
+          enum: ["A", "B", "halved", null]
+        frontMargin:
+          type: integer
+        backMargin:
+          type: integer
+        totalMargin:
+          type: integer
+      required:
+        - groupNumber
+        - teamA
+        - teamB
+        - teamAPlayerIds
+        - teamBPlayerIds
+        - front
+        - back
+        - total
+        - frontMargin
+        - backMargin
+        - totalMargin
 
     RoundLeaderboard:
       type: object
@@ -965,9 +1000,15 @@ components:
           type: integer
         groupNumber:
           type: integer
+          minimum: 1
+        slotIndex:
+          type: integer
+          minimum: 1
+          maximum: 4
       required:
         - playerId
         - groupNumber
+        - slotIndex
 
     RoundGroupAssignments:
       type: object

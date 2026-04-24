@@ -53,6 +53,7 @@ type UpstreamCourse = {
 };
 
 type UpstreamSearchResponse = { courses?: UpstreamCourse[] | null };
+type UpstreamCourseDetailResponse = { course?: UpstreamCourse | null };
 
 // ---------------------------------------------------------------------------
 // Normalised shapes returned to our client
@@ -237,9 +238,11 @@ router.get("/course-lookup/courses/:externalId", async (req, res): Promise<void>
   if (!id) { res.status(400).json({ error: "externalId is required" }); return; }
   const cached = cacheGet(id);
   if (cached) { res.json(cached); return; }
-  const result = await upstreamFetch<UpstreamCourse>(`/courses/${encodeURIComponent(id)}`);
+  const result = await upstreamFetch<UpstreamCourseDetailResponse>(`/courses/${encodeURIComponent(id)}`);
   if (!result.ok) { res.status(result.status).json({ error: result.message }); return; }
-  const course = normalizeCourseDetail(result.data);
+  const raw = result.data.course;
+  if (!raw) { res.status(502).json({ error: "GolfCourseAPI returned no course payload." }); return; }
+  const course = normalizeCourseDetail(raw);
   cacheSet(id, course);
   res.json(course);
 });

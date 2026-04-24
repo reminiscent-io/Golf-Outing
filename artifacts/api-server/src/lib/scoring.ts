@@ -197,29 +197,127 @@ export function computeSkins(
   return { skinsWon, perHole };
 }
 
-export function computeNassau(
-  stats: PlayerRoundStats[]
-): { frontWinnerIds: number[]; backWinnerIds: number[]; totalWinnerIds: number[] } {
-  const frontPlayers = stats.filter(s => s.grossHoles.slice(0, 9).every(g => g != null));
-  const backPlayers = stats.filter(s => s.grossHoles.slice(9).every(g => g != null));
-  const totalPlayers = stats.filter(s => s.complete);
+export type TeamNassauSlot = {
+  playerId: number;
+  playerName: string;
+  handicap: number;
+  groupNumber: number;
+  slotIndex: number; // 1..4
+};
 
-  let frontWinnerIds: number[] = [];
-  let backWinnerIds: number[] = [];
-  let totalWinnerIds: number[] = [];
+export type TeamNassauMatch = {
+  groupNumber: number;
+  teamA: number;
+  teamB: number;
+  teamAPlayerIds: number[];
+  teamBPlayerIds: number[];
+  front: "A" | "B" | "halved" | null;
+  back: "A" | "B" | "halved" | null;
+  total: "A" | "B" | "halved" | null;
+  frontMargin: number;
+  backMargin: number;
+  totalMargin: number;
+};
 
-  if (frontPlayers.length > 0) {
-    const low = Math.min(...frontPlayers.map(s => s.netOut));
-    frontWinnerIds = frontPlayers.filter(s => s.netOut === low).map(s => s.playerId);
-  }
-  if (backPlayers.length > 0) {
-    const low = Math.min(...backPlayers.map(s => s.netIn));
-    backWinnerIds = backPlayers.filter(s => s.netIn === low).map(s => s.playerId);
-  }
-  if (totalPlayers.length > 0) {
-    const low = Math.min(...totalPlayers.map(s => s.netTotal!));
-    totalWinnerIds = totalPlayers.filter(s => s.netTotal === low).map(s => s.playerId);
+export function computeTeamNassau(
+  slots: TeamNassauSlot[],
+  allHoleScores: Map<number, (number | null)[]>,
+  _par: number[],
+  holeHcp: number[],
+  fieldMinHcp: number,
+  mode: HandicapMode,
+  course: CourseInputs
+): { matches: TeamNassauMatch[] } {
+  // Group slots by group number.
+  const byGroup = new Map<number, TeamNassauSlot[]>();
+  for (const s of slots) {
+    const arr = byGroup.get(s.groupNumber) ?? [];
+    arr.push(s);
+    byGroup.set(s.groupNumber, arr);
   }
 
-  return { frontWinnerIds, backWinnerIds, totalWinnerIds };
+  const playingHcp = new Map<number, number>();
+  for (const s of slots) {
+    playingHcp.set(s.playerId, effectiveHandicap(s.handicap, fieldMinHcp, mode, course));
+  }
+
+  // For each hole, each player's score in the chosen mode (net or gross).
+  function playerHoleScore(playerId: number, h: number): number | null {
+    const g = (allHoleScores.get(playerId) ?? [])[h] ?? null;
+    if (g == null) return null;
+    if (mode === "gross") return g;
+    return g - strokesOnHole(playingHcp.get(playerId) ?? 0, holeHcp[h]);
+  }
+
+  // Best-ball for a set of player ids on hole h — min of their scores, ignoring nulls.
+  function teamHoleScore(ids: number[], h: number): number | null {
+    let best: number | null = null;
+    for (const id of ids) {
+      const s = playerHoleScore(id, h);
+      if (s == null) continue;
+      if (best == null || s < best) best = s;
+    }
+    return best;
+  }
+
+  const matches: TeamNassauMatch[] = [];
+
+  for (const groupNumber of [...byGroup.keys()].sort((a, b) => a - b)) {
+    const groupSlots = byGroup.get(groupNumber)!;
+    const teamA = (groupNumber - 1) * 2 + 1;
+    const teamB = (groupNumber - 1) * 2 + 2;
+    const teamAPlayerIds = groupSlots.filter(s => s.slotIndex <= 2).map(s => s.playerId);
+    const teamBPlayerIds = groupSlots.filter(s => s.slotIndex >= 3).map(s => s.playerId);
+
+    // Activity rule: both sides must have at least one player.
+    if (teamAPlayerIds.length === 0 || teamBPlayerIds.length === 0) continue;
+
+    let frontA = 0, frontB = 0;
+    let backA = 0, backB = 0;
+    let frontHolesScored = 0, backHolesScored = 0;
+
+    for (let h = 0; h < 18; h++) {
+      const a = teamHoleScore(teamAPlayerIds, h);
+      const b = teamHoleScore(teamBPlayerIds, h);
+      if (a == null || b == null) continue;
+      const aWins = a < b;
+      const bWins = b < a;
+      if (h < 9) {
+        frontHolesScored++;
+        if (aWins) frontA++;
+        else if (bWins) frontB++;
+      } else {
+        backHolesScored++;
+        if (aWins) backA++;
+        else if (bWins) backB++;
+      }
+    }
+
+    const decide = (aWins: number, bWins: number, scored: number): { side: "A" | "B" | "halved" | null; margin: number } => {
+      if (scored === 0) return { side: null, margin: 0 };
+      if (aWins > bWins) return { side: "A", margin: aWins - bWins };
+      if (bWins > aWins) return { side: "B", margin: bWins - aWins };
+      return { side: "halved", margin: 0 };
+    };
+
+    const frontOutcome = decide(frontA, frontB, frontHolesScored);
+    const backOutcome = decide(backA, backB, backHolesScored);
+    const totalOutcome = decide(frontA + backA, frontB + backB, frontHolesScored + backHolesScored);
+
+    matches.push({
+      groupNumber,
+      teamA,
+      teamB,
+      teamAPlayerIds,
+      teamBPlayerIds,
+      front: frontOutcome.side,
+      back: backOutcome.side,
+      total: totalOutcome.side,
+      frontMargin: frontOutcome.margin,
+      backMargin: backOutcome.margin,
+      totalMargin: totalOutcome.margin,
+    });
+  }
+
+  return { matches };
 }

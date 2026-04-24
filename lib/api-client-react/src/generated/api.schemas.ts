@@ -213,10 +213,64 @@ export interface SkinHoleResult {
   tied: boolean;
 }
 
+/**
+ * @nullable
+ */
+export type TeamNassauMatchFront =
+  | (typeof TeamNassauMatchFront)[keyof typeof TeamNassauMatchFront]
+  | null;
+
+export const TeamNassauMatchFront = {
+  A: "A",
+  B: "B",
+  halved: "halved",
+} as const;
+
+/**
+ * @nullable
+ */
+export type TeamNassauMatchBack =
+  | (typeof TeamNassauMatchBack)[keyof typeof TeamNassauMatchBack]
+  | null;
+
+export const TeamNassauMatchBack = {
+  A: "A",
+  B: "B",
+  halved: "halved",
+} as const;
+
+/**
+ * @nullable
+ */
+export type TeamNassauMatchTotal =
+  | (typeof TeamNassauMatchTotal)[keyof typeof TeamNassauMatchTotal]
+  | null;
+
+export const TeamNassauMatchTotal = {
+  A: "A",
+  B: "B",
+  halved: "halved",
+} as const;
+
+export interface TeamNassauMatch {
+  groupNumber: number;
+  teamA: number;
+  teamB: number;
+  teamAPlayerIds: number[];
+  teamBPlayerIds: number[];
+  /** @nullable */
+  front: TeamNassauMatchFront;
+  /** @nullable */
+  back: TeamNassauMatchBack;
+  /** @nullable */
+  total: TeamNassauMatchTotal;
+  frontMargin: number;
+  backMargin: number;
+  totalMargin: number;
+}
+
 export interface NassauResult {
-  frontWinnerIds: number[];
-  backWinnerIds: number[];
-  totalWinnerIds: number[];
+  matches: TeamNassauMatch[];
 }
 
 export interface RoundLeaderboard {
@@ -250,7 +304,13 @@ export interface TripLeaderboard {
 
 export interface RoundGroupAssignment {
   playerId: number;
+  /** @minimum 1 */
   groupNumber: number;
+  /**
+   * @minimum 1
+   * @maximum 4
+   */
+  slotIndex: number;
 }
 
 export interface RoundGroupAssignments {
