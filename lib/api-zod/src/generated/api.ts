@@ -32,6 +32,12 @@ export const ListTripsResponse = zod.array(ListTripsResponseItem);
 export const CreateTripBody = zod.object({
   name: zod.string(),
   description: zod.string().nullish(),
+  password: zod
+    .string()
+    .optional()
+    .describe(
+      "Plaintext soft gate password. Stored lowercased-compared. Empty string disables the gate.",
+    ),
 });
 
 /**
@@ -59,6 +65,7 @@ export const UpdateTripParams = zod.object({
 export const UpdateTripBody = zod.object({
   name: zod.string().optional(),
   description: zod.string().nullish(),
+  password: zod.string().optional(),
 });
 
 export const UpdateTripResponse = zod.object({
@@ -74,6 +81,21 @@ export const UpdateTripResponse = zod.object({
  */
 export const DeleteTripParams = zod.object({
   tripId: zod.coerce.number(),
+});
+
+/**
+ * @summary Verify a trip's soft-gate password
+ */
+export const AuthenticateTripParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const AuthenticateTripBody = zod.object({
+  password: zod.string(),
+});
+
+export const AuthenticateTripResponse = zod.object({
+  ok: zod.boolean(),
 });
 
 /**
@@ -176,7 +198,11 @@ export const ListRoundsResponseItem = zod.object({
       )
       .optional(),
   }),
-  handicapMode: zod.enum(["net", "gross"]),
+  handicapMode: zod
+    .enum(["net", "gross"])
+    .describe(
+      "net = course-adjusted (low plays scratch); gross = use raw handicap",
+    ),
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
@@ -276,7 +302,11 @@ export const GetRoundResponse = zod.object({
       )
       .optional(),
   }),
-  handicapMode: zod.enum(["net", "gross"]),
+  handicapMode: zod
+    .enum(["net", "gross"])
+    .describe(
+      "net = course-adjusted (low plays scratch); gross = use raw handicap",
+    ),
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
@@ -368,7 +398,11 @@ export const UpdateRoundResponse = zod.object({
       )
       .optional(),
   }),
-  handicapMode: zod.enum(["net", "gross"]),
+  handicapMode: zod
+    .enum(["net", "gross"])
+    .describe(
+      "net = course-adjusted (low plays scratch); gross = use raw handicap",
+    ),
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
@@ -461,6 +495,49 @@ export const GetRoundLeaderboardResponse = zod.object({
     backWinnerIds: zod.array(zod.number()),
     totalWinnerIds: zod.array(zod.number()),
   }),
+});
+
+/**
+ * @summary List foursome assignments for a round
+ */
+export const ListRoundGroupsParams = zod.object({
+  tripId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const ListRoundGroupsResponse = zod.object({
+  assignments: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      groupNumber: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Replace all foursome assignments for a round
+ */
+export const PutRoundGroupsParams = zod.object({
+  tripId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const PutRoundGroupsBody = zod.object({
+  assignments: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      groupNumber: zod.number(),
+    }),
+  ),
+});
+
+export const PutRoundGroupsResponse = zod.object({
+  assignments: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      groupNumber: zod.number(),
+    }),
+  ),
 });
 
 /**

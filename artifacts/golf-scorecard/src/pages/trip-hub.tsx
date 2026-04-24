@@ -11,6 +11,7 @@ import {
   useDeletePlayer,
   useCreateRound,
   useDeleteRound,
+  getGetTripQueryKey,
   getListPlayersQueryKey,
   getListRoundsQueryKey,
   getGetTripLeaderboardQueryKey,
@@ -26,6 +27,7 @@ import {
   type CourseDetail,
   type CourseTee,
 } from "@/lib/course-lookup";
+import { SignedInAs } from "@/components/signed-in-as";
 
 type Tab = "leaderboard" | "rounds" | "players";
 
@@ -46,11 +48,18 @@ export default function TripHubPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("rounds");
 
-  const { data: trip, isLoading: tripLoading } = useGetTrip(tripId, { query: { enabled: !!tripId } });
-  const { data: players } = useListPlayers(tripId, { query: { enabled: !!tripId } });
-  const { data: rounds } = useListRounds(tripId, { query: { enabled: !!tripId } });
+  const { data: trip, isLoading: tripLoading } = useGetTrip(tripId, {
+    query: { queryKey: getGetTripQueryKey(tripId), enabled: !!tripId },
+  });
+  const { data: players } = useListPlayers(tripId, {
+    query: { queryKey: getListPlayersQueryKey(tripId), enabled: !!tripId },
+  });
+  const { data: rounds } = useListRounds(tripId, {
+    query: { queryKey: getListRoundsQueryKey(tripId), enabled: !!tripId },
+  });
   const { data: leaderboard, isLoading: lbLoading } = useGetTripLeaderboard(tripId, {
     query: {
+      queryKey: getGetTripLeaderboardQueryKey(tripId),
       enabled: !!tripId && tab === "leaderboard",
       refetchInterval: 10000,
     },
@@ -270,6 +279,9 @@ export default function TripHubPage() {
             <span>{players?.length ?? 0} players</span>
             <span>·</span>
             <span>{rounds?.length ?? 0} rounds</span>
+          </div>
+          <div className="mt-2">
+            <SignedInAs tripId={tripId} />
           </div>
         </div>
       </div>

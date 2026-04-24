@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, Fragment } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -8,9 +8,13 @@ import {
   useGetRoundLeaderboard,
   useUpsertScore,
   useUpdateRound,
+  getGetRoundQueryKey,
+  getListPlayersQueryKey,
   getGetScoresQueryKey,
   getGetRoundLeaderboardQueryKey,
   getGetTripLeaderboardQueryKey,
+  useListRoundGroups,
+  getListRoundGroupsQueryKey,
 } from "@workspace/api-client-react";
 import { ArrowLeft, Settings, Trophy, Grid3X3 } from "lucide-react";
 import {
@@ -20,6 +24,9 @@ import {
   type CourseDetail,
   type CourseTee,
 } from "@/lib/course-lookup";
+import { SignedInAs } from "@/components/signed-in-as";
+import { RoundGroupsEditor } from "@/components/round-groups-editor";
+import { useTripIdentity } from "@/lib/trip-identity";
 
 type SubTab = "scorecard" | "results" | "setup";
 
@@ -91,14 +98,47 @@ export default function RoundPage() {
   const queryClient = useQueryClient();
   const [subTab, setSubTab] = useState<SubTab>("scorecard");
 
-  const { data: round, isLoading: roundLoading } = useGetRound(tripId, roundId, { query: { enabled: !!tripId && !!roundId } });
-  const { data: players } = useListPlayers(tripId, { query: { enabled: !!tripId } });
+  const { data: round, isLoading: roundLoading } = useGetRound(tripId, roundId, {
+    query: { queryKey: getGetRoundQueryKey(tripId, roundId), enabled: !!tripId && !!roundId },
+  });
+  const { data: players } = useListPlayers(tripId, {
+    query: { queryKey: getListPlayersQueryKey(tripId), enabled: !!tripId },
+  });
   const { data: scoreRows, isLoading: scoresLoading } = useGetScores(tripId, roundId, {
-    query: { enabled: !!tripId && !!roundId, refetchInterval: 10000 },
+    query: { queryKey: getGetScoresQueryKey(tripId, roundId), enabled: !!tripId && !!roundId, refetchInterval: 10000 },
   });
   const { data: leaderboard, isLoading: lbLoading } = useGetRoundLeaderboard(tripId, roundId, {
-    query: { enabled: subTab === "results", refetchInterval: 10000 },
+    query: { queryKey: getGetRoundLeaderboardQueryKey(tripId, roundId), enabled: subTab === "results", refetchInterval: 10000 },
   });
+
+  const identity = useTripIdentity(tripId);
+  const { data: groupsData } = useListRoundGroups(tripId, roundId, {
+    query: { queryKey: getListRoundGroupsQueryKey(tripId, roundId), enabled: !!tripId && !!roundId },
+  });
+  const myGroupNumber: number | undefined = identity && groupsData
+    ? groupsData.assignments.find(a => a.playerId === identity.playerId)?.groupNumber
+    : undefined;
+
+  const viewKey = `round:${roundId}:view`;
+  const [viewMode, setViewMode] = useState<"mine" | "all">(() => {
+    try {
+      const stored = localStorage.getItem(viewKey);
+      if (stored === "mine" || stored === "all") return stored;
+    } catch {}
+    return "mine";
+  });
+  useEffect(() => {
+    try { localStorage.setItem(viewKey, viewMode); } catch {}
+  }, [viewMode, viewKey]);
+
+  const effectiveMode: "mine" | "all" = myGroupNumber === undefined ? "all" : viewMode;
+
+  const groupPlayerIds = new Set<number>(
+    (groupsData?.assignments ?? []).filter(a => a.groupNumber === myGroupNumber).map(a => a.playerId)
+  );
+  const visiblePlayers = effectiveMode === "mine" && myGroupNumber !== undefined
+    ? (players ?? []).filter(p => groupPlayerIds.has(p.id))
+    : (players ?? []);
 
   const upsertScore = useUpsertScore();
   const updateRound = useUpdateRound();
@@ -156,12 +196,12 @@ export default function RoundPage() {
       e.preventDefault();
       commitEdit(playerId, holeIdx);
       // Advance to next player
-      if (players && players.length > 0) {
-        const currPlayerIdx = players.findIndex(p => p.id === playerId);
-        const nextPlayerIdx = (currPlayerIdx + 1) % players.length;
+      if (visiblePlayers && visiblePlayers.length > 0) {
+        const currPlayerIdx = visiblePlayers.findIndex(p => p.id === playerId);
+        const nextPlayerIdx = (currPlayerIdx + 1) % visiblePlayers.length;
         const nextHoleIdx = nextPlayerIdx === 0 ? holeIdx + 1 : holeIdx;
         if (nextHoleIdx < 18) {
-          setTimeout(() => startEdit(players[nextPlayerIdx].id, nextHoleIdx), 50);
+          setTimeout(() => startEdit(visiblePlayers[nextPlayerIdx].id, nextHoleIdx), 50);
         }
       }
     }
@@ -253,7 +293,7 @@ export default function RoundPage() {
     if (round && !setupInitialized.current) {
       setSetupPar((round.par as number[]) || Array(18).fill(4));
       setSetupHcp((round.holeHcp as number[]) || Array.from({ length: 18 }, (_, i) => i + 1));
-      const gc = round.gamesConfig as Record<string, boolean>;
+      const gc = round.gamesConfig as unknown as Record<string, boolean>;
       setSetupGames({
         stableford: gc?.stableford ?? true,
         skins: gc?.skins ?? true,
@@ -359,6 +399,9 @@ export default function RoundPage() {
               {round.date && <span>{round.date}</span>}
             </div>
           )}
+          <div className="mt-2">
+            <SignedInAs tripId={tripId} />
+          </div>
         </div>
       </div>
 
@@ -399,12 +442,37 @@ export default function RoundPage() {
               </button>
             </div>
           ) : (
+            <>
+              {myGroupNumber !== undefined && (
+                <div className="flex items-center gap-2 mb-3 px-4 pt-3 text-xs font-sans">
+                  <button
+                    onClick={() => setViewMode("mine")}
+                    className="px-3 py-1.5 rounded-lg font-600"
+                    style={{
+                      background: viewMode === "mine" ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
+                      color: viewMode === "mine" ? "hsl(38 30% 12%)" : "hsl(42 35% 65%)",
+                    }}
+                  >
+                    My group
+                  </button>
+                  <button
+                    onClick={() => setViewMode("all")}
+                    className="px-3 py-1.5 rounded-lg font-600"
+                    style={{
+                      background: viewMode === "all" ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
+                      color: viewMode === "all" ? "hsl(38 30% 12%)" : "hsl(42 35% 65%)",
+                    }}
+                  >
+                    All players
+                  </button>
+                </div>
+              )}
             <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
-              <table className="w-full" style={{ minWidth: `${Math.max(700, 80 + players.length * 68)}px` }}>
+              <table className="w-full" style={{ minWidth: `${Math.max(700, 80 + visiblePlayers.length * 68)}px` }}>
                 <colgroup>
                   <col style={{ width: 64 }} />
                   <col style={{ width: 44 }} />
-                  {players.map(p => (
+                  {visiblePlayers.map(p => (
                     <col key={p.id} style={{ width: 64 }} />
                   ))}
                 </colgroup>
@@ -414,9 +482,9 @@ export default function RoundPage() {
                       style={{ background: "hsl(158 65% 9%)", color: "hsl(42 20% 55%)" }}>Hole</th>
                     <th className="px-2 py-2.5 text-center text-xs font-sans font-semibold uppercase tracking-wider"
                       style={{ color: "hsl(42 20% 55%)" }}>Par</th>
-                    {players.map(p => (
+                    {visiblePlayers.map(p => (
                       <th key={p.id} className="px-2 py-2.5 text-center text-xs font-sans font-semibold"
-                        style={{ color: "hsl(42 45% 80%)" }}>
+                        style={{ color: "hsl(42 45% 80%)", ...(identity?.playerId === p.id ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
                         <div style={{ maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
                         <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 10 }}>
                           HCP {formatHandicap(p.handicap)}
@@ -433,7 +501,7 @@ export default function RoundPage() {
                     const isSection = holeIdx === 9;
                     const outRow = holeIdx === 9;
                     return (
-                      <>
+                      <Fragment key={holeIdx}>
                         {holeIdx === 9 && (
                           <tr key="out" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
                             <td className="px-3 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
@@ -442,7 +510,7 @@ export default function RoundPage() {
                               style={{ color: "hsl(42 45% 75%)" }}>
                               {par.slice(0, 9).reduce((a, b) => a + b, 0)}
                             </td>
-                            {players.map(p => {
+                            {visiblePlayers.map(p => {
                               const scores = scoresMap.get(p.id) || [];
                               const holesIn = scores.slice(0, 9).filter(s => s != null).length;
                               const outTotal = holesIn > 0 ? scores.slice(0, 9).filter((s): s is number => s != null).reduce((a, b) => a + b, 0) : null;
@@ -476,7 +544,7 @@ export default function RoundPage() {
                               {par[holeIdx]}
                             </span>
                           </td>
-                          {players.map(p => {
+                          {visiblePlayers.map(p => {
                             const gross = getScore(p.id, holeIdx);
                             const isEditing = editingCell?.playerId === p.id && editingCell?.hole === holeIdx;
                             return (
@@ -519,7 +587,7 @@ export default function RoundPage() {
                               style={{ color: "hsl(42 45% 75%)" }}>
                               {par.slice(9).reduce((a, b) => a + b, 0)}
                             </td>
-                            {players.map(p => {
+                            {visiblePlayers.map(p => {
                               const scores = scoresMap.get(p.id) || [];
                               const holesIn = scores.slice(9).filter(s => s != null).length;
                               const inTotal = holesIn > 0 ? scores.slice(9).filter((s): s is number => s != null).reduce((a, b) => a + b, 0) : null;
@@ -532,7 +600,7 @@ export default function RoundPage() {
                             })}
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                   {/* Total row */}
@@ -543,7 +611,7 @@ export default function RoundPage() {
                       style={{ color: "hsl(42 45% 75%)" }}>
                       {par.reduce((a, b) => a + b, 0)}
                     </td>
-                    {players.map(p => {
+                    {visiblePlayers.map(p => {
                       const scores = scoresMap.get(p.id) || [];
                       const played = scores.filter(s => s != null).length;
                       const total = played > 0 ? scores.filter((s): s is number => s != null).reduce((a, b) => a + b, 0) : null;
@@ -558,6 +626,7 @@ export default function RoundPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}
@@ -678,6 +747,12 @@ export default function RoundPage() {
       {/* SETUP TAB */}
       {subTab === "setup" && (
         <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-5 space-y-6">
+          <section className="mb-6">
+            <h2 className="text-sm font-sans font-600 uppercase tracking-widest mb-3" style={{ color: "hsl(42 52% 59%)" }}>
+              Groups
+            </h2>
+            <RoundGroupsEditor tripId={tripId} roundId={roundId} />
+          </section>
           {/* Course lookup */}
           <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
             <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>Look up course</h3>
