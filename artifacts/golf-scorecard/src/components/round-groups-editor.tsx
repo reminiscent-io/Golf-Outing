@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListRoundGroups,
@@ -18,6 +18,18 @@ type Props = {
 };
 
 const SLOTS_PER_GROUP = 4;
+const TOUCH_ACTIVATE_PX = 6;
+
+type TouchDrag = {
+  playerId: number;
+  source: Source;
+  name: string;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+  active: boolean;
+};
 
 export function RoundGroupsEditor({ tripId, roundId }: Props) {
   const queryClient = useQueryClient();
@@ -106,6 +118,21 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
     save(serverAssignments.filter(a => a.playerId !== playerId));
   }
 
+  function placeInNextOpenSlot(playerId: number, source: Source) {
+    for (const gn of allGroupNumbers) {
+      for (let i = 1; i <= SLOTS_PER_GROUP; i++) {
+        if (!slotAt.has(`${gn}:${i}`)) {
+          moveToSlot(playerId, source, { groupNumber: gn, slotIndex: i });
+          return;
+        }
+      }
+    }
+    // All existing groups are full — add a new group and drop into its first slot.
+    const nextNumber = (allGroupNumbers[allGroupNumbers.length - 1] ?? 0) + 1;
+    setExtraGroups(prev => [...prev, nextNumber]);
+    moveToSlot(playerId, source, { groupNumber: nextNumber, slotIndex: 1 });
+  }
+
   function addGroup() {
     const nextNumber = (allGroupNumbers[allGroupNumbers.length - 1] ?? 0) + 1;
     setExtraGroups(prev => [...prev, nextNumber]);
@@ -115,6 +142,8 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
     if (serverAssignments.some(a => a.groupNumber === groupNumber)) return;
     setExtraGroups(prev => prev.filter(n => n !== groupNumber));
   }
+
+  // ---------- HTML5 drag-and-drop (desktop) ----------
 
   function onDragStart(e: React.DragEvent, playerId: number, source: Source) {
     e.dataTransfer.setData("text/plain", JSON.stringify({ playerId, source }));
@@ -152,6 +181,86 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
     moveToUnassigned(drag.playerId);
   }
 
+  // ---------- Tap + touch drag (mobile) ----------
+
+  const [touchDrag, setTouchDrag] = useState<TouchDrag | null>(null);
+  const suppressClickRef = useRef(false);
+
+  // Prevent page scroll while actively dragging.
+  useEffect(() => {
+    if (!touchDrag?.active) return;
+    function preventScroll(e: TouchEvent) {
+      e.preventDefault();
+    }
+    document.addEventListener("touchmove", preventScroll, { passive: false });
+    return () => document.removeEventListener("touchmove", preventScroll);
+  }, [touchDrag?.active]);
+
+  function onTouchStart(e: React.TouchEvent, playerId: number, source: Source, name: string) {
+    const t = e.touches[0];
+    if (!t) return;
+    setTouchDrag({
+      playerId,
+      source,
+      name,
+      startX: t.clientX,
+      startY: t.clientY,
+      x: t.clientX,
+      y: t.clientY,
+      active: false,
+    });
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    const t = e.touches[0];
+    if (!t) return;
+    setTouchDrag(prev => {
+      if (!prev) return prev;
+      const dx = t.clientX - prev.startX;
+      const dy = t.clientY - prev.startY;
+      const active =
+        prev.active || dx * dx + dy * dy >= TOUCH_ACTIVATE_PX * TOUCH_ACTIVATE_PX;
+      return { ...prev, x: t.clientX, y: t.clientY, active };
+    });
+  }
+
+  function onTouchEnd() {
+    setTouchDrag(prev => {
+      if (!prev) return null;
+      if (prev.active) {
+        const target = findDropTargetAt(prev.x, prev.y);
+        if (target?.kind === "slot") {
+          moveToSlot(prev.playerId, prev.source, {
+            groupNumber: target.groupNumber,
+            slotIndex: target.slotIndex,
+          });
+        } else if (target?.kind === "unassigned") {
+          moveToUnassigned(prev.playerId);
+        }
+        // Swallow the synthesized click that follows touchend.
+        suppressClickRef.current = true;
+        setTimeout(() => {
+          suppressClickRef.current = false;
+        }, 400);
+      }
+      return null;
+    });
+  }
+
+  function onTouchCancel() {
+    setTouchDrag(null);
+  }
+
+  function onTapUnassignedPlayer(playerId: number) {
+    if (suppressClickRef.current) return;
+    placeInNextOpenSlot(playerId, { from: "unassigned" });
+  }
+
+  function onTapSlotPlayer(playerId: number) {
+    if (suppressClickRef.current) return;
+    moveToUnassigned(playerId);
+  }
+
   return (
     <div className="overflow-x-auto">
       <div className="flex gap-3 min-w-max py-2">
@@ -161,6 +270,11 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDrop={onDropUnassigned}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onTouchCancel={onTouchCancel}
+            onTapPlayer={onTapUnassignedPlayer}
           />
         )}
         {allGroupNumbers.map(gn => {
@@ -184,6 +298,11 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
               onDragStart={onDragStart}
               onDragOver={onDragOver}
               onDropSlot={onDropSlot}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              onTouchCancel={onTouchCancel}
+              onTapPlayer={onTapSlotPlayer}
               onRemove={canRemove ? () => removeEmptyGroup(gn) : undefined}
             />
           );
@@ -197,20 +316,69 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
           Add group
         </button>
       </div>
+
+      {touchDrag?.active && <DragGhost x={touchDrag.x} y={touchDrag.y} name={touchDrag.name} />}
     </div>
   );
 }
 
-type UnassignedProps = {
+// Walks up from the element under the point, looking for a drop-target marker.
+function findDropTargetAt(
+  x: number,
+  y: number
+):
+  | { kind: "slot"; groupNumber: number; slotIndex: number }
+  | { kind: "unassigned" }
+  | null {
+  const el = document.elementFromPoint(x, y);
+  let node: Element | null = el;
+  while (node) {
+    if (node instanceof HTMLElement) {
+      const slot = node.dataset.dropSlot;
+      if (slot) {
+        const [g, s] = slot.split(":").map(Number);
+        if (Number.isFinite(g) && Number.isFinite(s)) {
+          return { kind: "slot", groupNumber: g, slotIndex: s };
+        }
+      }
+      if (node.dataset.dropUnassigned === "true") {
+        return { kind: "unassigned" };
+      }
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
+type TouchHandlers = {
+  onTouchStart: (e: React.TouchEvent, playerId: number, source: Source, name: string) => void;
+  onTouchMove: (e: React.TouchEvent) => void;
+  onTouchEnd: () => void;
+  onTouchCancel: () => void;
+};
+
+type UnassignedProps = TouchHandlers & {
   players: Array<{ id: number; name: string }>;
   onDragStart: (e: React.DragEvent, playerId: number, source: Source) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
+  onTapPlayer: (playerId: number) => void;
 };
 
-function UnassignedColumn({ players, onDragStart, onDragOver, onDrop }: UnassignedProps) {
+function UnassignedColumn({
+  players,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
+  onTouchCancel,
+  onTapPlayer,
+}: UnassignedProps) {
   return (
     <div
+      data-drop-unassigned="true"
       onDragOver={onDragOver}
       onDrop={onDrop}
       className="min-w-[180px] w-[180px] rounded-xl p-3"
@@ -225,8 +393,17 @@ function UnassignedColumn({ players, onDragStart, onDragOver, onDrop }: Unassign
             key={p.id}
             draggable
             onDragStart={e => onDragStart(e, p.id, { from: "unassigned" })}
-            className="px-2.5 py-2 rounded-lg cursor-grab active:cursor-grabbing text-sm font-sans"
-            style={{ background: "hsl(42 45% 91%)", color: "hsl(38 30% 14%)" }}
+            onTouchStart={e => onTouchStart(e, p.id, { from: "unassigned" }, p.name)}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onTouchCancel={onTouchCancel}
+            onClick={() => onTapPlayer(p.id)}
+            className="px-2.5 py-2 rounded-lg cursor-grab active:cursor-grabbing text-sm font-sans select-none"
+            style={{
+              background: "hsl(42 45% 91%)",
+              color: "hsl(38 30% 14%)",
+              touchAction: "none",
+            }}
           >
             {p.name}
           </div>
@@ -236,7 +413,7 @@ function UnassignedColumn({ players, onDragStart, onDragOver, onDrop }: Unassign
   );
 }
 
-type GroupProps = {
+type GroupProps = TouchHandlers & {
   groupNumber: number;
   teamA: number;
   teamB: number;
@@ -244,10 +421,25 @@ type GroupProps = {
   onDragStart: (e: React.DragEvent, playerId: number, source: Source) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDropSlot: (e: React.DragEvent, groupNumber: number, slotIndex: number) => void;
+  onTapPlayer: (playerId: number) => void;
   onRemove?: () => void;
 };
 
-function GroupColumn({ groupNumber, teamA, teamB, slots, onDragStart, onDragOver, onDropSlot, onRemove }: GroupProps) {
+function GroupColumn({
+  groupNumber,
+  teamA,
+  teamB,
+  slots,
+  onDragStart,
+  onDragOver,
+  onDropSlot,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
+  onTouchCancel,
+  onTapPlayer,
+  onRemove,
+}: GroupProps) {
   const teamASlots = slots.filter(s => s.slotIndex <= 2);
   const teamBSlots = slots.filter(s => s.slotIndex >= 3);
 
@@ -266,25 +458,62 @@ function GroupColumn({ groupNumber, teamA, teamB, slots, onDragStart, onDragOver
           </button>
         )}
       </div>
-      <TeamSection label={`Team ${teamA}`} groupNumber={groupNumber} slots={teamASlots} onDragStart={onDragStart} onDragOver={onDragOver} onDropSlot={onDropSlot} />
+      <TeamSection
+        label={`Team ${teamA}`}
+        groupNumber={groupNumber}
+        slots={teamASlots}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDropSlot={onDropSlot}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchCancel}
+        onTapPlayer={onTapPlayer}
+      />
       <div className="my-2 text-[10px] font-sans text-center uppercase tracking-widest" style={{ color: "hsl(42 20% 45%)" }}>
         vs
       </div>
-      <TeamSection label={`Team ${teamB}`} groupNumber={groupNumber} slots={teamBSlots} onDragStart={onDragStart} onDragOver={onDragOver} onDropSlot={onDropSlot} />
+      <TeamSection
+        label={`Team ${teamB}`}
+        groupNumber={groupNumber}
+        slots={teamBSlots}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDropSlot={onDropSlot}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchCancel}
+        onTapPlayer={onTapPlayer}
+      />
     </div>
   );
 }
 
-type TeamSectionProps = {
+type TeamSectionProps = TouchHandlers & {
   label: string;
   groupNumber: number;
   slots: Array<{ slotIndex: number; playerId: number | null; player: { id: number; name: string } | null }>;
   onDragStart: (e: React.DragEvent, playerId: number, source: Source) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDropSlot: (e: React.DragEvent, groupNumber: number, slotIndex: number) => void;
+  onTapPlayer: (playerId: number) => void;
 };
 
-function TeamSection({ label, groupNumber, slots, onDragStart, onDragOver, onDropSlot }: TeamSectionProps) {
+function TeamSection({
+  label,
+  groupNumber,
+  slots,
+  onDragStart,
+  onDragOver,
+  onDropSlot,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
+  onTouchCancel,
+  onTapPlayer,
+}: TeamSectionProps) {
   return (
     <div>
       <div className="mb-1 text-[10px] font-sans font-600 uppercase tracking-widest" style={{ color: "hsl(42 35% 60%)" }}>
@@ -300,6 +529,11 @@ function TeamSection({ label, groupNumber, slots, onDragStart, onDragOver, onDro
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDropSlot={onDropSlot}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onTouchCancel={onTouchCancel}
+            onTapPlayer={onTapPlayer}
           />
         ))}
       </div>
@@ -307,31 +541,80 @@ function TeamSection({ label, groupNumber, slots, onDragStart, onDragOver, onDro
   );
 }
 
-type SlotCellProps = {
+type SlotCellProps = TouchHandlers & {
   groupNumber: number;
   slotIndex: number;
   player: { id: number; name: string } | null;
   onDragStart: (e: React.DragEvent, playerId: number, source: Source) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDropSlot: (e: React.DragEvent, groupNumber: number, slotIndex: number) => void;
+  onTapPlayer: (playerId: number) => void;
 };
 
-function SlotCell({ groupNumber, slotIndex, player, onDragStart, onDragOver, onDropSlot }: SlotCellProps) {
+function SlotCell({
+  groupNumber,
+  slotIndex,
+  player,
+  onDragStart,
+  onDragOver,
+  onDropSlot,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
+  onTouchCancel,
+  onTapPlayer,
+}: SlotCellProps) {
   const filled = player != null;
   return (
     <div
+      data-drop-slot={`${groupNumber}:${slotIndex}`}
       onDragOver={onDragOver}
       onDrop={e => onDropSlot(e, groupNumber, slotIndex)}
-      className="px-2.5 py-2 rounded-lg text-sm font-sans"
+      className="px-2.5 py-2 rounded-lg text-sm font-sans select-none"
       style={
         filled
-          ? { background: "hsl(42 45% 91%)", color: "hsl(38 30% 14%)" }
-          : { background: "transparent", color: "hsl(42 20% 50%)", border: "1.5px dashed hsl(158 40% 22%)" }
+          ? {
+              background: "hsl(42 45% 91%)",
+              color: "hsl(38 30% 14%)",
+              touchAction: "none",
+            }
+          : {
+              background: "transparent",
+              color: "hsl(42 20% 50%)",
+              border: "1.5px dashed hsl(158 40% 22%)",
+            }
       }
       draggable={filled}
       onDragStart={filled && player ? e => onDragStart(e, player.id, { from: "slot", groupNumber, slotIndex }) : undefined}
+      onTouchStart={
+        filled && player
+          ? e => onTouchStart(e, player.id, { from: "slot", groupNumber, slotIndex }, player.name)
+          : undefined
+      }
+      onTouchMove={filled ? onTouchMove : undefined}
+      onTouchEnd={filled ? onTouchEnd : undefined}
+      onTouchCancel={filled ? onTouchCancel : undefined}
+      onClick={filled && player ? () => onTapPlayer(player.id) : undefined}
     >
       {filled ? player!.name : "—"}
+    </div>
+  );
+}
+
+function DragGhost({ x, y, name }: { x: number; y: number; name: string }) {
+  return (
+    <div
+      className="pointer-events-none fixed z-50 px-2.5 py-2 rounded-lg text-sm font-sans shadow-lg"
+      style={{
+        left: x,
+        top: y,
+        transform: "translate(-50%, -50%)",
+        background: "hsl(42 45% 91%)",
+        color: "hsl(38 30% 14%)",
+        opacity: 0.92,
+      }}
+    >
+      {name}
     </div>
   );
 }
