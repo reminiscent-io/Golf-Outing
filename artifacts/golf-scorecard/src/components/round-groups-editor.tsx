@@ -91,9 +91,26 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
     putGroups.mutate({ tripId, roundId, data: { assignments: next } });
   }
 
+  // Always read from the query cache so rapid successive actions see each
+  // other's optimistic updates rather than the stale rendered snapshot.
+  function getLatestAssignments(): Assignment[] {
+    const qk = getListRoundGroupsQueryKey(tripId, roundId);
+    const cached = queryClient.getQueryData<{ assignments: Assignment[] }>(qk);
+    return cached?.assignments ?? serverAssignments;
+  }
+
+  function buildSlotAt(assignments: Assignment[]) {
+    const m = new Map<string, number>();
+    for (const a of assignments) m.set(`${a.groupNumber}:${a.slotIndex}`, a.playerId);
+    return m;
+  }
+
   function moveToSlot(playerId: number, source: Source, target: { groupNumber: number; slotIndex: number }) {
-    const existing = serverAssignments.filter(a => a.playerId !== playerId);
-    const occupantId = slotAt.get(`${target.groupNumber}:${target.slotIndex}`) ?? null;
+    const latest = getLatestAssignments();
+    const latestSlotAt = buildSlotAt(latest);
+
+    const existing = latest.filter(a => a.playerId !== playerId);
+    const occupantId = latestSlotAt.get(`${target.groupNumber}:${target.slotIndex}`) ?? null;
 
     let working = existing.filter(a => !(occupantId != null && a.playerId === occupantId));
     working.push({ playerId, groupNumber: target.groupNumber, slotIndex: target.slotIndex });
@@ -108,14 +125,17 @@ export function RoundGroupsEditor({ tripId, roundId }: Props) {
   }
 
   function moveToUnassigned(playerId: number) {
-    save(serverAssignments.filter(a => a.playerId !== playerId));
+    const latest = getLatestAssignments();
+    save(latest.filter(a => a.playerId !== playerId));
   }
 
   // Tap-to-assign: place player in the next open slot across all groups in order
   function tapAssign(playerId: number) {
+    const latest = getLatestAssignments();
+    const latestSlotAt = buildSlotAt(latest);
     for (const gn of allGroupNumbers) {
       for (let si = 1; si <= SLOTS_PER_GROUP; si++) {
-        if (!slotAt.has(`${gn}:${si}`)) {
+        if (!latestSlotAt.has(`${gn}:${si}`)) {
           moveToSlot(playerId, { from: "unassigned" }, { groupNumber: gn, slotIndex: si });
           return;
         }
