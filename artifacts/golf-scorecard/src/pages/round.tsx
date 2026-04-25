@@ -628,35 +628,46 @@ export default function RoundPage() {
                           {visiblePlayers.map(p => {
                             const gross = getScore(p.id, holeIdx);
                             const isEditing = editingCell?.playerId === p.id && editingCell?.hole === holeIdx;
+                            const pops = strokesOnHole(playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]);
                             return (
                               <td key={p.id} className="px-1 py-1 text-center">
-                                {isEditing ? (
-                                  <input
-                                    ref={inputRef}
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    autoComplete="off"
-                                    value={editValue}
-                                    onChange={e => handleScoreChange(e.target.value, p.id, holeIdx)}
-                                    onBlur={() => commitEdit(p.id, holeIdx)}
-                                    onKeyDown={e => handleKeyDown(e, p.id, holeIdx)}
-                                    className="w-9 h-8 text-center font-serif text-sm rounded-lg outline-none"
-                                    style={{
-                                      background: "white",
-                                      color: "hsl(38 30% 14%)",
-                                      border: "2px solid hsl(42 52% 59%)",
-                                    }}
-                                  />
-                                ) : (
-                                  <button
-                                    onClick={() => startEdit(p.id, holeIdx)}
-                                    className={`w-9 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx])}`}
-                                    title={gross != null ? scoreLabel(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
-                                  >
-                                    {gross ?? "·"}
-                                  </button>
-                                )}
+                                <div className="relative inline-block">
+                                  {isEditing ? (
+                                    <input
+                                      ref={inputRef}
+                                      type="text"
+                                      inputMode="numeric"
+                                      pattern="[0-9]*"
+                                      autoComplete="off"
+                                      value={editValue}
+                                      onChange={e => handleScoreChange(e.target.value, p.id, holeIdx)}
+                                      onBlur={() => commitEdit(p.id, holeIdx)}
+                                      onKeyDown={e => handleKeyDown(e, p.id, holeIdx)}
+                                      className="w-9 h-8 text-center font-serif text-sm rounded-lg outline-none"
+                                      style={{
+                                        background: "white",
+                                        color: "hsl(38 30% 14%)",
+                                        border: "2px solid hsl(42 52% 59%)",
+                                      }}
+                                    />
+                                  ) : (
+                                    <button
+                                      onClick={() => startEdit(p.id, holeIdx)}
+                                      className={`w-9 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx])}`}
+                                      title={gross != null ? scoreLabel(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
+                                    >
+                                      {gross ?? "·"}
+                                    </button>
+                                  )}
+                                  {pops > 0 && (
+                                    <span
+                                      className="absolute -top-1 -right-1 text-[9px] font-bold leading-none pointer-events-none select-none"
+                                      style={{ color: "hsl(42 80% 68%)" }}
+                                    >
+                                      {"*".repeat(pops)}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                             );
                           })}
