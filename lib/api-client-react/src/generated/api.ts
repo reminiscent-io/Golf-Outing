@@ -28,12 +28,15 @@ import type {
   Round,
   RoundGroupAssignments,
   RoundLeaderboard,
+  ScrambleScores,
+  ScrambleTeamScore,
   Trip,
   TripLeaderboard,
   UpdatePlayerBody,
   UpdateRoundBody,
   UpdateTripBody,
   UpsertScoreBody,
+  UpsertScrambleScoreBody,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -1564,6 +1567,204 @@ export const useUpsertScore = <
   TContext
 > => {
   return useMutation(getUpsertScoreMutationOptions(options));
+};
+
+/**
+ * @summary Get all scramble team scores for a round
+ */
+export const getGetScrambleScoresUrl = (tripId: number, roundId: number) => {
+  return `/api/trips/${tripId}/rounds/${roundId}/scramble-scores`;
+};
+
+export const getScrambleScores = async (
+  tripId: number,
+  roundId: number,
+  options?: RequestInit,
+): Promise<ScrambleScores> => {
+  return customFetch<ScrambleScores>(getGetScrambleScoresUrl(tripId, roundId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetScrambleScoresQueryKey = (
+  tripId: number,
+  roundId: number,
+) => {
+  return [`/api/trips/${tripId}/rounds/${roundId}/scramble-scores`] as const;
+};
+
+export const getGetScrambleScoresQueryOptions = <
+  TData = Awaited<ReturnType<typeof getScrambleScores>>,
+  TError = ErrorType<unknown>,
+>(
+  tripId: number,
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getScrambleScores>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetScrambleScoresQueryKey(tripId, roundId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getScrambleScores>>
+  > = ({ signal }) =>
+    getScrambleScores(tripId, roundId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(tripId && roundId),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getScrambleScores>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetScrambleScoresQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getScrambleScores>>
+>;
+export type GetScrambleScoresQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get all scramble team scores for a round
+ */
+
+export function useGetScrambleScores<
+  TData = Awaited<ReturnType<typeof getScrambleScores>>,
+  TError = ErrorType<unknown>,
+>(
+  tripId: number,
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getScrambleScores>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetScrambleScoresQueryOptions(
+    tripId,
+    roundId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Set/update a single hole score for a scramble team
+ */
+export const getUpsertScrambleScoreUrl = (tripId: number, roundId: number) => {
+  return `/api/trips/${tripId}/rounds/${roundId}/scramble-scores`;
+};
+
+export const upsertScrambleScore = async (
+  tripId: number,
+  roundId: number,
+  upsertScrambleScoreBody: UpsertScrambleScoreBody,
+  options?: RequestInit,
+): Promise<ScrambleTeamScore> => {
+  return customFetch<ScrambleTeamScore>(
+    getUpsertScrambleScoreUrl(tripId, roundId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(upsertScrambleScoreBody),
+    },
+  );
+};
+
+export const getUpsertScrambleScoreMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertScrambleScore>>,
+    TError,
+    {
+      tripId: number;
+      roundId: number;
+      data: BodyType<UpsertScrambleScoreBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof upsertScrambleScore>>,
+  TError,
+  { tripId: number; roundId: number; data: BodyType<UpsertScrambleScoreBody> },
+  TContext
+> => {
+  const mutationKey = ["upsertScrambleScore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof upsertScrambleScore>>,
+    { tripId: number; roundId: number; data: BodyType<UpsertScrambleScoreBody> }
+  > = (props) => {
+    const { tripId, roundId, data } = props ?? {};
+
+    return upsertScrambleScore(tripId, roundId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpsertScrambleScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof upsertScrambleScore>>
+>;
+export type UpsertScrambleScoreMutationBody = BodyType<UpsertScrambleScoreBody>;
+export type UpsertScrambleScoreMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Set/update a single hole score for a scramble team
+ */
+export const useUpsertScrambleScore = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertScrambleScore>>,
+    TError,
+    {
+      tripId: number;
+      roundId: number;
+      data: BodyType<UpsertScrambleScoreBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof upsertScrambleScore>>,
+  TError,
+  { tripId: number; roundId: number; data: BodyType<UpsertScrambleScoreBody> },
+  TContext
+> => {
+  return useMutation(getUpsertScrambleScoreMutationOptions(options));
 };
 
 /**

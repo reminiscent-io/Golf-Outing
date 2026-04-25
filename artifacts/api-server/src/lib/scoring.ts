@@ -356,3 +356,117 @@ export function computeTeamNassau(
 
   return { matches };
 }
+
+export type ScrambleType = "fourMan" | "twoMan";
+export type ScrambleTeamSide = "A" | "B" | "G";
+
+export type ScrambleTeamScoreInput = {
+  groupNumber: number;
+  teamSide: ScrambleTeamSide;
+  holeScores: (number | null)[];
+};
+
+export type ScrambleTeamResult = {
+  groupNumber: number;
+  teamSide: ScrambleTeamSide;
+  playerIds: number[];
+  playerNames: string[];
+  holeScores: (number | null)[];
+  grossOut: number | null;
+  grossIn: number | null;
+  grossTotal: number | null;
+  holesPlayed: number;
+};
+
+// Resolve scramble teams from group assignments + scramble type. Returns the
+// expected (groupNumber, teamSide) pairs and the players that compose each.
+export function listScrambleTeams(
+  type: ScrambleType,
+  slots: { playerId: number; playerName: string; groupNumber: number; slotIndex: number }[]
+): { groupNumber: number; teamSide: ScrambleTeamSide; playerIds: number[]; playerNames: string[] }[] {
+  const byGroup = new Map<number, typeof slots>();
+  for (const s of slots) {
+    const arr = byGroup.get(s.groupNumber) ?? [];
+    arr.push(s);
+    byGroup.set(s.groupNumber, arr);
+  }
+
+  const teams: { groupNumber: number; teamSide: ScrambleTeamSide; playerIds: number[]; playerNames: string[] }[] = [];
+  for (const groupNumber of [...byGroup.keys()].sort((a, b) => a - b)) {
+    const groupSlots = byGroup.get(groupNumber)!;
+    if (type === "fourMan") {
+      teams.push({
+        groupNumber,
+        teamSide: "G",
+        playerIds: groupSlots.map(s => s.playerId),
+        playerNames: groupSlots.map(s => s.playerName),
+      });
+    } else {
+      const teamA = groupSlots.filter(s => s.slotIndex <= 2);
+      const teamB = groupSlots.filter(s => s.slotIndex >= 3);
+      if (teamA.length > 0) {
+        teams.push({
+          groupNumber,
+          teamSide: "A",
+          playerIds: teamA.map(s => s.playerId),
+          playerNames: teamA.map(s => s.playerName),
+        });
+      }
+      if (teamB.length > 0) {
+        teams.push({
+          groupNumber,
+          teamSide: "B",
+          playerIds: teamB.map(s => s.playerId),
+          playerNames: teamB.map(s => s.playerName),
+        });
+      }
+    }
+  }
+  return teams;
+}
+
+export function computeScramble(
+  type: ScrambleType | null | undefined,
+  slots: { playerId: number; playerName: string; groupNumber: number; slotIndex: number }[],
+  scoreRows: ScrambleTeamScoreInput[]
+): { type: ScrambleType | null; teams: ScrambleTeamResult[] } {
+  if (!type) return { type: null, teams: [] };
+
+  const scoresKey = (g: number, s: ScrambleTeamSide) => `${g}:${s}`;
+  const scoresByKey = new Map<string, (number | null)[]>();
+  for (const row of scoreRows) {
+    scoresByKey.set(scoresKey(row.groupNumber, row.teamSide), row.holeScores);
+  }
+
+  const teams = listScrambleTeams(type, slots);
+  const results: ScrambleTeamResult[] = teams.map(t => {
+    const stored = scoresByKey.get(scoresKey(t.groupNumber, t.teamSide)) ?? Array(18).fill(null);
+    const holeScores: (number | null)[] = [];
+    let grossOut = 0, grossIn = 0;
+    let outAny = false, inAny = false;
+    let holesPlayed = 0;
+    for (let h = 0; h < 18; h++) {
+      const v = stored[h] ?? null;
+      holeScores[h] = v;
+      if (v != null) {
+        holesPlayed++;
+        if (h < 9) { grossOut += v; outAny = true; }
+        else { grossIn += v; inAny = true; }
+      }
+    }
+    const complete = holesPlayed === 18;
+    return {
+      groupNumber: t.groupNumber,
+      teamSide: t.teamSide,
+      playerIds: t.playerIds,
+      playerNames: t.playerNames,
+      holeScores,
+      grossOut: outAny ? grossOut : null,
+      grossIn: inAny ? grossIn : null,
+      grossTotal: complete ? grossOut + grossIn : (outAny || inAny ? grossOut + grossIn : null),
+      holesPlayed,
+    };
+  });
+
+  return { type, teams: results };
+}

@@ -197,6 +197,18 @@ export const ListRoundsResponseItem = zod.object({
         }),
       )
       .optional(),
+    scramble: zod
+      .boolean()
+      .optional()
+      .describe(
+        "When true, scramble replaces individual game modes for this round.",
+      ),
+    scrambleType: zod
+      .union([zod.literal("fourMan"), zod.literal("twoMan"), zod.literal(null)])
+      .nullish()
+      .describe(
+        "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.",
+      ),
   }),
   handicapMode: zod
     .enum(["net", "gross"])
@@ -250,6 +262,22 @@ export const CreateRoundBody = zod.object({
           }),
         )
         .optional(),
+      scramble: zod
+        .boolean()
+        .optional()
+        .describe(
+          "When true, scramble replaces individual game modes for this round.",
+        ),
+      scrambleType: zod
+        .union([
+          zod.literal("fourMan"),
+          zod.literal("twoMan"),
+          zod.literal(null),
+        ])
+        .nullish()
+        .describe(
+          "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.",
+        ),
     })
     .optional(),
   handicapMode: zod.enum(["net", "gross"]).optional(),
@@ -301,6 +329,18 @@ export const GetRoundResponse = zod.object({
         }),
       )
       .optional(),
+    scramble: zod
+      .boolean()
+      .optional()
+      .describe(
+        "When true, scramble replaces individual game modes for this round.",
+      ),
+    scrambleType: zod
+      .union([zod.literal("fourMan"), zod.literal("twoMan"), zod.literal(null)])
+      .nullish()
+      .describe(
+        "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.",
+      ),
   }),
   handicapMode: zod
     .enum(["net", "gross"])
@@ -354,6 +394,22 @@ export const UpdateRoundBody = zod.object({
           }),
         )
         .optional(),
+      scramble: zod
+        .boolean()
+        .optional()
+        .describe(
+          "When true, scramble replaces individual game modes for this round.",
+        ),
+      scrambleType: zod
+        .union([
+          zod.literal("fourMan"),
+          zod.literal("twoMan"),
+          zod.literal(null),
+        ])
+        .nullish()
+        .describe(
+          "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.",
+        ),
     })
     .optional(),
   handicapMode: zod.enum(["net", "gross"]).optional(),
@@ -397,6 +453,18 @@ export const UpdateRoundResponse = zod.object({
         }),
       )
       .optional(),
+    scramble: zod
+      .boolean()
+      .optional()
+      .describe(
+        "When true, scramble replaces individual game modes for this round.",
+      ),
+    scrambleType: zod
+      .union([zod.literal("fourMan"), zod.literal("twoMan"), zod.literal(null)])
+      .nullish()
+      .describe(
+        "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.",
+      ),
   }),
   handicapMode: zod
     .enum(["net", "gross"])
@@ -457,6 +525,60 @@ export const UpsertScoreResponse = zod.object({
   holeScores: zod
     .array(zod.number().nullable())
     .describe("18 values - gross score per hole (null = not entered)"),
+});
+
+/**
+ * @summary Get all scramble team scores for a round
+ */
+export const GetScrambleScoresParams = zod.object({
+  tripId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const GetScrambleScoresResponse = zod.object({
+  scores: zod.array(
+    zod.object({
+      groupNumber: zod.number().min(1),
+      teamSide: zod
+        .enum(["A", "B", "G"])
+        .describe(
+          '\"G\" = whole 4-man group; \"A\" \/ \"B\" = 2-man cart teams (slots 1-2 \/ 3-4)',
+        ),
+      holeScores: zod
+        .array(zod.number().nullable())
+        .describe("18 values - team gross score per hole (null = not entered)"),
+    }),
+  ),
+});
+
+/**
+ * @summary Set/update a single hole score for a scramble team
+ */
+export const UpsertScrambleScoreParams = zod.object({
+  tripId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+});
+
+export const UpsertScrambleScoreBody = zod.object({
+  groupNumber: zod.number().min(1),
+  teamSide: zod.enum(["A", "B", "G"]),
+  hole: zod.number().describe("Hole number 1-18"),
+  score: zod
+    .number()
+    .nullish()
+    .describe("Team gross score for the hole (null to clear)"),
+});
+
+export const UpsertScrambleScoreResponse = zod.object({
+  groupNumber: zod.number().min(1),
+  teamSide: zod
+    .enum(["A", "B", "G"])
+    .describe(
+      '\"G\" = whole 4-man group; \"A\" \/ \"B\" = 2-man cart teams (slots 1-2 \/ 3-4)',
+    ),
+  holeScores: zod
+    .array(zod.number().nullable())
+    .describe("18 values - team gross score per hole (null = not entered)"),
 });
 
 /**
@@ -525,6 +647,24 @@ export const GetRoundLeaderboardResponse = zod.object({
         frontMargin: zod.number(),
         backMargin: zod.number(),
         totalMargin: zod.number(),
+      }),
+    ),
+  }),
+  scrambleResult: zod.object({
+    type: zod
+      .union([zod.literal("fourMan"), zod.literal("twoMan"), zod.literal(null)])
+      .nullish(),
+    teams: zod.array(
+      zod.object({
+        groupNumber: zod.number(),
+        teamSide: zod.enum(["A", "B", "G"]),
+        playerIds: zod.array(zod.number()),
+        playerNames: zod.array(zod.string()),
+        holeScores: zod.array(zod.number().nullable()),
+        grossOut: zod.number().nullish(),
+        grossIn: zod.number().nullish(),
+        grossTotal: zod.number().nullish(),
+        holesPlayed: zod.number(),
       }),
     ),
   }),

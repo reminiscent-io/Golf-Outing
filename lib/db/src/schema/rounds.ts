@@ -20,6 +20,8 @@ export const roundsTable = pgTable("rounds", {
     bestBallTeams: [],
     matchPlay: false,
     matchPlayMatches: [],
+    scramble: false,
+    scrambleType: null,
   }),
   handicapMode: text("handicap_mode", { enum: ["net", "gross"] }).notNull().default("net"),
   teeBox: text("tee_box"),
@@ -28,6 +30,8 @@ export const roundsTable = pgTable("rounds", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
+
+export type ScrambleType = "fourMan" | "twoMan";
 
 export type GamesConfig = {
   stableford: boolean;
@@ -38,6 +42,8 @@ export type GamesConfig = {
   bestBallTeams?: Array<{ id: string; name: string; playerIds: number[] }>;
   matchPlay: boolean;
   matchPlayMatches?: Array<{ id: string; playerA: number; playerB: number }>;
+  scramble?: boolean;
+  scrambleType?: ScrambleType | null;
 };
 
 export const insertRoundSchema = createInsertSchema(roundsTable).omit({ id: true, createdAt: true, updatedAt: true });

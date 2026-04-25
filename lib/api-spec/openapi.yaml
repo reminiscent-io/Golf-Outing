@@ -417,6 +417,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayerScore"
 
+  /trips/{tripId}/rounds/{roundId}/scramble-scores:
+    get:
+      operationId: getScrambleScores
+      tags: [scores]
+      summary: Get all scramble team scores for a round
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: All scramble team score rows for the round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrambleScores"
+    put:
+      operationId: upsertScrambleScore
+      tags: [scores]
+      summary: Set/update a single hole score for a scramble team
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertScrambleScoreBody"
+      responses:
+        "200":
+          description: Updated scramble team score row
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrambleTeamScore"
+
   /trips/{tripId}/rounds/{roundId}/leaderboard:
     get:
       operationId: getRoundLeaderboard
@@ -696,6 +748,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Match"
+        scramble:
+          type: boolean
+          description: When true, scramble replaces individual game modes for this round.
+        scrambleType:
+          type: ["string", "null"]
+          enum: ["fourMan", "twoMan", null]
+          description: "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams."
       required:
         - stableford
         - skins
@@ -943,11 +1002,14 @@ components:
             $ref: "#/components/schemas/SkinHoleResult"
         nassauResult:
           $ref: "#/components/schemas/NassauResult"
+        scrambleResult:
+          $ref: "#/components/schemas/ScrambleResult"
       required:
         - roundId
         - entries
         - skinResults
         - nassauResult
+        - scrambleResult
 
     TripPlayerSummary:
       type: object
@@ -1019,3 +1081,102 @@ components:
             $ref: "#/components/schemas/RoundGroupAssignment"
       required:
         - assignments
+
+    ScrambleTeamScore:
+      type: object
+      properties:
+        groupNumber:
+          type: integer
+          minimum: 1
+        teamSide:
+          type: string
+          enum: ["A", "B", "G"]
+          description: '"G" = whole 4-man group; "A" / "B" = 2-man cart teams (slots 1-2 / 3-4)'
+        holeScores:
+          type: array
+          items:
+            type: ["integer", "null"]
+          description: 18 values - team gross score per hole (null = not entered)
+      required:
+        - groupNumber
+        - teamSide
+        - holeScores
+
+    ScrambleScores:
+      type: object
+      properties:
+        scores:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScrambleTeamScore"
+      required:
+        - scores
+
+    UpsertScrambleScoreBody:
+      type: object
+      properties:
+        groupNumber:
+          type: integer
+          minimum: 1
+        teamSide:
+          type: string
+          enum: ["A", "B", "G"]
+        hole:
+          type: integer
+          description: Hole number 1-18
+        score:
+          type: ["integer", "null"]
+          description: Team gross score for the hole (null to clear)
+      required:
+        - groupNumber
+        - teamSide
+        - hole
+
+    ScrambleTeamResult:
+      type: object
+      properties:
+        groupNumber:
+          type: integer
+        teamSide:
+          type: string
+          enum: ["A", "B", "G"]
+        playerIds:
+          type: array
+          items:
+            type: integer
+        playerNames:
+          type: array
+          items:
+            type: string
+        holeScores:
+          type: array
+          items:
+            type: ["integer", "null"]
+        grossOut:
+          type: ["integer", "null"]
+        grossIn:
+          type: ["integer", "null"]
+        grossTotal:
+          type: ["integer", "null"]
+        holesPlayed:
+          type: integer
+      required:
+        - groupNumber
+        - teamSide
+        - playerIds
+        - playerNames
+        - holeScores
+        - holesPlayed
+
+    ScrambleResult:
+      type: object
+      properties:
+        type:
+          type: ["string", "null"]
+          enum: ["fourMan", "twoMan", null]
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScrambleTeamResult"
+      required:
+        - teams

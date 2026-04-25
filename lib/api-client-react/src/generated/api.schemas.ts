@@ -82,6 +82,19 @@ export interface Match {
   playerB: number;
 }
 
+/**
+ * fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.
+ * @nullable
+ */
+export type GamesConfigScrambleType =
+  | (typeof GamesConfigScrambleType)[keyof typeof GamesConfigScrambleType]
+  | null;
+
+export const GamesConfigScrambleType = {
+  fourMan: "fourMan",
+  twoMan: "twoMan",
+} as const;
+
 export interface GamesConfig {
   stableford: boolean;
   skins: boolean;
@@ -91,6 +104,13 @@ export interface GamesConfig {
   bestBallTeams?: Team[];
   matchPlay: boolean;
   matchPlayMatches?: Match[];
+  /** When true, scramble replaces individual game modes for this round. */
+  scramble?: boolean;
+  /**
+   * fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.
+   * @nullable
+   */
+  scrambleType?: GamesConfigScrambleType;
 }
 
 export interface Round {
@@ -273,11 +293,54 @@ export interface NassauResult {
   matches: TeamNassauMatch[];
 }
 
+/**
+ * @nullable
+ */
+export type ScrambleResultType =
+  | (typeof ScrambleResultType)[keyof typeof ScrambleResultType]
+  | null;
+
+export const ScrambleResultType = {
+  fourMan: "fourMan",
+  twoMan: "twoMan",
+} as const;
+
+export type ScrambleTeamResultTeamSide =
+  (typeof ScrambleTeamResultTeamSide)[keyof typeof ScrambleTeamResultTeamSide];
+
+export const ScrambleTeamResultTeamSide = {
+  A: "A",
+  B: "B",
+  G: "G",
+} as const;
+
+export interface ScrambleTeamResult {
+  groupNumber: number;
+  teamSide: ScrambleTeamResultTeamSide;
+  playerIds: number[];
+  playerNames: string[];
+  holeScores: (number | null)[];
+  /** @nullable */
+  grossOut?: number | null;
+  /** @nullable */
+  grossIn?: number | null;
+  /** @nullable */
+  grossTotal?: number | null;
+  holesPlayed: number;
+}
+
+export interface ScrambleResult {
+  /** @nullable */
+  type?: ScrambleResultType;
+  teams: ScrambleTeamResult[];
+}
+
 export interface RoundLeaderboard {
   roundId: number;
   entries: PlayerLeaderboardEntry[];
   skinResults: SkinHoleResult[];
   nassauResult: NassauResult;
+  scrambleResult: ScrambleResult;
 }
 
 export interface TripPlayerSummary {
@@ -315,4 +378,51 @@ export interface RoundGroupAssignment {
 
 export interface RoundGroupAssignments {
   assignments: RoundGroupAssignment[];
+}
+
+/**
+ * "G" = whole 4-man group; "A" / "B" = 2-man cart teams (slots 1-2 / 3-4)
+ */
+export type ScrambleTeamScoreTeamSide =
+  (typeof ScrambleTeamScoreTeamSide)[keyof typeof ScrambleTeamScoreTeamSide];
+
+export const ScrambleTeamScoreTeamSide = {
+  A: "A",
+  B: "B",
+  G: "G",
+} as const;
+
+export interface ScrambleTeamScore {
+  /** @minimum 1 */
+  groupNumber: number;
+  /** "G" = whole 4-man group; "A" / "B" = 2-man cart teams (slots 1-2 / 3-4) */
+  teamSide: ScrambleTeamScoreTeamSide;
+  /** 18 values - team gross score per hole (null = not entered) */
+  holeScores: (number | null)[];
+}
+
+export interface ScrambleScores {
+  scores: ScrambleTeamScore[];
+}
+
+export type UpsertScrambleScoreBodyTeamSide =
+  (typeof UpsertScrambleScoreBodyTeamSide)[keyof typeof UpsertScrambleScoreBodyTeamSide];
+
+export const UpsertScrambleScoreBodyTeamSide = {
+  A: "A",
+  B: "B",
+  G: "G",
+} as const;
+
+export interface UpsertScrambleScoreBody {
+  /** @minimum 1 */
+  groupNumber: number;
+  teamSide: UpsertScrambleScoreBodyTeamSide;
+  /** Hole number 1-18 */
+  hole: number;
+  /**
+   * Team gross score for the hole (null to clear)
+   * @nullable
+   */
+  score?: number | null;
 }
