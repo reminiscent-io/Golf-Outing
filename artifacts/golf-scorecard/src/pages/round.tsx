@@ -622,13 +622,7 @@ export default function RoundPage() {
                                   />
                                 ) : (
                                   <button
-                                    onClick={() => {
-                                      if (gross == null) {
-                                        startEditFirstEmpty();
-                                      } else {
-                                        startEdit(p.id, holeIdx);
-                                      }
-                                    }}
+                                    onClick={() => startEdit(p.id, holeIdx)}
                                     className={`w-9 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx])}`}
                                     title={gross != null ? scoreLabel(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
                                   >
