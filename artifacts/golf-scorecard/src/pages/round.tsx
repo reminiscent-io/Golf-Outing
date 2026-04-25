@@ -434,15 +434,31 @@ export default function RoundPage() {
     totalPar: par.reduce((a, b) => a + b, 0),
   };
 
-  // Playing handicap per player. In "net" mode the lowest handicap plays
-  // scratch and others receive the integer difference from the WHS course
-  // handicap formula; in "gross" mode each player plays their full course
-  // handicap.
+  // Playing handicap per player. In "net" mode each group's lowest handicap
+  // plays scratch and others receive the integer difference from the WHS
+  // course handicap formula relative to that group; in "gross" mode each
+  // player plays their full course handicap. Players not assigned to a group
+  // fall back to the field-wide minimum.
   const fieldMinHcp = players && players.length > 0
     ? Math.min(...players.map(p => p.handicap || 0))
     : 0;
+  const groupMinHcp = new Map<number, number>();
+  for (const a of groupsData?.assignments ?? []) {
+    const p = (players ?? []).find(pp => pp.id === a.playerId);
+    if (!p) continue;
+    const h = p.handicap || 0;
+    const cur = groupMinHcp.get(a.groupNumber);
+    if (cur == null || h < cur) groupMinHcp.set(a.groupNumber, h);
+  }
+  const playerGroup = new Map<number, number>(
+    (groupsData?.assignments ?? []).map(a => [a.playerId, a.groupNumber])
+  );
   const playingHcps = new Map<number, number>(
-    (players ?? []).map(p => [p.id, effectiveHandicap(p.handicap, fieldMinHcp, handicapMode, course)])
+    (players ?? []).map(p => {
+      const grp = playerGroup.get(p.id);
+      const ref = grp != null ? groupMinHcp.get(grp) ?? fieldMinHcp : fieldMinHcp;
+      return [p.id, effectiveHandicap(p.handicap, ref, handicapMode, course)];
+    })
   );
 
   const SUBTABS: { id: SubTab; label: string; icon: typeof Trophy }[] = [

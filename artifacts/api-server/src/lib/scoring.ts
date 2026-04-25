@@ -32,19 +32,48 @@ export function fieldMinHandicap(players: { handicap: number }[]): number {
 }
 
 // Resolve the playing handicap used for per-hole stroke allocation. In "net"
-// mode each player's WHS Course Handicap is collapsed against the field's
-// minimum so the low handicap plays scratch; in "gross" mode every player
-// plays their full Course Handicap.
+// mode each player's WHS Course Handicap is collapsed against a reference
+// minimum (typically the lowest handicap in their group) so that low
+// handicap plays scratch; in "gross" mode every player plays their full
+// Course Handicap.
 export function effectiveHandicap(
   playerHcp: number,
-  fieldMinHcp: number,
+  refMinHcp: number,
   mode: HandicapMode,
   course: CourseInputs = {}
 ): number {
   const ch = whsCourseHandicap(playerHcp, course);
   if (mode === "gross") return Math.max(0, ch);
-  const minCh = whsCourseHandicap(fieldMinHcp, course);
+  const minCh = whsCourseHandicap(refMinHcp, course);
   return Math.max(0, ch - minCh);
+}
+
+// Build a map of playerId -> reference minimum handicap. For each player
+// assigned to a group, the reference is the lowest handicap in that group;
+// for players not assigned to any group, the reference falls back to the
+// field-wide minimum.
+export function buildPlayerMinHcp(
+  players: { id: number; handicap: number }[],
+  assignments: { playerId: number; groupNumber: number }[]
+): Map<number, number> {
+  const playerById = new Map(players.map(p => [p.id, p]));
+  const groupMin = new Map<number, number>();
+  for (const a of assignments) {
+    const p = playerById.get(a.playerId);
+    if (!p) continue;
+    const h = Number(p.handicap) || 0;
+    const cur = groupMin.get(a.groupNumber);
+    if (cur == null || h < cur) groupMin.set(a.groupNumber, h);
+  }
+  const fieldMin = fieldMinHandicap(players);
+  const playerGroup = new Map(assignments.map(a => [a.playerId, a.groupNumber]));
+  const result = new Map<number, number>();
+  for (const p of players) {
+    const grp = playerGroup.get(p.id);
+    const min = grp != null ? groupMin.get(grp) ?? fieldMin : fieldMin;
+    result.set(p.id, min);
+  }
+  return result;
 }
 
 export function netForHole(gross: number | null, playerHcp: number, holeHcpIdx: number): number | null {
@@ -88,7 +117,7 @@ export function computePlayerStats(
   holeScores: (number | null)[],
   par: number[],
   holeHcp: number[],
-  fieldMinHcp: number = 0,
+  refMinHcp: number = 0,
   mode: HandicapMode = "net",
   course: CourseInputs = {}
 ): PlayerRoundStats {
@@ -100,7 +129,7 @@ export function computePlayerStats(
   let sfTotal = 0;
   let holesPlayed = 0;
   let hasGross = false;
-  const playingHcp = effectiveHandicap(player.handicap, fieldMinHcp, mode, course);
+  const playingHcp = effectiveHandicap(player.handicap, refMinHcp, mode, course);
 
   for (let h = 0; h < 18; h++) {
     const g = holeScores[h] ?? null;
@@ -157,7 +186,7 @@ export function computeSkins(
   players: { id: number; name: string; handicap: number }[],
   allHoleScores: Map<number, (number | null)[]>,
   holeHcp: number[],
-  fieldMinHcp: number = 0,
+  minHcpByPlayer: Map<number, number> = new Map(),
   mode: HandicapMode = "net",
   course: CourseInputs = {}
 ): { skinsWon: Record<number, number>; perHole: SkinHoleResult[] } {
@@ -166,7 +195,7 @@ export function computeSkins(
   let carry = 1;
   const perHole: SkinHoleResult[] = [];
   const playingHcps = new Map<number, number>(
-    players.map(p => [p.id, effectiveHandicap(p.handicap, fieldMinHcp, mode, course)])
+    players.map(p => [p.id, effectiveHandicap(p.handicap, minHcpByPlayer.get(p.id) ?? 0, mode, course)])
   );
 
   for (let h = 0; h < 18; h++) {
@@ -224,7 +253,6 @@ export function computeTeamNassau(
   allHoleScores: Map<number, (number | null)[]>,
   _par: number[],
   holeHcp: number[],
-  fieldMinHcp: number,
   mode: HandicapMode,
   course: CourseInputs
 ): { matches: TeamNassauMatch[] } {
@@ -236,9 +264,16 @@ export function computeTeamNassau(
     byGroup.set(s.groupNumber, arr);
   }
 
+  // In net mode each group's lowest handicap plays scratch within that group.
+  const groupMinHcp = new Map<number, number>();
+  for (const [g, ss] of byGroup) {
+    groupMinHcp.set(g, Math.min(...ss.map(s => Number(s.handicap) || 0)));
+  }
+
   const playingHcp = new Map<number, number>();
   for (const s of slots) {
-    playingHcp.set(s.playerId, effectiveHandicap(s.handicap, fieldMinHcp, mode, course));
+    const min = groupMinHcp.get(s.groupNumber) ?? 0;
+    playingHcp.set(s.playerId, effectiveHandicap(s.handicap, min, mode, course));
   }
 
   // For each hole, each player's score in the chosen mode (net or gross).
