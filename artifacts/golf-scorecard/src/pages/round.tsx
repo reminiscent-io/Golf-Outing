@@ -157,6 +157,7 @@ export default function RoundPage() {
   const [editingCell, setEditingCell] = useState<{ playerId: number; hole: number } | null>(null);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
@@ -165,17 +166,47 @@ export default function RoundPage() {
     }
   }, [editingCell]);
 
+  // Find first empty cell in left-to-right, top-to-bottom order
+  function findFirstEmptyCell(): { playerId: number; holeIdx: number } | null {
+    if (!visiblePlayers || visiblePlayers.length === 0) return null;
+    for (let h = 0; h < 18; h++) {
+      for (const p of visiblePlayers) {
+        if (getScore(p.id, h) == null) return { playerId: p.id, holeIdx: h };
+      }
+    }
+    return null;
+  }
+
   function startEdit(playerId: number, holeIdx: number) {
+    if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
     const current = getScore(playerId, holeIdx);
     setEditingCell({ playerId, hole: holeIdx });
     setEditValue(current != null ? String(current) : "");
   }
 
-  function commitEdit(playerId: number, holeIdx: number) {
-    const val = editValue.trim();
-    const score = val === "" ? null : parseInt(val);
-    if (val !== "" && (isNaN(score!) || score! < 1 || score! > 20)) {
+  function startEditFirstEmpty() {
+    const cell = findFirstEmptyCell();
+    if (cell) startEdit(cell.playerId, cell.holeIdx);
+  }
+
+  function advanceToNext(playerId: number, holeIdx: number) {
+    if (!visiblePlayers || visiblePlayers.length === 0) return;
+    const currPlayerIdx = visiblePlayers.findIndex(p => p.id === playerId);
+    const nextPlayerIdx = (currPlayerIdx + 1) % visiblePlayers.length;
+    const nextHoleIdx = nextPlayerIdx === 0 ? holeIdx + 1 : holeIdx;
+    if (nextHoleIdx < 18) {
+      setTimeout(() => startEdit(visiblePlayers[nextPlayerIdx].id, nextHoleIdx), 0);
+    } else {
       setEditingCell(null);
+    }
+  }
+
+  function commitEditWithValue(playerId: number, holeIdx: number, val: string, andAdvance = false) {
+    if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+    const trimmed = val.trim();
+    const score = trimmed === "" ? null : parseInt(trimmed);
+    if (trimmed !== "" && (isNaN(score!) || score! < 1 || score! > 20)) {
+      if (!andAdvance) setEditingCell(null);
       return;
     }
     upsertScore.mutate(
@@ -188,24 +219,44 @@ export default function RoundPage() {
         },
       }
     );
-    setEditingCell(null);
+    if (andAdvance) {
+      advanceToNext(playerId, holeIdx);
+    } else {
+      setEditingCell(null);
+    }
+  }
+
+  function commitEdit(playerId: number, holeIdx: number) {
+    commitEditWithValue(playerId, holeIdx, editValue, false);
+  }
+
+  function handleScoreChange(val: string, playerId: number, holeIdx: number) {
+    // Only allow digits
+    const cleaned = val.replace(/\D/g, "").slice(0, 2);
+    setEditValue(cleaned);
+    if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+    const num = parseInt(cleaned);
+    if (!isNaN(num) && num >= 1) {
+      if (num >= 10) {
+        // Two-digit score — commit immediately
+        commitEditWithValue(playerId, holeIdx, cleaned, true);
+      } else {
+        // Single digit — short wait in case they type a second digit (e.g. 10–19)
+        autoAdvanceTimer.current = setTimeout(() => {
+          commitEditWithValue(playerId, holeIdx, cleaned, true);
+        }, 500);
+      }
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent, playerId: number, holeIdx: number) {
     if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
-      commitEdit(playerId, holeIdx);
-      // Advance to next player
-      if (visiblePlayers && visiblePlayers.length > 0) {
-        const currPlayerIdx = visiblePlayers.findIndex(p => p.id === playerId);
-        const nextPlayerIdx = (currPlayerIdx + 1) % visiblePlayers.length;
-        const nextHoleIdx = nextPlayerIdx === 0 ? holeIdx + 1 : holeIdx;
-        if (nextHoleIdx < 18) {
-          setTimeout(() => startEdit(visiblePlayers[nextPlayerIdx].id, nextHoleIdx), 50);
-        }
-      }
+      if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+      commitEditWithValue(playerId, holeIdx, editValue, true);
     }
     if (e.key === "Escape") {
+      if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
       setEditingCell(null);
     }
   }
@@ -554,11 +605,12 @@ export default function RoundPage() {
                                 {isEditing ? (
                                   <input
                                     ref={inputRef}
-                                    type="number"
-                                    min="1"
-                                    max="20"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    autoComplete="off"
                                     value={editValue}
-                                    onChange={e => setEditValue(e.target.value)}
+                                    onChange={e => handleScoreChange(e.target.value, p.id, holeIdx)}
                                     onBlur={() => commitEdit(p.id, holeIdx)}
                                     onKeyDown={e => handleKeyDown(e, p.id, holeIdx)}
                                     className="w-9 h-8 text-center font-serif text-sm rounded-lg outline-none"
@@ -570,7 +622,13 @@ export default function RoundPage() {
                                   />
                                 ) : (
                                   <button
-                                    onClick={() => startEdit(p.id, holeIdx)}
+                                    onClick={() => {
+                                      if (gross == null) {
+                                        startEditFirstEmpty();
+                                      } else {
+                                        startEdit(p.id, holeIdx);
+                                      }
+                                    }}
                                     className={`w-9 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx])}`}
                                     title={gross != null ? scoreLabel(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
                                   >
