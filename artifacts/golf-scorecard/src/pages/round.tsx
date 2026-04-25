@@ -15,6 +15,9 @@ import {
   getGetTripLeaderboardQueryKey,
   useListRoundGroups,
   getListRoundGroupsQueryKey,
+  useGetScrambleScores,
+  useUpsertScrambleScore,
+  getGetScrambleScoresQueryKey,
 } from "@workspace/api-client-react";
 import { ArrowLeft, Settings, Trophy, Grid3X3 } from "lucide-react";
 import {
@@ -29,6 +32,8 @@ import { RoundGroupsEditor } from "@/components/round-groups-editor";
 import { useTripIdentity } from "@/lib/trip-identity";
 
 type SubTab = "scorecard" | "results" | "setup";
+type ScrambleType = "fourMan" | "twoMan";
+type ScrambleTeamSide = "A" | "B" | "G";
 
 // Scoring helpers (client-side for color coding)
 function strokesOnHole(hcp: number, holeHcpIdx: number): number {
@@ -88,6 +93,249 @@ function scoreLabel(gross: number | null, par: number, playingHcp: number, holeH
   if (diff === 1) return "Bogey";
   if (diff === 2) return "Double";
   return `+${diff}`;
+}
+
+type ScrambleTeam = {
+  key: string;
+  groupNumber: number;
+  teamSide: ScrambleTeamSide;
+  label: string;
+  playerIds: number[];
+  playerNames: string[];
+};
+
+function ScrambleScorecard(props: {
+  teams: ScrambleTeam[];
+  myTeamKey: string | undefined;
+  viewMode: "mine" | "all";
+  setViewMode: (m: "mine" | "all") => void;
+  par: number[];
+  holeHcp: number[];
+  getScore: (teamKey: string, holeIdx: number) => number | null;
+  editingScramble: { teamKey: string; hole: number } | null;
+  startEditScramble: (teamKey: string, holeIdx: number) => void;
+  scrambleEditValue: string;
+  handleScrambleChange: (val: string, teamKey: string, holeIdx: number) => void;
+  commitScramble: (teamKey: string, holeIdx: number) => void;
+  handleScrambleKeyDown: (e: React.KeyboardEvent, teamKey: string, holeIdx: number) => void;
+  scrambleInputRef: React.RefObject<HTMLInputElement | null>;
+  onNavigateToSetup: () => void;
+}) {
+  const {
+    teams, myTeamKey, viewMode, setViewMode, par, holeHcp,
+    getScore, editingScramble, startEditScramble, scrambleEditValue,
+    handleScrambleChange, commitScramble, handleScrambleKeyDown, scrambleInputRef,
+    onNavigateToSetup,
+  } = props;
+
+  if (teams.length === 0) {
+    return (
+      <div className="flex-1 max-w-2xl mx-auto px-4 py-12 text-center">
+        <p className="text-sm font-sans" style={{ color: "hsl(42 20% 55%)" }}>
+          Assign players to groups before entering scramble scores.
+        </p>
+        <button
+          onClick={onNavigateToSetup}
+          className="mt-3 px-5 py-2 rounded-xl text-sm font-sans font-semibold"
+          style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
+        >
+          Set Up Groups
+        </button>
+      </div>
+    );
+  }
+
+  const visibleTeams = viewMode === "mine" && myTeamKey
+    ? teams.filter(t => t.key === myTeamKey)
+    : teams;
+
+  function teamScoreClass(gross: number | null, parVal: number): string {
+    if (gross == null) return "score-empty";
+    const diff = gross - parVal;
+    if (diff <= -2) return "score-eagle";
+    if (diff === -1) return "score-birdie";
+    if (diff === 0) return "score-par";
+    if (diff === 1) return "score-bogey";
+    return "score-double";
+  }
+
+  return (
+    <div className="flex-1 overflow-hidden">
+      {myTeamKey && (
+        <div className="flex items-center gap-2 mb-3 px-4 pt-3 text-xs font-sans">
+          <button
+            onClick={() => setViewMode("mine")}
+            className="px-3 py-1.5 rounded-lg font-600"
+            style={{
+              background: viewMode === "mine" ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
+              color: viewMode === "mine" ? "hsl(38 30% 12%)" : "hsl(42 35% 65%)",
+            }}
+          >
+            My team
+          </button>
+          <button
+            onClick={() => setViewMode("all")}
+            className="px-3 py-1.5 rounded-lg font-600"
+            style={{
+              background: viewMode === "all" ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
+              color: viewMode === "all" ? "hsl(38 30% 12%)" : "hsl(42 35% 65%)",
+            }}
+          >
+            All teams
+          </button>
+        </div>
+      )}
+      <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+        <table className="w-full" style={{ minWidth: `${44 + 28 + visibleTeams.length * 84}px` }}>
+          <colgroup>
+            <col style={{ width: 44 }} />
+            <col style={{ width: 28 }} />
+            {visibleTeams.map(t => (
+              <col key={t.key} style={{ width: 84 }} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr style={{ background: "hsl(158 65% 9%)", borderBottom: "2px solid hsl(42 52% 59%)" }}>
+              <th className="px-2 py-2 text-left text-xs font-sans font-semibold uppercase tracking-wider sticky left-0 z-20"
+                style={{ background: "hsl(158 65% 9%)", color: "hsl(42 20% 55%)" }}>Hole</th>
+              <th className="px-1 py-2 text-center text-xs font-sans font-semibold uppercase tracking-wider"
+                style={{ color: "hsl(42 20% 55%)" }}>Par</th>
+              {visibleTeams.map(t => (
+                <th key={t.key} className="px-1 py-2 text-center text-xs font-sans font-semibold"
+                  style={{ color: "hsl(42 45% 80%)", ...(t.key === myTeamKey ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.label}</div>
+                  <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {t.playerNames.join(" / ")}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 18 }, (_, holeIdx) => (
+              <Fragment key={holeIdx}>
+                {holeIdx === 9 && (
+                  <tr key="out" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
+                    <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
+                      style={{ background: "hsl(158 50% 14%)", color: "hsl(42 52% 59%)" }}>OUT</td>
+                    <td className="px-1 py-2 text-center text-xs font-serif font-semibold"
+                      style={{ color: "hsl(42 45% 75%)" }}>
+                      {par.slice(0, 9).reduce((a, b) => a + b, 0)}
+                    </td>
+                    {visibleTeams.map(t => {
+                      const filled = Array.from({ length: 9 }, (_, h) => getScore(t.key, h)).filter((s): s is number => s != null);
+                      const total = filled.length > 0 ? filled.reduce((a, b) => a + b, 0) : null;
+                      return (
+                        <td key={t.key} className="px-1 py-2 text-center font-serif text-sm font-semibold"
+                          style={{ color: "hsl(42 45% 80%)" }}>
+                          {total ?? "—"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
+                <tr
+                  key={holeIdx}
+                  style={{
+                    background: holeIdx % 2 === 0 ? "hsl(158 45% 13%)" : "hsl(158 40% 15%)",
+                    borderBottom: "1px solid hsl(158 40% 18%)",
+                  }}
+                >
+                  <td className="px-2 py-1 text-left sticky left-0 z-10"
+                    style={{ background: holeIdx % 2 === 0 ? "hsl(158 45% 13%)" : "hsl(158 40% 15%)" }}>
+                    <div className="font-serif text-sm font-semibold leading-tight" style={{ color: "hsl(42 45% 75%)" }}>
+                      {holeIdx + 1}
+                    </div>
+                    <div className="text-[8px] font-sans leading-tight" style={{ color: "hsl(42 15% 50%)" }}>
+                      {holeHcp[holeIdx]}
+                    </div>
+                  </td>
+                  <td className="px-1 py-1 text-center">
+                    <span className="font-serif text-sm" style={{ color: "hsl(42 35% 65%)" }}>
+                      {par[holeIdx]}
+                    </span>
+                  </td>
+                  {visibleTeams.map(t => {
+                    const gross = getScore(t.key, holeIdx);
+                    const isEditing = editingScramble?.teamKey === t.key && editingScramble?.hole === holeIdx;
+                    return (
+                      <td key={t.key} className="px-1 py-1 text-center">
+                        {isEditing ? (
+                          <input
+                            ref={scrambleInputRef}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            autoComplete="off"
+                            value={scrambleEditValue}
+                            onChange={e => handleScrambleChange(e.target.value, t.key, holeIdx)}
+                            onBlur={() => commitScramble(t.key, holeIdx)}
+                            onKeyDown={e => handleScrambleKeyDown(e, t.key, holeIdx)}
+                            className="w-9 h-8 text-center font-serif text-sm rounded-lg outline-none"
+                            style={{
+                              background: "white",
+                              color: "hsl(38 30% 14%)",
+                              border: "2px solid hsl(42 52% 59%)",
+                            }}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => startEditScramble(t.key, holeIdx)}
+                            className={`w-9 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${teamScoreClass(gross, par[holeIdx])}`}
+                          >
+                            {gross ?? "·"}
+                          </button>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+                {holeIdx === 17 && (
+                  <tr key="in-total" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
+                    <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
+                      style={{ background: "hsl(158 50% 14%)", color: "hsl(42 52% 59%)" }}>IN</td>
+                    <td className="px-1 py-2 text-center text-xs font-serif font-semibold"
+                      style={{ color: "hsl(42 45% 75%)" }}>
+                      {par.slice(9).reduce((a, b) => a + b, 0)}
+                    </td>
+                    {visibleTeams.map(t => {
+                      const filled = Array.from({ length: 9 }, (_, h) => getScore(t.key, h + 9)).filter((s): s is number => s != null);
+                      const total = filled.length > 0 ? filled.reduce((a, b) => a + b, 0) : null;
+                      return (
+                        <td key={t.key} className="px-1 py-2 text-center font-serif text-sm font-semibold"
+                          style={{ color: "hsl(42 45% 80%)" }}>
+                          {total ?? "—"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+            {/* Total row */}
+            <tr style={{ background: "hsl(158 60% 11%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
+              <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
+                style={{ background: "hsl(158 60% 11%)", color: "hsl(42 52% 59%)" }}>TOT</td>
+              <td className="px-1 py-2 text-center font-serif text-sm font-semibold"
+                style={{ color: "hsl(42 45% 75%)" }}>
+                {par.reduce((a, b) => a + b, 0)}
+              </td>
+              {visibleTeams.map(t => {
+                const filled = Array.from({ length: 18 }, (_, h) => getScore(t.key, h)).filter((s): s is number => s != null);
+                const total = filled.length > 0 ? filled.reduce((a, b) => a + b, 0) : null;
+                return (
+                  <td key={t.key} className="px-1 py-2 text-center font-serif text-base font-semibold"
+                    style={{ color: "hsl(42 52% 59%)" }}>
+                    {total ?? "—"}
+                  </td>
+                );
+              })}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 export default function RoundPage() {
@@ -170,6 +418,84 @@ export default function RoundPage() {
 
   const upsertScore = useUpsertScore();
   const updateRound = useUpdateRound();
+  const upsertScrambleScore = useUpsertScrambleScore();
+
+  // Scramble config + data
+  const gamesConfig = (round?.gamesConfig ?? {}) as { scramble?: boolean; scrambleType?: ScrambleType | null };
+  const scrambleEnabled = !!gamesConfig.scramble && !!gamesConfig.scrambleType;
+  const scrambleType: ScrambleType | null = scrambleEnabled ? (gamesConfig.scrambleType ?? null) : null;
+
+  const { data: scrambleScoresData } = useGetScrambleScores(tripId, roundId, {
+    query: {
+      queryKey: getGetScrambleScoresQueryKey(tripId, roundId),
+      enabled: !!tripId && !!roundId && scrambleEnabled,
+      refetchInterval: 10000,
+    },
+  });
+
+  // Resolve scramble teams (groupNumber + side + member players) from group assignments.
+  const scrambleTeams: ScrambleTeam[] = (() => {
+    if (!scrambleType || !groupsData?.assignments || !players) return [];
+    const playerNameById = new Map(players.map(p => [p.id, p.name]));
+    const byGroup = new Map<number, { playerId: number; slotIndex: number }[]>();
+    for (const a of groupsData.assignments) {
+      const arr = byGroup.get(a.groupNumber) ?? [];
+      arr.push({ playerId: a.playerId, slotIndex: a.slotIndex });
+      byGroup.set(a.groupNumber, arr);
+    }
+    const teams: ScrambleTeam[] = [];
+    for (const groupNumber of [...byGroup.keys()].sort((a, b) => a - b)) {
+      const slots = byGroup.get(groupNumber)!.sort((a, b) => a.slotIndex - b.slotIndex);
+      const nameOf = (id: number) => playerNameById.get(id)?.split(" ")[0] ?? `#${id}`;
+      if (scrambleType === "fourMan") {
+        teams.push({
+          key: `${groupNumber}:G`,
+          groupNumber,
+          teamSide: "G",
+          label: `Group ${groupNumber}`,
+          playerIds: slots.map(s => s.playerId),
+          playerNames: slots.map(s => nameOf(s.playerId)),
+        });
+      } else {
+        const a = slots.filter(s => s.slotIndex <= 2);
+        const b = slots.filter(s => s.slotIndex >= 3);
+        if (a.length > 0) {
+          teams.push({
+            key: `${groupNumber}:A`,
+            groupNumber,
+            teamSide: "A",
+            label: `G${groupNumber}·A`,
+            playerIds: a.map(s => s.playerId),
+            playerNames: a.map(s => nameOf(s.playerId)),
+          });
+        }
+        if (b.length > 0) {
+          teams.push({
+            key: `${groupNumber}:B`,
+            groupNumber,
+            teamSide: "B",
+            label: `G${groupNumber}·B`,
+            playerIds: b.map(s => s.playerId),
+            playerNames: b.map(s => nameOf(s.playerId)),
+          });
+        }
+      }
+    }
+    return teams;
+  })();
+
+  // Map from team key to its 18-hole scores.
+  const scrambleScoresByKey = new Map<string, (number | null)[]>();
+  scrambleScoresData?.scores.forEach(s => {
+    scrambleScoresByKey.set(`${s.groupNumber}:${s.teamSide}`, s.holeScores as (number | null)[]);
+  });
+
+  // My team key (for "mine" view in scramble mode)
+  const myScrambleTeamKey: string | undefined = (() => {
+    if (!scrambleType || myGroupNumber === undefined || mySlotIndex === undefined) return undefined;
+    if (scrambleType === "fourMan") return `${myGroupNumber}:G`;
+    return `${myGroupNumber}:${mySlotIndex <= 2 ? "A" : "B"}`;
+  })();
 
   // Build a scores map: playerId -> holeScores[18]
   const scoresMap = new Map<number, (number | null)[]>();
@@ -181,11 +507,28 @@ export default function RoundPage() {
     return scoresMap.get(playerId)?.[holeIdx] ?? null;
   }
 
+  function getScrambleScore(teamKey: string, holeIdx: number): number | null {
+    return scrambleScoresByKey.get(teamKey)?.[holeIdx] ?? null;
+  }
+
   // Inline editing state
   const [editingCell, setEditingCell] = useState<{ playerId: number; hole: number } | null>(null);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Scramble inline editing state (separate from individual cell editing)
+  const [editingScramble, setEditingScramble] = useState<{ teamKey: string; hole: number } | null>(null);
+  const [scrambleEditValue, setScrambleEditValue] = useState("");
+  const scrambleInputRef = useRef<HTMLInputElement>(null);
+  const scrambleAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (editingScramble && scrambleInputRef.current) {
+      scrambleInputRef.current.focus();
+      scrambleInputRef.current.select();
+    }
+  }, [editingScramble]);
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
@@ -289,10 +632,90 @@ export default function RoundPage() {
     }
   }
 
+  // Scramble score editing
+  function startEditScramble(teamKey: string, holeIdx: number) {
+    if (scrambleAdvanceTimer.current) clearTimeout(scrambleAdvanceTimer.current);
+    const current = getScrambleScore(teamKey, holeIdx);
+    setEditingScramble({ teamKey, hole: holeIdx });
+    setScrambleEditValue(current != null ? String(current) : "");
+  }
+
+  function advanceScrambleNext(teams: ScrambleTeam[], teamKey: string, holeIdx: number) {
+    if (teams.length === 0) return;
+    const idx = teams.findIndex(t => t.key === teamKey);
+    const nextIdx = (idx + 1) % teams.length;
+    const nextHole = nextIdx === 0 ? holeIdx + 1 : holeIdx;
+    if (nextHole < 18) {
+      setTimeout(() => startEditScramble(teams[nextIdx].key, nextHole), 0);
+    } else {
+      setEditingScramble(null);
+    }
+  }
+
+  function commitScrambleWithValue(teams: ScrambleTeam[], teamKey: string, holeIdx: number, val: string, andAdvance = false) {
+    if (scrambleAdvanceTimer.current) clearTimeout(scrambleAdvanceTimer.current);
+    const team = teams.find(t => t.key === teamKey);
+    if (!team) return;
+    const trimmed = val.trim();
+    const score = trimmed === "" ? null : parseInt(trimmed);
+    if (trimmed !== "" && (isNaN(score!) || score! < 1 || score! > 20)) {
+      if (!andAdvance) setEditingScramble(null);
+      return;
+    }
+    upsertScrambleScore.mutate(
+      {
+        tripId,
+        roundId,
+        data: { groupNumber: team.groupNumber, teamSide: team.teamSide, hole: holeIdx + 1, score },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetScrambleScoresQueryKey(tripId, roundId) });
+          queryClient.invalidateQueries({ queryKey: getGetRoundLeaderboardQueryKey(tripId, roundId) });
+        },
+      }
+    );
+    if (andAdvance) {
+      advanceScrambleNext(teams, teamKey, holeIdx);
+    } else {
+      setEditingScramble(null);
+    }
+  }
+
+  function handleScrambleChange(teams: ScrambleTeam[], val: string, teamKey: string, holeIdx: number) {
+    const cleaned = val.replace(/\D/g, "").slice(0, 2);
+    setScrambleEditValue(cleaned);
+    if (scrambleAdvanceTimer.current) clearTimeout(scrambleAdvanceTimer.current);
+    const num = parseInt(cleaned);
+    if (!isNaN(num) && num >= 1) {
+      if (num >= 10) {
+        commitScrambleWithValue(teams, teamKey, holeIdx, cleaned, true);
+      } else {
+        scrambleAdvanceTimer.current = setTimeout(() => {
+          commitScrambleWithValue(teams, teamKey, holeIdx, cleaned, true);
+        }, 500);
+      }
+    }
+  }
+
+  function handleScrambleKeyDown(e: React.KeyboardEvent, teams: ScrambleTeam[], teamKey: string, holeIdx: number) {
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      if (scrambleAdvanceTimer.current) clearTimeout(scrambleAdvanceTimer.current);
+      commitScrambleWithValue(teams, teamKey, holeIdx, scrambleEditValue, true);
+    }
+    if (e.key === "Escape") {
+      if (scrambleAdvanceTimer.current) clearTimeout(scrambleAdvanceTimer.current);
+      setEditingScramble(null);
+    }
+  }
+
   // Setup state
   const [setupPar, setSetupPar] = useState<number[]>([]);
   const [setupHcp, setSetupHcp] = useState<number[]>([]);
   const [setupGames, setSetupGames] = useState<Record<string, boolean>>({});
+  const [setupScramble, setSetupScramble] = useState(false);
+  const [setupScrambleType, setSetupScrambleType] = useState<ScrambleType>("fourMan");
   const [setupCourse, setSetupCourse] = useState("");
   const [setupDate, setSetupDate] = useState("");
   const [setupHandicapMode, setSetupHandicapMode] = useState<HandicapMode>("net");
@@ -372,13 +795,16 @@ export default function RoundPage() {
     if (round && !setupInitialized.current) {
       setSetupPar((round.par as number[]) || Array(18).fill(4));
       setSetupHcp((round.holeHcp as number[]) || Array.from({ length: 18 }, (_, i) => i + 1));
-      const gc = round.gamesConfig as unknown as Record<string, boolean>;
+      const gc = round.gamesConfig as unknown as Record<string, unknown>;
       setSetupGames({
-        stableford: gc?.stableford ?? true,
-        skins: gc?.skins ?? true,
-        nassau: gc?.nassau ?? true,
-        netStroke: gc?.netStroke ?? true,
+        stableford: (gc?.stableford as boolean) ?? true,
+        skins: (gc?.skins as boolean) ?? true,
+        nassau: (gc?.nassau as boolean) ?? true,
+        netStroke: (gc?.netStroke as boolean) ?? true,
       });
+      setSetupScramble((gc?.scramble as boolean) ?? false);
+      const st = gc?.scrambleType as ScrambleType | null | undefined;
+      setSetupScrambleType(st === "twoMan" ? "twoMan" : "fourMan");
       setSetupCourse(round.course ?? "");
       setSetupDate(round.date ?? "");
       setSetupHandicapMode((round.handicapMode as HandicapMode | undefined) ?? "net");
@@ -402,12 +828,15 @@ export default function RoundPage() {
           par: setupPar,
           holeHcp: setupHcp,
           gamesConfig: {
-            stableford: setupGames.stableford ?? true,
-            skins: setupGames.skins ?? true,
-            nassau: setupGames.nassau ?? true,
-            netStroke: setupGames.netStroke ?? true,
+            // Scramble takes over the round — disable individual games when on.
+            stableford: setupScramble ? false : (setupGames.stableford ?? true),
+            skins: setupScramble ? false : (setupGames.skins ?? true),
+            nassau: setupScramble ? false : (setupGames.nassau ?? true),
+            netStroke: setupScramble ? false : (setupGames.netStroke ?? true),
             bestBall: false,
             matchPlay: false,
+            scramble: setupScramble,
+            scrambleType: setupScramble ? setupScrambleType : null,
           },
           handicapMode: setupHandicapMode,
           teeBox: setupTeeBox.trim() || null,
@@ -507,7 +936,26 @@ export default function RoundPage() {
       </div>
 
       {/* SCORECARD TAB */}
-      {subTab === "scorecard" && (
+      {subTab === "scorecard" && scrambleEnabled && (
+        <ScrambleScorecard
+          teams={scrambleTeams}
+          myTeamKey={myScrambleTeamKey}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          par={par}
+          holeHcp={holeHcp}
+          getScore={getScrambleScore}
+          editingScramble={editingScramble}
+          startEditScramble={startEditScramble}
+          scrambleEditValue={scrambleEditValue}
+          handleScrambleChange={(val, teamKey, holeIdx) => handleScrambleChange(scrambleTeams, val, teamKey, holeIdx)}
+          commitScramble={(teamKey, holeIdx) => commitScrambleWithValue(scrambleTeams, teamKey, holeIdx, scrambleEditValue, false)}
+          handleScrambleKeyDown={(e, teamKey, holeIdx) => handleScrambleKeyDown(e, scrambleTeams, teamKey, holeIdx)}
+          scrambleInputRef={scrambleInputRef}
+          onNavigateToSetup={() => setSubTab("setup")}
+        />
+      )}
+      {subTab === "scorecard" && !scrambleEnabled && (
         <div className="flex-1 overflow-hidden">
           {!players || players.length === 0 ? (
             <div className="max-w-5xl mx-auto px-4 py-12 text-center">
@@ -740,7 +1188,65 @@ export default function RoundPage() {
                 <span className="text-xs font-sans" style={{ color: "hsl(42 20% 55%)" }}>Auto-updates every 10s</span>
               </div>
 
+              {/* Scramble leaderboard — replaces individual results when scramble is on */}
+              {scrambleEnabled && leaderboard.scrambleResult && leaderboard.scrambleResult.teams.length > 0 && (
+                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid hsl(158 40% 22%)" }}>
+                  <div className="px-4 py-2.5 grid grid-cols-[2fr_1fr_1fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
+                    style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
+                    <span>Team {scrambleType === "twoMan" ? "(2-man)" : "(4-man)"}</span>
+                    <span className="text-right">Out</span>
+                    <span className="text-right">In</span>
+                    <span className="text-right">Total</span>
+                  </div>
+                  {[...leaderboard.scrambleResult.teams]
+                    .sort((a, b) => {
+                      const at = a.grossTotal ?? Number.POSITIVE_INFINITY;
+                      const bt = b.grossTotal ?? Number.POSITIVE_INFINITY;
+                      if (at !== bt) return at - bt;
+                      return a.groupNumber - b.groupNumber;
+                    })
+                    .map((t, idx) => {
+                      const label = t.teamSide === "G"
+                        ? `Group ${t.groupNumber}`
+                        : `Group ${t.groupNumber} · Cart ${t.teamSide}`;
+                      return (
+                        <div
+                          key={`${t.groupNumber}-${t.teamSide}`}
+                          className="px-4 py-3 grid grid-cols-[2fr_1fr_1fr_1fr] items-center"
+                          style={{
+                            background: idx === 0 ? "hsl(42 30% 88%)" : idx % 2 === 0 ? "hsl(42 20% 93%)" : "hsl(42 15% 90%)",
+                            borderTop: "1px solid hsl(38 25% 78%)",
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-sans font-semibold w-4 text-center" style={{ color: "hsl(38 20% 45%)" }}>{idx + 1}</span>
+                            <div>
+                              <div className="font-sans font-semibold text-sm" style={{ color: "hsl(38 30% 14%)" }}>{label}</div>
+                              <div className="text-[10px]" style={{ color: "hsl(38 20% 42%)" }}>
+                                {t.playerNames.join(" / ")} · {t.holesPlayed}/18
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right font-serif text-sm" style={{ color: "hsl(38 30% 25%)" }}>{t.grossOut ?? "—"}</div>
+                          <div className="text-right font-serif text-sm" style={{ color: "hsl(38 30% 25%)" }}>{t.grossIn ?? "—"}</div>
+                          <div className="text-right font-serif text-sm font-semibold" style={{ color: idx === 0 ? "hsl(148 45% 30%)" : "hsl(38 30% 18%)" }}>
+                            {t.grossTotal ?? "—"}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+              {scrambleEnabled && (!leaderboard.scrambleResult || leaderboard.scrambleResult.teams.length === 0) && (
+                <div className="rounded-xl px-4 py-6 text-center" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
+                  <p className="text-sm font-sans" style={{ color: "hsl(38 20% 45%)" }}>
+                    Assign players to groups in Setup to start scoring the scramble.
+                  </p>
+                </div>
+              )}
+
               {/* Net Stroke & Stableford */}
+              {!scrambleEnabled && (
               <div className="rounded-xl overflow-hidden" style={{ border: "1px solid hsl(158 40% 22%)" }}>
                 <div className="px-4 py-2.5 grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
                   style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
@@ -777,9 +1283,10 @@ export default function RoundPage() {
                     </div>
                   ))}
               </div>
+              )}
 
               {/* Team Nassau — one card per group match */}
-              {(round?.gamesConfig as { nassau?: boolean } | undefined)?.nassau !== false &&
+              {!scrambleEnabled && (round?.gamesConfig as { nassau?: boolean } | undefined)?.nassau !== false &&
                 leaderboard.nassauResult?.matches &&
                 leaderboard.nassauResult.matches.length > 0 && (
                 <div className="space-y-3">
@@ -827,7 +1334,7 @@ export default function RoundPage() {
               )}
 
               {/* Skins */}
-              {leaderboard.skinResults && leaderboard.skinResults.some(s => s.winnerId != null || s.tied) && (
+              {!scrambleEnabled && leaderboard.skinResults && leaderboard.skinResults.some(s => s.winnerId != null || s.tied) && (
                 <div className="rounded-xl overflow-hidden" style={{ border: "1px solid hsl(158 40% 22%)" }}>
                   <div className="px-4 py-2.5 grid grid-cols-[1fr_2fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
                     style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
@@ -1056,32 +1563,88 @@ export default function RoundPage() {
           <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
             <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-3" style={{ color: "hsl(38 20% 38%)" }}>Active Games</h3>
             <div className="space-y-2">
-              {(["stableford", "skins", "nassau", "netStroke"] as const).map(game => (
-                <label key={game} className="flex items-center justify-between cursor-pointer py-1.5">
-                  <span className="font-sans text-sm font-semibold" style={{ color: "hsl(38 30% 14%)" }}>
-                    {game === "netStroke" ? "Net Stroke Play" : game === "nassau" ? "Team Nassau" : game.charAt(0).toUpperCase() + game.slice(1)}
-                  </span>
-                  <div
-                    onClick={() => setSetupGames(g => ({ ...g, [game]: !g[game] }))}
-                    className="w-10 h-5.5 rounded-full relative transition-all cursor-pointer"
-                    style={{
-                      background: setupGames[game] ? "hsl(42 52% 59%)" : "hsl(38 20% 70%)",
-                      width: 40, height: 22,
-                    }}
-                  >
+              {(["stableford", "skins", "nassau", "netStroke"] as const).map(game => {
+                const disabled = setupScramble;
+                return (
+                  <label key={game} className={`flex items-center justify-between py-1.5 ${disabled ? "opacity-40" : "cursor-pointer"}`}>
+                    <span className="font-sans text-sm font-semibold" style={{ color: "hsl(38 30% 14%)" }}>
+                      {game === "netStroke" ? "Net Stroke Play" : game === "nassau" ? "Team Nassau" : game.charAt(0).toUpperCase() + game.slice(1)}
+                    </span>
                     <div
-                      className="absolute top-0.5 rounded-full transition-all"
+                      onClick={() => { if (!disabled) setSetupGames(g => ({ ...g, [game]: !g[game] })); }}
+                      className="rounded-full relative transition-all"
                       style={{
-                        width: 18, height: 18,
-                        background: "white",
-                        left: setupGames[game] ? 20 : 2,
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        background: disabled ? "hsl(38 20% 75%)" : (setupGames[game] ? "hsl(42 52% 59%)" : "hsl(38 20% 70%)"),
+                        width: 40, height: 22,
+                        cursor: disabled ? "not-allowed" : "pointer",
                       }}
-                    />
-                  </div>
-                </label>
-              ))}
+                    >
+                      <div
+                        className="absolute top-0.5 rounded-full transition-all"
+                        style={{
+                          width: 18, height: 18,
+                          background: "white",
+                          left: !disabled && setupGames[game] ? 20 : 2,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        }}
+                      />
+                    </div>
+                  </label>
+                );
+              })}
             </div>
+          </div>
+
+          {/* Scramble */}
+          <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="font-sans font-semibold text-xs uppercase tracking-widest" style={{ color: "hsl(38 20% 38%)" }}>Scramble</h3>
+                <p className="text-xs font-sans mt-1" style={{ color: "hsl(38 20% 45%)" }}>
+                  One score per team per hole. Replaces individual games.
+                </p>
+              </div>
+              <div
+                onClick={() => setSetupScramble(v => !v)}
+                className="rounded-full relative transition-all cursor-pointer flex-shrink-0"
+                style={{
+                  background: setupScramble ? "hsl(42 52% 59%)" : "hsl(38 20% 70%)",
+                  width: 40, height: 22,
+                }}
+              >
+                <div
+                  className="absolute top-0.5 rounded-full transition-all"
+                  style={{
+                    width: 18, height: 18,
+                    background: "white",
+                    left: setupScramble ? 20 : 2,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                  }}
+                />
+              </div>
+            </div>
+            {setupScramble && (
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                {(["fourMan", "twoMan"] as const).map(t => {
+                  const selected = setupScrambleType === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setSetupScrambleType(t)}
+                      className="py-2 rounded-lg text-sm font-sans font-semibold uppercase tracking-widest transition-all"
+                      style={{
+                        background: selected ? "hsl(42 52% 59%)" : "white",
+                        color: selected ? "hsl(38 30% 12%)" : "hsl(38 20% 38%)",
+                        border: selected ? "1.5px solid hsl(42 52% 59%)" : "1.5px solid hsl(38 25% 72%)",
+                      }}
+                    >
+                      {t === "fourMan" ? "4-Man (group)" : "2-Man (cart)"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Par & HCP table */}

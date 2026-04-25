@@ -1,13 +1,14 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, roundsTable, playersTable, scoresTable, tripsTable, roundGroupAssignmentsTable } from "@workspace/db";
+import { db, roundsTable, playersTable, scoresTable, tripsTable, roundGroupAssignmentsTable, scrambleScoresTable } from "@workspace/db";
 import {
   GetRoundLeaderboardParams,
   GetRoundLeaderboardResponse,
   GetTripLeaderboardParams,
   GetTripLeaderboardResponse,
 } from "@workspace/api-zod";
-import { computePlayerStats, computeSkins, computeTeamNassau, fieldMinHandicap } from "../lib/scoring";
+import { computePlayerStats, computeSkins, computeTeamNassau, fieldMinHandicap, computeScramble } from "../lib/scoring";
+import type { ScrambleType, ScrambleTeamSide } from "../lib/scoring";
 
 const router: IRouter = Router();
 
@@ -68,6 +69,22 @@ router.get("/trips/:tripId/rounds/:roundId/leaderboard", async (req, res): Promi
 
   const nassau = computeTeamNassau(slots, allHoleScoresMap, par, holeHcp, minHcp, mode, course);
 
+  const gamesConfig = (round.gamesConfig ?? {}) as { scramble?: boolean; scrambleType?: ScrambleType | null };
+  const scrambleType: ScrambleType | null = gamesConfig.scramble && gamesConfig.scrambleType ? gamesConfig.scrambleType : null;
+
+  const scrambleRows = scrambleType
+    ? await db.select().from(scrambleScoresTable).where(eq(scrambleScoresTable.roundId, roundId))
+    : [];
+  const scramble = computeScramble(
+    scrambleType,
+    slots,
+    scrambleRows.map(r => ({
+      groupNumber: r.groupNumber,
+      teamSide: r.teamSide as ScrambleTeamSide,
+      holeScores: r.holeScores as (number | null)[],
+    }))
+  );
+
   const entries = stats.map(s => ({
     playerId: s.playerId,
     playerName: s.playerName,
@@ -90,6 +107,7 @@ router.get("/trips/:tripId/rounds/:roundId/leaderboard", async (req, res): Promi
       tied: h.tied,
     })),
     nassauResult: { matches: nassau.matches },
+    scrambleResult: { type: scramble.type, teams: scramble.teams },
   };
 
   res.json(GetRoundLeaderboardResponse.parse(result));
