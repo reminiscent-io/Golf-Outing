@@ -136,9 +136,37 @@ export default function RoundPage() {
   const groupPlayerIds = new Set<number>(
     (groupsData?.assignments ?? []).filter(a => a.groupNumber === myGroupNumber).map(a => a.playerId)
   );
-  const visiblePlayers = effectiveMode === "mine" && myGroupNumber !== undefined
+
+  // Build a slot lookup: playerId -> { groupNumber, slotIndex }
+  const slotMap = new Map<number, { groupNumber: number; slotIndex: number }>(
+    (groupsData?.assignments ?? []).map(a => [a.playerId, { groupNumber: a.groupNumber, slotIndex: a.slotIndex }])
+  );
+
+  const mySlotIndex = identity ? slotMap.get(identity.playerId)?.slotIndex : undefined;
+  // Slots 1-2 = Team A, slots 3-4 = Team B
+  const myTeamSide = mySlotIndex !== undefined ? (mySlotIndex <= 2 ? "A" : "B") : undefined;
+
+  function playerSortKey(playerId: number): number {
+    if (identity && playerId === identity.playerId) return 0; // me first
+    const slot = slotMap.get(playerId);
+    if (slot === undefined) return 100; // unassigned — original order
+    if (myGroupNumber !== undefined && slot.groupNumber !== myGroupNumber) {
+      // Different group in "all" view — sort by group then slot
+      return 200 + slot.groupNumber * 10 + slot.slotIndex;
+    }
+    if (myTeamSide !== undefined) {
+      const theirSide = slot.slotIndex <= 2 ? "A" : "B";
+      if (theirSide === myTeamSide) return 1 + slot.slotIndex; // partner (same team)
+      return 10 + slot.slotIndex; // other team in group
+    }
+    return 50 + slot.slotIndex;
+  }
+
+  const baseVisible = effectiveMode === "mine" && myGroupNumber !== undefined
     ? (players ?? []).filter(p => groupPlayerIds.has(p.id))
     : (players ?? []);
+
+  const visiblePlayers = [...baseVisible].sort((a, b) => playerSortKey(a.id) - playerSortKey(b.id));
 
   const upsertScore = useUpsertScore();
   const updateRound = useUpdateRound();
