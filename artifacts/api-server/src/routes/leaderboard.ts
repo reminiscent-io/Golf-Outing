@@ -7,7 +7,7 @@ import {
   GetTripLeaderboardParams,
   GetTripLeaderboardResponse,
 } from "@workspace/api-zod";
-import { computePlayerStats, computeSkins, computeTeamNassau, fieldMinHandicap } from "../lib/scoring";
+import { buildPlayerMinHcp, computePlayerStats, computeSkins, computeTeamNassau } from "../lib/scoring";
 
 const router: IRouter = Router();
 
@@ -38,20 +38,6 @@ router.get("/trips/:tripId/rounds/:roundId/leaderboard", async (req, res): Promi
     allHoleScoresMap.set(s.playerId, s.holeScores as (number | null)[]);
   });
 
-  const minHcp = fieldMinHandicap(players);
-  const mode = (round.handicapMode ?? "net") as "net" | "gross";
-  const course = {
-    slope: round.courseSlope,
-    rating: round.courseRating,
-    totalPar: par.reduce((a, b) => a + b, 0),
-  };
-  const stats = players.map(p => {
-    const holeScores = allHoleScoresMap.get(p.id) || Array(18).fill(null);
-    return computePlayerStats(p, holeScores, par, holeHcp, minHcp, mode, course);
-  });
-
-  const { skinsWon, perHole } = computeSkins(players, allHoleScoresMap, holeHcp, minHcp, mode, course);
-
   const assignments = await db.select({
     playerId: roundGroupAssignmentsTable.playerId,
     groupNumber: roundGroupAssignmentsTable.groupNumber,
@@ -66,7 +52,21 @@ router.get("/trips/:tripId/rounds/:roundId/leaderboard", async (req, res): Promi
     })
     .filter((s): s is NonNullable<typeof s> => s != null);
 
-  const nassau = computeTeamNassau(slots, allHoleScoresMap, par, holeHcp, minHcp, mode, course);
+  const playerMinHcp = buildPlayerMinHcp(players, assignments);
+  const mode = (round.handicapMode ?? "net") as "net" | "gross";
+  const course = {
+    slope: round.courseSlope,
+    rating: round.courseRating,
+    totalPar: par.reduce((a, b) => a + b, 0),
+  };
+  const stats = players.map(p => {
+    const holeScores = allHoleScoresMap.get(p.id) || Array(18).fill(null);
+    return computePlayerStats(p, holeScores, par, holeHcp, playerMinHcp.get(p.id) ?? 0, mode, course);
+  });
+
+  const { skinsWon, perHole } = computeSkins(players, allHoleScoresMap, holeHcp, playerMinHcp, mode, course);
+
+  const nassau = computeTeamNassau(slots, allHoleScoresMap, par, holeHcp, mode, course);
 
   const entries = stats.map(s => ({
     playerId: s.playerId,
@@ -144,7 +144,12 @@ router.get("/trips/:tripId/leaderboard", async (req, res): Promise<void> => {
       allHoleScoresMap.set(s.playerId, s.holeScores as (number | null)[]);
     });
 
-    const minHcp = fieldMinHandicap(players);
+    const assignments = await db.select({
+      playerId: roundGroupAssignmentsTable.playerId,
+      groupNumber: roundGroupAssignmentsTable.groupNumber,
+    }).from(roundGroupAssignmentsTable).where(eq(roundGroupAssignmentsTable.roundId, round.id));
+
+    const playerMinHcp = buildPlayerMinHcp(players, assignments);
     const mode = (round.handicapMode ?? "net") as "net" | "gross";
     const course = {
       slope: round.courseSlope,
@@ -153,10 +158,10 @@ router.get("/trips/:tripId/leaderboard", async (req, res): Promise<void> => {
     };
     const stats = players.map(p => {
       const holeScores = allHoleScoresMap.get(p.id) || Array(18).fill(null);
-      return computePlayerStats(p, holeScores, par, holeHcp, minHcp, mode, course);
+      return computePlayerStats(p, holeScores, par, holeHcp, playerMinHcp.get(p.id) ?? 0, mode, course);
     });
 
-    const { skinsWon } = computeSkins(players, allHoleScoresMap, holeHcp, minHcp, mode, course);
+    const { skinsWon } = computeSkins(players, allHoleScoresMap, holeHcp, playerMinHcp, mode, course);
 
     stats.forEach(s => {
       if (s.holesPlayed === 0) return;
