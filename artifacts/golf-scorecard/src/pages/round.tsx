@@ -889,6 +889,12 @@ export default function RoundPage() {
       return [p.id, effectiveHandicap(p.handicap, ref, handicapMode, course)];
     })
   );
+  // Course handicap (integer) per player, derived from overall index plus
+  // the selected tee's slope/rating. Falls back to round(index) when slope
+  // or rating are missing.
+  const courseHcps = new Map<number, number>(
+    (players ?? []).map(p => [p.id, whsCourseHandicap(p.handicap || 0, course)])
+  );
 
   const SUBTABS: { id: SubTab; label: string; icon: typeof Trophy }[] = [
     { id: "scorecard", label: "Scorecard", icon: Grid3X3 },
@@ -1027,18 +1033,22 @@ export default function RoundPage() {
                       style={{ background: "hsl(158 65% 9%)", color: "hsl(42 20% 55%)" }}>Hole</th>
                     <th className="px-1 py-2 text-center text-xs font-sans font-semibold uppercase tracking-wider"
                       style={{ color: "hsl(42 20% 55%)" }}>Par</th>
-                    {visiblePlayers.map(p => (
-                      <th key={p.id} className="px-1 py-2 text-center text-xs font-sans font-semibold"
-                        style={{ color: "hsl(42 45% 80%)", ...(identity?.playerId === p.id ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
-                        <div style={{ maxWidth: 46, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
-                        <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 9 }}>
-                          {formatHandicap(p.handicap)}
-                          {(playingHcps.get(p.id) ?? 0) !== p.handicap && (
-                            <span style={{ color: "hsl(42 35% 50%)" }}>/{playingHcps.get(p.id) ?? 0}</span>
-                          )}
-                        </div>
-                      </th>
-                    ))}
+                    {visiblePlayers.map(p => {
+                      const ch = courseHcps.get(p.id) ?? 0;
+                      const ph = playingHcps.get(p.id) ?? 0;
+                      return (
+                        <th key={p.id} className="px-1 py-2 text-center text-xs font-sans font-semibold"
+                          style={{ color: "hsl(42 45% 80%)", ...(identity?.playerId === p.id ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
+                          <div style={{ maxWidth: 46, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
+                          <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 9 }} title={`Index ${formatHandicap(p.handicap)} · Course HCP ${ch}${ph !== ch ? ` · Playing ${ph}` : ""}`}>
+                            {ch}
+                            {ph !== ch && (
+                              <span style={{ color: "hsl(42 35% 50%)" }}>/{ph}</span>
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
