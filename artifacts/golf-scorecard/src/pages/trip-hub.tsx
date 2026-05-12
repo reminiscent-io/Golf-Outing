@@ -28,6 +28,7 @@ import {
   type CourseTee,
 } from "@/lib/course-lookup";
 import { SignedInAs } from "@/components/signed-in-as";
+import { GameInfoButton } from "@/components/game-info-modal";
 
 type Tab = "leaderboard" | "rounds" | "players";
 
@@ -593,7 +594,10 @@ export default function TripHubPage() {
             ) : leaderboard && leaderboard.players.length > 0 ? (
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-serif text-lg" style={{ color: "hsl(42 45% 80%)" }}>Trip Standings</h2>
+                  <h2 className="font-serif text-lg flex items-center gap-2" style={{ color: "hsl(42 45% 80%)" }}>
+                    Trip Standings
+                    <GameInfoButton game="handicaps" size={14} />
+                  </h2>
                   <div className="text-xs font-sans" style={{ color: "hsl(42 20% 55%)" }}>
                     Auto-updates every 10s
                   </div>
@@ -603,9 +607,9 @@ export default function TripHubPage() {
                   <div className="px-4 py-2.5 grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
                     style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
                     <span>Player</span>
-                    <span className="text-right">Stableford</span>
-                    <span className="text-right">Net</span>
-                    <span className="text-right">Skins</span>
+                    <span className="text-right flex items-center justify-end gap-1">Stableford <GameInfoButton game="stableford" size={12} /></span>
+                    <span className="text-right flex items-center justify-end gap-1">Net <GameInfoButton game="netStroke" size={12} /></span>
+                    <span className="text-right flex items-center justify-end gap-1">Skins <GameInfoButton game="skins" size={12} /></span>
                     <span className="text-right">Rounds</span>
                   </div>
                   {/* Sort by stableford descending */}
