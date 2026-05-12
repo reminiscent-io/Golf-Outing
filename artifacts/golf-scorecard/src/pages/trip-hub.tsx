@@ -125,14 +125,13 @@ export default function TripHubPage() {
     return () => { clearTimeout(t); ctrl.abort(); };
   }, [lookupQuery]);
 
-  function applyTee(tee: CourseTee, clubName: string) {
+  function applyTee(tee: CourseTee) {
     setNewRoundTeeBox(tee.name);
     setNewRoundRating(tee.rating != null ? String(tee.rating) : "");
     setNewRoundSlope(tee.slope != null ? String(tee.slope) : "");
     setLookupPar(tee.par);
     setLookupHcp(tee.holeHcp);
     setSelectedTeeId(tee.id);
-    if (!newRoundCourse.trim()) setNewRoundCourse(clubName);
   }
 
   async function pickCourse(result: CourseSearchResult) {
@@ -144,7 +143,7 @@ export default function TripHubPage() {
       const detail = await getCourseDetail(result.id);
       setSelectedCourse(detail);
       setSelectedTeeId("");
-      if (detail.tees.length === 1) applyTee(detail.tees[0], detail.clubName);
+      if (detail.tees.length === 1) applyTee(detail.tees[0]);
     } catch (err) {
       setLookupError((err as Error)?.message ?? "Failed to load course");
     } finally {
@@ -201,15 +200,20 @@ export default function TripHubPage() {
 
   function handleAddRound(e: React.FormEvent) {
     e.preventDefault();
-    if (!newRoundName.trim()) return;
+    const effectiveCourse = newRoundCourse.trim() || selectedCourse?.clubName || "";
+    const defaultName = effectiveCourse && newRoundDate
+      ? `${effectiveCourse} - ${newRoundDate}`
+      : effectiveCourse || newRoundDate || "";
+    const finalName = newRoundName.trim() || defaultName;
+    if (!finalName) return;
     const ratingNum = parseFloat(newRoundRating);
     const slopeNum = parseInt(newRoundSlope);
     createRound.mutate(
       {
         tripId,
         data: {
-          name: newRoundName.trim(),
-          course: newRoundCourse || null,
+          name: finalName,
+          course: effectiveCourse || null,
           date: newRoundDate || null,
           teeBox: newRoundTeeBox.trim() || null,
           courseRating: isNaN(ratingNum) ? null : ratingNum,
@@ -324,139 +328,148 @@ export default function TripHubPage() {
             {showAddRound && (
               <form onSubmit={handleAddRound} className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)" }}>
                 <div className="space-y-3 mb-3">
+                  {/* Course lookup — primary, drives default round name */}
                   <div>
-                    <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Round Name *</label>
+                    <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>
+                      Course
+                    </label>
+                    <div className="relative">
+                      <input
+                        autoFocus
+                        value={lookupQuery}
+                        onChange={e => { setLookupQuery(e.target.value); setSelectedCourse(null); setSelectedTeeId(""); }}
+                        placeholder="Start typing a club or course name…"
+                        className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                        style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                      />
+                      {lookupLoading && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>…</span>
+                      )}
+                      {!selectedCourse && lookupResults.length > 0 && (
+                        <div className="absolute z-20 mt-1 w-full rounded-lg overflow-hidden max-h-60 overflow-y-auto"
+                          style={{ background: "white", border: "1.5px solid hsl(38 25% 72%)", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+                          {lookupResults.map(r => (
+                            <button
+                              type="button"
+                              key={r.id}
+                              onClick={() => pickCourse(r)}
+                              className="w-full text-left px-3 py-2.5 text-sm font-sans hover:opacity-80"
+                              style={{ color: "hsl(38 30% 14%)", borderBottom: "1px solid hsl(38 25% 88%)" }}
+                            >
+                              <div className="font-semibold truncate">{r.clubName}{r.courseName ? ` — ${r.courseName}` : ""}</div>
+                              {r.location && (
+                                <div className="text-xs truncate" style={{ color: "hsl(38 20% 45%)" }}>{r.location}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {lookupError && (
+                      <div className="text-xs font-sans mt-1" style={{ color: "hsl(0 55% 40%)" }}>{lookupError}</div>
+                    )}
+                    {selectedCourse && (
+                      <div className="mt-2 rounded-lg pl-3 pr-1 py-1 flex items-center justify-between gap-2"
+                        style={{ background: "hsl(42 30% 86%)", border: "1px solid hsl(38 25% 78%)" }}>
+                        <div className="text-xs font-sans min-w-0 flex-1 py-1" style={{ color: "hsl(38 30% 14%)" }}>
+                          <div className="font-semibold truncate">{selectedCourse.clubName}</div>
+                          {selectedCourse.courseName && (
+                            <div className="truncate" style={{ color: "hsl(38 20% 45%)" }}>{selectedCourse.courseName}</div>
+                          )}
+                        </div>
+                        <button type="button" onClick={clearLookup}
+                          className="text-xs font-sans font-semibold uppercase tracking-wider px-3 py-2 rounded-md flex-shrink-0 hover:opacity-70"
+                          style={{ color: "hsl(38 25% 30%)" }}>
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Date — also drives default round name */}
+                  <div>
+                    <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Date</label>
                     <input
-                      autoFocus
-                      value={newRoundName}
-                      onChange={e => setNewRoundName(e.target.value)}
-                      placeholder="Round 1"
+                      type="date"
+                      value={newRoundDate}
+                      onChange={e => setNewRoundDate(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
                       style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+
+                  {/* Tee selector (shown after a course is picked) */}
+                  {selectedCourse && selectedCourse.tees.length > 0 && (
                     <div>
-                      <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Course</label>
-                      <input
-                        value={newRoundCourse}
-                        onChange={e => setNewRoundCourse(e.target.value)}
-                        placeholder="Pebble Beach"
+                      <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>
+                        Tee box ({selectedCourse.tees.length})
+                      </label>
+                      <select
+                        value={selectedTeeId}
+                        onChange={e => {
+                          const tee = selectedCourse.tees.find(t => t.id === e.target.value);
+                          if (tee) applyTee(tee);
+                        }}
                         className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
                         style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
-                      />
+                      >
+                        <option value="">Select a tee…</option>
+                        {selectedCourse.tees.map(t => {
+                          const parts = [t.name];
+                          if (t.gender) parts.push(t.gender);
+                          const meta = [
+                            t.rating != null ? `CR ${t.rating}` : null,
+                            t.slope != null ? `SR ${t.slope}` : null,
+                            t.totalYards != null ? `${t.totalYards} yds` : null,
+                          ].filter(Boolean).join(" · ");
+                          return (
+                            <option key={t.id} value={t.id}>
+                              {parts.join(" · ")}{meta ? ` (${meta})` : ""}
+                            </option>
+                          );
+                        })}
+                      </select>
                     </div>
-                    <div>
-                      <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Date</label>
-                      <input
-                        type="date"
-                        value={newRoundDate}
-                        onChange={e => setNewRoundDate(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
-                        style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
-                      />
-                    </div>
-                  </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => setShowAdvanced(v => !v)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-sans font-semibold uppercase tracking-widest"
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-xs font-sans font-semibold uppercase tracking-widest"
                     style={{ background: "white", border: "1.5px solid hsl(38 25% 72%)", color: "hsl(38 20% 38%)" }}
                   >
-                    <span>Advanced · Tee box, Rating, Slope</span>
-                    <span style={{ transform: showAdvanced ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>&#8250;</span>
+                    <span className="truncate">Advanced Options</span>
+                    <span className="flex-shrink-0" style={{ transform: showAdvanced ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>&#8250;</span>
                   </button>
                   {showAdvanced && (
                     <div className="space-y-3">
-                      {/* Course lookup */}
+                      {/* Round name override — defaults to "{course} - {date}" */}
                       <div>
-                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>
-                          Look up course
-                        </label>
-                        <div className="relative">
-                          <input
-                            value={lookupQuery}
-                            onChange={e => { setLookupQuery(e.target.value); setSelectedCourse(null); setSelectedTeeId(""); }}
-                            placeholder="Start typing a club or course name…"
-                            className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
-                            style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
-                          />
-                          {lookupLoading && (
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>…</span>
-                          )}
-                          {!selectedCourse && lookupResults.length > 0 && (
-                            <div className="absolute z-20 mt-1 w-full rounded-lg overflow-hidden max-h-60 overflow-y-auto"
-                              style={{ background: "white", border: "1.5px solid hsl(38 25% 72%)", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
-                              {lookupResults.map(r => (
-                                <button
-                                  type="button"
-                                  key={r.id}
-                                  onClick={() => pickCourse(r)}
-                                  className="w-full text-left px-3 py-2 text-sm font-sans hover:opacity-80"
-                                  style={{ color: "hsl(38 30% 14%)", borderBottom: "1px solid hsl(38 25% 88%)" }}
-                                >
-                                  <div className="font-semibold">{r.clubName}{r.courseName ? ` — ${r.courseName}` : ""}</div>
-                                  {r.location && (
-                                    <div className="text-xs" style={{ color: "hsl(38 20% 45%)" }}>{r.location}</div>
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        {lookupError && (
-                          <div className="text-xs font-sans mt-1" style={{ color: "hsl(0 55% 40%)" }}>{lookupError}</div>
-                        )}
-                        {selectedCourse && (
-                          <div className="mt-2 rounded-lg px-3 py-2 flex items-center justify-between"
-                            style={{ background: "hsl(42 30% 86%)", border: "1px solid hsl(38 25% 78%)" }}>
-                            <div className="text-xs font-sans" style={{ color: "hsl(38 30% 14%)" }}>
-                              <div className="font-semibold">{selectedCourse.clubName}</div>
-                              {selectedCourse.courseName && (
-                                <div style={{ color: "hsl(38 20% 45%)" }}>{selectedCourse.courseName}</div>
-                              )}
-                            </div>
-                            <button type="button" onClick={clearLookup}
-                              className="text-xs font-sans" style={{ color: "hsl(38 20% 45%)" }}>
-                              Clear
-                            </button>
-                          </div>
-                        )}
+                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Round Name</label>
+                        <input
+                          value={newRoundName}
+                          onChange={e => setNewRoundName(e.target.value)}
+                          placeholder={(() => {
+                            const c = newRoundCourse.trim() || selectedCourse?.clubName || "";
+                            if (c && newRoundDate) return `${c} - ${newRoundDate}`;
+                            return c || newRoundDate || "Round 1";
+                          })()}
+                          className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                          style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                        />
                       </div>
 
-                      {/* Tee selector (shown after a course is picked) */}
-                      {selectedCourse && selectedCourse.tees.length > 0 && (
-                        <div>
-                          <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>
-                            Tee box ({selectedCourse.tees.length})
-                          </label>
-                          <select
-                            value={selectedTeeId}
-                            onChange={e => {
-                              const tee = selectedCourse.tees.find(t => t.id === e.target.value);
-                              if (tee) applyTee(tee, selectedCourse.clubName);
-                            }}
-                            className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
-                            style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
-                          >
-                            <option value="">Select a tee…</option>
-                            {selectedCourse.tees.map(t => {
-                              const parts = [t.name];
-                              if (t.gender) parts.push(t.gender);
-                              const meta = [
-                                t.rating != null ? `CR ${t.rating}` : null,
-                                t.slope != null ? `SR ${t.slope}` : null,
-                                t.totalYards != null ? `${t.totalYards} yds` : null,
-                              ].filter(Boolean).join(" · ");
-                              return (
-                                <option key={t.id} value={t.id}>
-                                  {parts.join(" · ")}{meta ? ` (${meta})` : ""}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-                      )}
+                      {/* Course name override — defaults to picked course's club name */}
+                      <div>
+                        <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Course Name</label>
+                        <input
+                          value={newRoundCourse}
+                          onChange={e => setNewRoundCourse(e.target.value)}
+                          placeholder={selectedCourse?.clubName || "Pebble Beach"}
+                          className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                          style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                        />
+                      </div>
 
                       {/* Manual fields — auto-filled after a tee is selected, editable either way */}
                       <div className="grid grid-cols-3 gap-2">
@@ -505,7 +518,7 @@ export default function TripHubPage() {
                   <button
                     type="submit"
                     disabled={createRound.isPending}
-                    className="flex-1 py-2.5 rounded-lg text-sm font-sans font-semibold"
+                    className="flex-1 min-h-11 py-3 rounded-lg text-sm font-sans font-semibold"
                     style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
                   >
                     {createRound.isPending ? "Creating..." : "Create Round"}
@@ -513,7 +526,7 @@ export default function TripHubPage() {
                   <button
                     type="button"
                     onClick={() => setShowAddRound(false)}
-                    className="px-4 py-2.5 rounded-lg text-sm font-sans"
+                    className="px-4 min-h-11 py-3 rounded-lg text-sm font-sans"
                     style={{ background: "hsl(42 20% 82%)", color: "hsl(38 30% 18%)" }}
                   >
                     Cancel
@@ -671,6 +684,7 @@ export default function TripHubPage() {
                     <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>HCP</label>
                     <input
                       type="number"
+                      inputMode="decimal"
                       min="0"
                       max="54"
                       step="0.1"
@@ -711,6 +725,7 @@ export default function TripHubPage() {
                     />
                     <input
                       type="number"
+                      inputMode="decimal"
                       min="0" max="54" step="0.1"
                       value={editPlayerHcp}
                       onChange={e => setEditPlayerHcp(e.target.value)}
