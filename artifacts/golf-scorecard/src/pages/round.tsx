@@ -525,16 +525,27 @@ export default function RoundPage() {
 
   useEffect(() => {
     if (editingScramble && scrambleInputRef.current) {
-      scrambleInputRef.current.focus();
-      scrambleInputRef.current.select();
+      const el = scrambleInputRef.current;
+      el.focus();
+      el.select();
+      el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+      // Re-scroll after the mobile keyboard has had a chance to resize the viewport.
+      const t = setTimeout(() => el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" }), 300);
+      return () => clearTimeout(t);
     }
+    return undefined;
   }, [editingScramble]);
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+      const el = inputRef.current;
+      el.focus();
+      el.select();
+      el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+      const t = setTimeout(() => el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" }), 300);
+      return () => clearTimeout(t);
     }
+    return undefined;
   }, [editingCell]);
 
   // Find first empty cell in left-to-right, top-to-bottom order
