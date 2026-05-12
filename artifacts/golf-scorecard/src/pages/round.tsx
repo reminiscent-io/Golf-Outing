@@ -29,6 +29,7 @@ import {
 } from "@/lib/course-lookup";
 import { SignedInAs } from "@/components/signed-in-as";
 import { RoundGroupsEditor } from "@/components/round-groups-editor";
+import { GameInfoButton } from "@/components/game-info-modal";
 import { useTripIdentity } from "@/lib/trip-identity";
 
 type SubTab = "scorecard" | "results" | "setup";
@@ -379,6 +380,18 @@ export default function RoundPage() {
     try { localStorage.setItem(viewKey, viewMode); } catch {}
   }, [viewMode, viewKey]);
 
+  const entryKey = `round:${roundId}:entry`;
+  const [entryMode, setEntryMode] = useState<"mine" | "group">(() => {
+    try {
+      const stored = localStorage.getItem(entryKey);
+      if (stored === "mine" || stored === "group") return stored;
+    } catch {}
+    return "group";
+  });
+  useEffect(() => {
+    try { localStorage.setItem(entryKey, entryMode); } catch {}
+  }, [entryMode, entryKey]);
+
   const effectiveMode: "mine" | "all" = myGroupNumber === undefined ? "all" : viewMode;
 
   const groupPlayerIds = new Set<number>(
@@ -537,9 +550,19 @@ export default function RoundPage() {
     }
   }, [editingCell]);
 
-  // Find first empty cell in left-to-right, top-to-bottom order
+  // Find first empty cell. In "mine" entry mode, scan only the user's column
+  // top-to-bottom; in "group" entry mode, scan row-by-row across players.
   function findFirstEmptyCell(): { playerId: number; holeIdx: number } | null {
     if (!visiblePlayers || visiblePlayers.length === 0) return null;
+    if (entryMode === "mine" && identity) {
+      const me = visiblePlayers.find(p => p.id === identity.playerId);
+      if (me) {
+        for (let h = 0; h < 18; h++) {
+          if (getScore(me.id, h) == null) return { playerId: me.id, holeIdx: h };
+        }
+        return null;
+      }
+    }
     for (let h = 0; h < 18; h++) {
       for (const p of visiblePlayers) {
         if (getScore(p.id, h) == null) return { playerId: p.id, holeIdx: h };
@@ -562,6 +585,17 @@ export default function RoundPage() {
 
   function advanceToNext(playerId: number, holeIdx: number) {
     if (!visiblePlayers || visiblePlayers.length === 0) return;
+    if (entryMode === "mine") {
+      // Vertical: same player, next hole.
+      const nextHole = holeIdx + 1;
+      if (nextHole < 18) {
+        setTimeout(() => startEdit(playerId, nextHole), 0);
+      } else {
+        setEditingCell(null);
+      }
+      return;
+    }
+    // Group: next player same hole, wrapping down to next hole.
     const currPlayerIdx = visiblePlayers.findIndex(p => p.id === playerId);
     const nextPlayerIdx = (currPlayerIdx + 1) % visiblePlayers.length;
     const nextHoleIdx = nextPlayerIdx === 0 ? holeIdx + 1 : holeIdx;
@@ -1018,6 +1052,33 @@ export default function RoundPage() {
                   </button>
                 </div>
               )}
+              {identity && (
+                <div className="flex items-center gap-2 mb-3 px-4 text-xs font-sans">
+                  <span style={{ color: "hsl(42 20% 55%)" }}>Scoring:</span>
+                  <button
+                    onClick={() => setEntryMode("mine")}
+                    className="px-3 py-1.5 rounded-lg font-600"
+                    title="Enter only my scores; advances down my column"
+                    style={{
+                      background: entryMode === "mine" ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
+                      color: entryMode === "mine" ? "hsl(38 30% 12%)" : "hsl(42 35% 65%)",
+                    }}
+                  >
+                    Just me
+                  </button>
+                  <button
+                    onClick={() => setEntryMode("group")}
+                    className="px-3 py-1.5 rounded-lg font-600"
+                    title="Enter scores for the group; advances across the row then to the next hole"
+                    style={{
+                      background: entryMode === "group" ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
+                      color: entryMode === "group" ? "hsl(38 30% 12%)" : "hsl(42 35% 65%)",
+                    }}
+                  >
+                    Whole group
+                  </button>
+                </div>
+              )}
             <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
               <table className="w-full" style={{ minWidth: `${44 + 28 + visiblePlayers.length * 52}px` }}>
                 <colgroup>
@@ -1278,9 +1339,9 @@ export default function RoundPage() {
                   style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
                   <span>Player</span>
                   <span className="text-right">Gross</span>
-                  <span className="text-right">Net</span>
-                  <span className="text-right">Stblfd</span>
-                  <span className="text-right">Skins</span>
+                  <span className="text-right flex items-center justify-end gap-1">Net <GameInfoButton game="netStroke" size={12} /></span>
+                  <span className="text-right flex items-center justify-end gap-1">Stblfd <GameInfoButton game="stableford" size={12} /></span>
+                  <span className="text-right flex items-center justify-end gap-1">Skins <GameInfoButton game="skins" size={12} /></span>
                 </div>
                 {[...leaderboard.entries]
                   .sort((a, b) => (b.stablefordTotal ?? 0) - (a.stablefordTotal ?? 0))
@@ -1316,8 +1377,9 @@ export default function RoundPage() {
                 leaderboard.nassauResult?.matches &&
                 leaderboard.nassauResult.matches.length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="font-sans font-semibold text-xs uppercase tracking-widest" style={{ color: "hsl(42 52% 59%)" }}>
+                  <h3 className="font-sans font-semibold text-xs uppercase tracking-widest flex items-center gap-1.5" style={{ color: "hsl(42 52% 59%)" }}>
                     Team Nassau
+                    <GameInfoButton game="nassau" size={13} />
                   </h3>
                   {leaderboard.nassauResult.matches.map(m => {
                     const nameFor = (id: number) =>
@@ -1365,7 +1427,7 @@ export default function RoundPage() {
                   <div className="px-4 py-2.5 grid grid-cols-[1fr_2fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
                     style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
                     <span>Hole</span>
-                    <span>Winner</span>
+                    <span className="flex items-center gap-1">Winner <GameInfoButton game="skins" size={12} /></span>
                     <span className="text-right">Skins</span>
                   </div>
                   {leaderboard.skinResults.map((s, idx) => (
@@ -1587,14 +1649,18 @@ export default function RoundPage() {
 
           {/* Games */}
           <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
-            <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-3" style={{ color: "hsl(38 20% 38%)" }}>Active Games</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-sans font-semibold text-xs uppercase tracking-widest" style={{ color: "hsl(38 20% 38%)" }}>Active Games</h3>
+              <GameInfoButton game="handicaps" size={13} label="How scoring works" />
+            </div>
             <div className="space-y-2">
               {(["stableford", "skins", "nassau", "netStroke"] as const).map(game => {
                 const disabled = setupScramble;
                 return (
                   <label key={game} className={`flex items-center justify-between py-1.5 ${disabled ? "opacity-40" : "cursor-pointer"}`}>
-                    <span className="font-sans text-sm font-semibold" style={{ color: "hsl(38 30% 14%)" }}>
+                    <span className="font-sans text-sm font-semibold flex items-center gap-1.5" style={{ color: "hsl(38 30% 14%)" }}>
                       {game === "netStroke" ? "Net Stroke Play" : game === "nassau" ? "Team Nassau" : game.charAt(0).toUpperCase() + game.slice(1)}
+                      <GameInfoButton game={game} size={13} />
                     </span>
                     <div
                       onClick={() => { if (!disabled) setSetupGames(g => ({ ...g, [game]: !g[game] })); }}
