@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListTrips,
@@ -179,6 +179,19 @@ export default function TripsPage() {
             </p>
           </div>
         )}
+
+        <div className="mt-10 pt-6 text-center" style={{ borderTop: "1px solid hsl(158 30% 18%)" }}>
+          <Link
+            href="/privacy"
+            className="text-xs font-sans hover:underline"
+            style={{ color: "hsl(42 25% 60%)" }}
+          >
+            Privacy Policy & Terms
+          </Link>
+          <p className="text-xs font-sans mt-2" style={{ color: "hsl(42 18% 45%)" }}>
+            © Reminiscent Technologies LLC
+          </p>
+        </div>
       </div>
     </div>
   );

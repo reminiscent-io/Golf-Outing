@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import TripsPage from "@/pages/trips";
 import TripHubPage from "@/pages/trip-hub";
 import RoundPage from "@/pages/round";
+import PrivacyPage from "@/pages/privacy";
 import { TripAuthGate } from "@/components/trip-auth-gate";
 
 const queryClient = new QueryClient({
@@ -43,6 +44,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={TripsPage} />
+      <Route path="/privacy" component={PrivacyPage} />
       <Route path="/trips/:tripId" component={GatedTripHub} />
       <Route path="/trips/:tripId/rounds/:roundId" component={GatedRound} />
       <Route component={NotFound} />
