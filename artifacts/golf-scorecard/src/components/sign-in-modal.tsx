@@ -23,7 +23,6 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
   const [phone, setPhone] = useState("");
   const [fullName, setFullName] = useState("");
   const [isNewUser, setIsNewUser] = useState(false);
-  const [needsFullName, setNeedsFullName] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [resendAt, setResendAt] = useState<number>(0);
@@ -41,7 +40,6 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
       setPhone("");
       setFullName("");
       setIsNewUser(false);
-      setNeedsFullName(false);
       setCode("");
       setError(null);
       setResendAt(0);
@@ -73,15 +71,10 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
     }
     setError(null);
     requestOtp.mutate(
-      { data: { phone: normalized, fullName: fullName.trim() || undefined } },
+      { data: { phone: normalized } },
       {
         onSuccess: (resp) => {
           setIsNewUser(!!resp.isNewUser);
-          if (resp.isNewUser && !fullName.trim()) {
-            setNeedsFullName(true);
-            // Stay on phone step so the user can enter a name.
-            return;
-          }
           setStep("code");
           setResendAt(Date.now() + 30_000);
         },
@@ -97,7 +90,7 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
     if (secondsToResend > 0) return;
     const normalized = normalizePhone(phone);
     requestOtp.mutate(
-      { data: { phone: normalized, fullName: fullName.trim() || undefined } },
+      { data: { phone: normalized } },
       {
         onSuccess: () => setResendAt(Date.now() + 30_000),
         onError: (err: unknown) => setError(err instanceof Error ? err.message : "Failed to resend"),
@@ -110,6 +103,10 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
     const normalized = normalizePhone(phone);
     if (code.length !== 6) {
       setError("Enter the 6-digit code");
+      return;
+    }
+    if (isNewUser && !fullName.trim()) {
+      setError("Enter your full name");
       return;
     }
     setError(null);
@@ -163,20 +160,6 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
               className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
               style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
             />
-            {(needsFullName || isNewUser) && (
-              <>
-                <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>
-                  Full name
-                </label>
-                <input
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  placeholder="Jane Smith"
-                  className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
-                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
-                />
-              </>
-            )}
             {error && (
               <div className="text-xs font-sans mb-3" style={{ color: "hsl(0 55% 40%)" }}>{error}</div>
             )}
@@ -217,12 +200,27 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
               className="w-full px-3 py-3 rounded-lg text-lg font-mono text-center tracking-[0.4em] outline-none mb-3"
               style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
             />
+            {isNewUser && (
+              <>
+                <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>
+                  Full name
+                </label>
+                <input
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  placeholder="Jane Smith"
+                  autoComplete="name"
+                  className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                />
+              </>
+            )}
             {error && (
               <div className="text-xs font-sans mb-3" style={{ color: "hsl(0 55% 40%)" }}>{error}</div>
             )}
             <button
               type="submit"
-              disabled={verifyOtp.isPending || code.length !== 6}
+              disabled={verifyOtp.isPending || code.length !== 6 || (isNewUser && !fullName.trim())}
               className="w-full py-2.5 rounded-lg font-sans font-semibold text-sm disabled:opacity-60"
               style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
             >
