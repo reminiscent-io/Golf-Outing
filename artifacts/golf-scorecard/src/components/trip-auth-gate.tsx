@@ -3,12 +3,26 @@ import {
   useListPlayers,
   useCreatePlayer,
   useUpdatePlayer,
+  useUpdateMe,
+  useSaveTrip,
   getListPlayersQueryKey,
+  getListMyTripsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTripIdentity, setTripIdentity } from "@/lib/trip-identity";
-import { useAuthSession } from "@/lib/auth";
+import { useAuthSession, updateSessionUser } from "@/lib/auth";
 import { SignInModal } from "@/components/sign-in-modal";
+
+function parseHandicap(raw: string): number {
+  const v = parseFloat(raw);
+  if (isNaN(v)) return 18;
+  return Math.round(v * 10) / 10;
+}
+
+function formatHandicap(h: number | null | undefined): string {
+  if (h == null) return "";
+  return (Math.round(h * 10) / 10).toFixed(1);
+}
 
 type Props = {
   tripId: number;
@@ -23,10 +37,12 @@ export function TripAuthGate({ tripId, children }: Props) {
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | "">("");
   const [showAddSelf, setShowAddSelf] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newHcp, setNewHcp] = useState("18");
+  const [newHcp, setNewHcp] = useState(() => formatHandicap(session?.user.handicap));
 
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
+  const updateMe = useUpdateMe();
+  const saveTrip = useSaveTrip();
   const { data: players } = useListPlayers(tripId, {
     query: {
       queryKey: getListPlayersQueryKey(tripId),
@@ -67,23 +83,45 @@ export function TripAuthGate({ tripId, children }: Props) {
         }
       );
     }
-    setTripIdentity(tripId, { playerId: player.id, playerName: player.name });
+    setTripIdentity(tripId, { kind: "player", playerId: player.id, playerName: player.name });
+  }
+
+  function handleJustWatch() {
+    // Auto-bookmark so the trip shows up in /me/trips later. Failure is non-fatal.
+    saveTrip.mutate(
+      { tripId },
+      {
+        onSettled: () => {
+          queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() });
+        },
+      }
+    );
+    setTripIdentity(tripId, { kind: "observer" });
   }
 
   function handleAddSelf(e: React.FormEvent) {
     e.preventDefault();
     const name = newName.trim();
     if (!name) return;
-    const handicap = parseInt(newHcp, 10);
+    const handicap = parseHandicap(newHcp);
     createPlayer.mutate(
-      { tripId, data: { name, handicap: isNaN(handicap) ? 18 : handicap } },
+      { tripId, data: { name, handicap } },
       {
         onSuccess: (player) => {
           queryClient.invalidateQueries({ queryKey: getListPlayersQueryKey(tripId) });
-          setTripIdentity(tripId, { playerId: player.id, playerName: player.name });
+          setTripIdentity(tripId, { kind: "player", playerId: player.id, playerName: player.name });
         },
       }
     );
+    // Always sync the entered handicap back to the user's profile so future joins autofill it.
+    if (session && handicap !== session.user.handicap) {
+      updateMe.mutate(
+        { data: { handicap } },
+        {
+          onSuccess: (user) => updateSessionUser({ handicap: user.handicap }),
+        }
+      );
+    }
   }
 
   return (
@@ -130,6 +168,14 @@ export function TripAuthGate({ tripId, children }: Props) {
             >
               I'm not in the list — add me
             </button>
+            <button
+              type="button"
+              onClick={handleJustWatch}
+              className="w-full mt-2 py-2 font-sans text-xs hover:opacity-80 transition-opacity"
+              style={{ background: "transparent", color: "hsl(38 20% 38%)" }}
+            >
+              Just watching — don't add me as a player
+            </button>
           </form>
         )}
 
@@ -157,8 +203,11 @@ export function TripAuthGate({ tripId, children }: Props) {
             </label>
             <input
               type="number"
+              inputMode="decimal"
+              step="0.1"
               min={0}
               max={54}
+              placeholder="18"
               value={newHcp}
               onChange={e => setNewHcp(e.target.value)}
               className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-4"

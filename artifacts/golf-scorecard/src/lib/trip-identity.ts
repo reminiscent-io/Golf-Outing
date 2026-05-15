@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
-export type TripIdentity = { playerId: number; playerName: string };
+export type TripIdentity =
+  | { kind: "player"; playerId: number; playerName: string }
+  | { kind: "observer" };
 
 const key = (tripId: number) => `auth:trip:${tripId}`;
 
@@ -9,13 +11,14 @@ function readIdentity(tripId: number): TripIdentity | null {
     const raw = localStorage.getItem(key(tripId));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.kind === "observer") return { kind: "observer" };
+    // Legacy entries (and new "player" entries): both carry playerId + playerName.
     if (
-      parsed &&
-      typeof parsed === "object" &&
       typeof parsed.playerId === "number" &&
       typeof parsed.playerName === "string"
     ) {
-      return { playerId: parsed.playerId, playerName: parsed.playerName };
+      return { kind: "player", playerId: parsed.playerId, playerName: parsed.playerName };
     }
     return null;
   } catch {

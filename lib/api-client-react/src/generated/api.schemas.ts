@@ -14,6 +14,11 @@ export interface Trip {
   name: string;
   /** @nullable */
   description?: string | null;
+  /**
+   * User who created the trip; null for legacy trips created before attribution.
+   * @nullable
+   */
+  createdByUserId?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,7 +40,21 @@ export interface User {
   /** E.164-formatted phone number */
   phone: string;
   fullName: string;
+  /**
+   * User's current handicap index; autofilled when joining new trips.
+   * @nullable
+   */
+  handicap?: number | null;
   createdAt: string;
+}
+
+export interface UpdateMeBody {
+  /**
+   * @minimum 0
+   * @maximum 54
+   * @nullable
+   */
+  handicap?: number | null;
 }
 
 export interface RequestOtpBody {

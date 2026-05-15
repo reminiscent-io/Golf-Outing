@@ -1,12 +1,25 @@
 import { useLocation } from "wouter";
-import { useListMyTrips } from "@workspace/api-client-react";
-import { useAuthSession } from "@/lib/auth";
+import { useListMyTrips, type UserTripAssociation } from "@workspace/api-client-react";
+import { useAuthSession, type AuthSession } from "@/lib/auth";
 import { ArrowLeft, Flag, ChevronRight, Plus } from "lucide-react";
 import { RequireSignIn } from "@/components/require-sign-in";
 
-function MyTripsContent() {
+const BRASS = "hsl(42 52% 59%)";
+const BRASS_FAINT = "hsl(42 25% 60%)";
+const CREAM = "hsl(42 45% 91%)";
+const CREAM_BORDER = "hsl(38 25% 78%)";
+const INK = "hsl(38 30% 14%)";
+const INK_SOFT = "hsl(38 20% 38%)";
+const FOREST_ACCENT = "hsl(158 35% 20%)";
+
+function MyTripsContent({ session }: { session: AuthSession }) {
   const [, navigate] = useLocation();
   const { data: items, isLoading } = useListMyTrips();
+
+  const myUserId = session.user.id;
+  const yours = (items ?? []).filter(it => it.trip.createdByUserId === myUserId);
+  const shared = (items ?? []).filter(it => it.trip.createdByUserId !== myUserId);
+  const hasAny = (items?.length ?? 0) > 0;
 
   return (
     <div className="min-h-dvh bg-background">
@@ -20,9 +33,9 @@ function MyTripsContent() {
             <ArrowLeft size={14} />
             Home
           </button>
-          <h1 className="text-3xl font-serif" style={{ color: "hsl(42 52% 59%)" }}>My Trips</h1>
-          <p className="text-sm font-sans mt-1" style={{ color: "hsl(42 25% 60%)" }}>
-            Every trip you joined or saved.
+          <h1 className="text-3xl font-serif" style={{ color: BRASS }}>My Trips</h1>
+          <p className="text-sm font-sans mt-1" style={{ color: BRASS_FAINT }}>
+            Trips you made and trips shared with you.
           </p>
         </div>
       </div>
@@ -34,59 +47,54 @@ function MyTripsContent() {
               <div key={i} className="h-20 rounded-xl animate-pulse" style={{ background: "hsl(158 40% 15%)" }} />
             ))}
           </div>
-        ) : items && items.length > 0 ? (
-          <div className="space-y-3">
-            {items.map(item => (
-              <div
-                key={item.trip.id}
-                onClick={() => navigate(`/trips/${item.trip.id}`)}
-                className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between group transition-all hover:scale-[1.01]"
-                style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="rounded-lg p-2" style={{ background: "hsl(158 35% 20%)" }}>
-                    <Flag size={16} style={{ color: "hsl(42 52% 59%)" }} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-sans font-semibold text-sm truncate" style={{ color: "hsl(38 30% 14%)" }}>
-                      {item.trip.name}
-                    </div>
-                    <div className="text-xs mt-0.5 flex items-center gap-2" style={{ color: "hsl(38 20% 38%)" }}>
-                      <span
-                        className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-                        style={{
-                          background: item.via === "saved" ? "hsl(42 30% 80%)" : "hsl(158 35% 20%)",
-                          color: item.via === "saved" ? "hsl(38 30% 20%)" : "hsl(42 52% 59%)",
-                        }}
-                      >
-                        {item.via === "saved" ? "Saved" : item.via === "both" ? "Player + Saved" : "Player"}
-                      </span>
-                      {item.players.length > 0 && (
-                        <span className="truncate">as {item.players.map(p => p.name).join(", ")}</span>
-                      )}
-                    </div>
-                  </div>
+        ) : hasAny ? (
+          <div className="space-y-8">
+            {yours.length > 0 && (
+              <Section label="Yours">
+                <div className="space-y-3">
+                  {yours.map(item => (
+                    <TripRow
+                      key={item.trip.id}
+                      item={item}
+                      showVia={false}
+                      onClick={() => navigate(`/trips/${item.trip.id}`)}
+                    />
+                  ))}
                 </div>
-                <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
-              </div>
-            ))}
+              </Section>
+            )}
+
+            {shared.length > 0 && (
+              <Section label="Shared with you">
+                <div className="space-y-3">
+                  {shared.map(item => (
+                    <TripRow
+                      key={item.trip.id}
+                      item={item}
+                      showVia
+                      onClick={() => navigate(`/trips/${item.trip.id}`)}
+                    />
+                  ))}
+                </div>
+              </Section>
+            )}
           </div>
         ) : (
           <div className="text-center py-16">
             <div
               className="w-14 h-14 mx-auto mb-5 rounded-full flex items-center justify-center"
-              style={{ background: "hsl(158 35% 20%)", border: "1px solid hsl(42 60% 48%)" }}
+              style={{ background: FOREST_ACCENT, border: "1px solid hsl(42 60% 48%)" }}
             >
-              <Flag size={22} style={{ color: "hsl(42 52% 59%)" }} strokeWidth={1.6} />
+              <Flag size={22} style={{ color: BRASS }} strokeWidth={1.6} />
             </div>
-            <p className="font-sans text-sm mb-6 max-w-xs mx-auto" style={{ color: "hsl(42 25% 60%)", lineHeight: 1.55 }}>
+            <p className="font-sans text-sm mb-6 max-w-xs mx-auto" style={{ color: BRASS_FAINT, lineHeight: 1.55 }}>
               You haven't joined or saved any trips yet. Start one and invite the group.
             </p>
             <button
               onClick={() => navigate("/trips?new=1")}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-sans font-semibold text-sm transition-transform hover:-translate-y-0.5 active:translate-y-0"
               style={{
-                background: "hsl(42 52% 59%)",
+                background: BRASS,
                 color: "hsl(38 30% 12%)",
                 boxShadow: "0 1px 0 hsl(42 60% 48%) inset, 0 14px 30px -12px hsla(42, 60%, 50%, 0.55), 0 2px 0 hsla(0,0%,0%,0.18)",
                 letterSpacing: "0.04em",
@@ -102,10 +110,74 @@ function MyTripsContent() {
   );
 }
 
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div
+        className="font-sans text-[10px] font-semibold mb-3"
+        style={{ color: BRASS, letterSpacing: "0.32em", textTransform: "uppercase" }}
+      >
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function TripRow({
+  item,
+  showVia,
+  onClick,
+}: {
+  item: UserTripAssociation;
+  showVia: boolean;
+  onClick: () => void;
+}) {
+  const isObserver = item.via === "saved";
+  const viaLabel = item.via === "saved" ? "Watching" : item.via === "both" ? "Player + Saved" : "Player";
+  return (
+    <div
+      onClick={onClick}
+      className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between group transition-all hover:scale-[1.01]"
+      style={{ background: CREAM, border: `1px solid ${CREAM_BORDER}` }}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="rounded-lg p-2" style={{ background: FOREST_ACCENT }}>
+          <Flag size={16} style={{ color: BRASS }} />
+        </div>
+        <div className="min-w-0">
+          <div className="font-sans font-semibold text-sm truncate" style={{ color: INK }}>
+            {item.trip.name}
+          </div>
+          {(showVia || item.players.length > 0) && (
+            <div className="text-xs mt-0.5 flex items-center gap-2" style={{ color: INK_SOFT }}>
+              {showVia && (
+                <span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
+                  style={{
+                    background: isObserver ? "hsl(42 30% 80%)" : FOREST_ACCENT,
+                    color: isObserver ? "hsl(38 30% 20%)" : BRASS,
+                  }}
+                >
+                  {viaLabel}
+                </span>
+              )}
+              {item.players.length > 0 && (
+                <span className="truncate">as {item.players.map(p => p.name).join(", ")}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
+    </div>
+  );
+}
+
 export default function MyTripsPage() {
   const session = useAuthSession();
   if (!session) {
     return <RequireSignIn mandatory>{null}</RequireSignIn>;
   }
-  return <MyTripsContent />;
+  return <MyTripsContent session={session} />;
 }

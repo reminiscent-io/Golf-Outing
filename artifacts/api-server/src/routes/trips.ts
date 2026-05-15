@@ -31,7 +31,10 @@ router.post("/trips", requireAuth, async (req: AuthedRequest, res): Promise<void
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [trip] = await db.insert(tripsTable).values(parsed.data).returning();
+  const [trip] = await db
+    .insert(tripsTable)
+    .values({ ...parsed.data, createdByUserId: req.user.id })
+    .returning();
   // Auto-follow the creator so the trip immediately shows up in their "My Trips".
   await db
     .insert(userTripFollowsTable)
