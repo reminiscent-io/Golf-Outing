@@ -9,7 +9,7 @@ function MyTripsContent() {
   const { data: items, isLoading } = useListMyTrips();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <div className="px-6 pt-10 pb-6" style={{ background: "hsl(158 65% 9%)" }}>
         <div className="max-w-lg mx-auto">
           <button

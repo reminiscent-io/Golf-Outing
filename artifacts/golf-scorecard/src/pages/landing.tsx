@@ -283,7 +283,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: FOREST_BG, color: CREAM_FG }}>
+    <div className="min-h-dvh" style={{ background: FOREST_BG, color: CREAM_FG }}>
       <style>{`
         @keyframes society-rise {
           from { opacity: 0; transform: translateY(8px); }

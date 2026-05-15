@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 export default function NotFound() {
   const [, navigate] = useLocation();
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-dvh bg-background flex items-center justify-center">
       <div className="text-center">
         <div className="text-6xl mb-4 font-serif" style={{ color: "hsl(42 52% 59%)" }}>404</div>
         <p className="font-sans mb-6" style={{ color: "hsl(42 25% 60%)" }}>Page not found</p>
