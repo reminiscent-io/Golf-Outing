@@ -310,14 +310,14 @@ export default function TripHubPage() {
 
   if (tripLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-dvh bg-background flex items-center justify-center">
         <div className="text-sm font-sans" style={{ color: "hsl(42 25% 60%)" }}>Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       {/* Header */}
       <div className="px-4 pt-8 pb-5" style={{ background: "hsl(158 65% 9%)" }}>
         <div className="max-w-2xl mx-auto">
@@ -385,7 +385,7 @@ export default function TripHubPage() {
       </div>
 
       {/* Tabs */}
-      <div className="sticky top-0 z-10" style={{ background: "hsl(158 60% 13%)", borderBottom: "1px solid hsl(158 40% 18%)" }}>
+      <div className="sticky top-0 z-10 sticky-safe-top" style={{ background: "hsl(158 60% 13%)", borderBottom: "1px solid hsl(158 40% 18%)" }}>
         <div className="max-w-2xl mx-auto px-4 flex gap-0">
           {TABS.map(t => (
             <button

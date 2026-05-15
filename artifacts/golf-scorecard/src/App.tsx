@@ -51,7 +51,7 @@ function NavBar() {
 
   return (
     <div
-      className="w-full flex items-center justify-end gap-3 px-4 py-2"
+      className="w-full flex items-center justify-end gap-3 px-4 py-2 pt-safe pl-safe pr-safe"
       style={{ background: "hsl(158 65% 9%)", borderBottom: "1px solid hsl(158 40% 18%)" }}
     >
       {session ? (

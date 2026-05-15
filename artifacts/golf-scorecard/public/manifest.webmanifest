@@ -1,0 +1,33 @@
+{
+  "name": "Card Caddie Golf",
+  "short_name": "Card Caddie Golf",
+  "description": "Live golf scoring for your group — handicaps, leaderboards, and game modes across rounds and trips.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#0f3d2e",
+  "background_color": "#0f3d2e",
+  "categories": ["sports", "lifestyle"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./apple-touch-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "180x180",
+      "purpose": "any"
+    }
+  ]
+}
