@@ -9,7 +9,7 @@ export default function PrivacyPage() {
       <div className="px-6 pt-10 pb-6" style={{ background: "hsl(158 65% 9%)" }}>
         <div className="max-w-2xl mx-auto">
           <Link
-            href="/"
+            href="/trips"
             className="inline-flex items-center gap-1 text-xs font-sans mb-4 hover:opacity-80"
             style={{ color: "hsl(42 25% 70%)" }}
           >
