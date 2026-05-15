@@ -180,7 +180,7 @@ export default function TripsPage() {
         {!showCreate && (
           <button
             onClick={handleNewTripClick}
-            className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-sans font-600 text-sm mb-6 transition-all hover:opacity-90 active:scale-98"
+            className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-sans font-semibold text-sm mb-6 transition-all hover:opacity-90 active:scale-98"
             style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
           >
             <Plus size={18} />
@@ -191,7 +191,7 @@ export default function TripsPage() {
         {/* Create form — only visible when signed in */}
         {showCreate && session && (
           <form onSubmit={handleCreate} className="mb-6 rounded-xl p-4" style={{ background: "hsl(42 45% 91%)" }}>
-            <label className="block text-xs font-sans font-600 uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>
+            <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>
               Trip Name
             </label>
             <input
@@ -210,7 +210,7 @@ export default function TripsPage() {
               <button
                 type="submit"
                 disabled={createTrip.isPending}
-                className="flex-1 py-2.5 rounded-lg font-sans font-600 text-sm transition-all hover:opacity-90"
+                className="flex-1 py-2.5 rounded-lg font-sans font-semibold text-sm transition-all hover:opacity-90"
                 style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
               >
                 {createTrip.isPending ? "Creating..." : "Create Trip"}
@@ -252,7 +252,7 @@ export default function TripsPage() {
                 <div
                   key={trip.id}
                   onClick={() => navigate(`/trips/${trip.id}`)}
-                  className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between group transition-all hover:scale-[1.01]"
+                  className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between transition-all hover:scale-[1.01]"
                   style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}
                 >
                   <div className="flex items-center gap-3">
@@ -260,7 +260,7 @@ export default function TripsPage() {
                       <Flag size={16} style={{ color: "hsl(42 52% 59%)" }} />
                     </div>
                     <div>
-                      <div className="font-sans font-600 text-sm" style={{ color: "hsl(38 30% 14%)" }}>
+                      <div className="font-sans font-semibold text-sm" style={{ color: "hsl(38 30% 14%)" }}>
                         {trip.name}
                       </div>
                       <div className="text-xs mt-0.5" style={{ color: "hsl(38 20% 38%)" }}>
@@ -288,8 +288,8 @@ export default function TripsPage() {
                     <button
                       onClick={e => handleDeleteClick({ id: trip.id, name: trip.name }, e)}
                       aria-label={`Delete ${trip.name}`}
-                      className="p-2 min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg transition-opacity hover:opacity-100"
-                      style={{ color: "hsl(0 45% 45%)", opacity: 0.55 }}
+                      className="p-2 min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg transition-opacity opacity-70 hover:opacity-100"
+                      style={{ color: "hsl(0 50% 35%)" }}
                     >
                       <Trash2 size={16} />
                     </button>

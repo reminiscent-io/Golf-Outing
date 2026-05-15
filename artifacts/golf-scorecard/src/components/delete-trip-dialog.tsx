@@ -38,7 +38,7 @@ export function DeleteTripDialog({ trip, pending, onCancel, onConfirm }: Props) 
           </AlertDialogTitle>
           <AlertDialogDescription
             className="font-sans text-sm"
-            style={{ color: "hsl(38 20% 38%)" }}
+            style={{ color: "hsl(38 25% 28%)" }}
           >
             This permanently deletes the trip along with every round, score, and
             player record attached to it. This cannot be undone.
