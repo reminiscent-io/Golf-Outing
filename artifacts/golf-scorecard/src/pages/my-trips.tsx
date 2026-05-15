@@ -1,7 +1,7 @@
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useListMyTrips } from "@workspace/api-client-react";
 import { useAuthSession } from "@/lib/auth";
-import { ArrowLeft, Flag, ChevronRight } from "lucide-react";
+import { ArrowLeft, Flag, ChevronRight, Plus } from "lucide-react";
 import { RequireSignIn } from "@/components/require-sign-in";
 
 function MyTripsContent() {
@@ -73,16 +73,28 @@ function MyTripsContent() {
           </div>
         ) : (
           <div className="text-center py-16">
-            <p className="font-sans text-sm" style={{ color: "hsl(42 25% 60%)" }}>
-              You haven't joined or saved any trips yet.
-            </p>
-            <Link
-              href="/"
-              className="inline-block mt-4 text-xs font-sans underline"
-              style={{ color: "hsl(42 35% 65%)" }}
+            <div
+              className="w-14 h-14 mx-auto mb-5 rounded-full flex items-center justify-center"
+              style={{ background: "hsl(158 35% 20%)", border: "1px solid hsl(42 60% 48%)" }}
             >
-              Go to home
-            </Link>
+              <Flag size={22} style={{ color: "hsl(42 52% 59%)" }} strokeWidth={1.6} />
+            </div>
+            <p className="font-sans text-sm mb-6 max-w-xs mx-auto" style={{ color: "hsl(42 25% 60%)", lineHeight: 1.55 }}>
+              You haven't joined or saved any trips yet. Start one and invite the group.
+            </p>
+            <button
+              onClick={() => navigate("/trips?new=1")}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-sans font-semibold text-sm transition-transform hover:-translate-y-0.5 active:translate-y-0"
+              style={{
+                background: "hsl(42 52% 59%)",
+                color: "hsl(38 30% 12%)",
+                boxShadow: "0 1px 0 hsl(42 60% 48%) inset, 0 14px 30px -12px hsla(42, 60%, 50%, 0.55), 0 2px 0 hsla(0,0%,0%,0.18)",
+                letterSpacing: "0.04em",
+              }}
+            >
+              <Plus size={16} strokeWidth={2.25} />
+              Create a Trip
+            </button>
           </div>
         )}
       </div>
