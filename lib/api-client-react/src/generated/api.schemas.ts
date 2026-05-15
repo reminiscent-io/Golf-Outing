@@ -14,6 +14,11 @@ export interface Trip {
   name: string;
   /** @nullable */
   description?: string | null;
+  /**
+   * User who created the trip; null for legacy trips created before attribution.
+   * @nullable
+   */
+  createdByUserId?: number | null;
   createdAt: string;
   updatedAt: string;
 }

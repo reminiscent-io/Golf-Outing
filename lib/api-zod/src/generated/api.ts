@@ -21,6 +21,12 @@ export const ListTripsResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
+  createdByUserId: zod
+    .number()
+    .nullish()
+    .describe(
+      "User who created the trip; null for legacy trips created before attribution.",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -45,6 +51,12 @@ export const GetTripResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
+  createdByUserId: zod
+    .number()
+    .nullish()
+    .describe(
+      "User who created the trip; null for legacy trips created before attribution.",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -65,6 +77,12 @@ export const UpdateTripResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
+  createdByUserId: zod
+    .number()
+    .nullish()
+    .describe(
+      "User who created the trip; null for legacy trips created before attribution.",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -200,6 +218,12 @@ export const ListMyTripsResponseItem = zod.object({
     id: zod.number(),
     name: zod.string(),
     description: zod.string().nullish(),
+    createdByUserId: zod
+      .number()
+      .nullish()
+      .describe(
+        "User who created the trip; null for legacy trips created before attribution.",
+      ),
     createdAt: zod.string(),
     updatedAt: zod.string(),
   }),

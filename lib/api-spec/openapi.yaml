@@ -733,6 +733,9 @@ components:
           type: string
         description:
           type: ["string", "null"]
+        createdByUserId:
+          type: ["integer", "null"]
+          description: User who created the trip; null for legacy trips created before attribution.
         createdAt:
           type: string
         updatedAt:

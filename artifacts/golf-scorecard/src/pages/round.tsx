@@ -361,11 +361,13 @@ export default function RoundPage() {
   });
 
   const identity = useTripIdentity(tripId);
+  const myPlayerId = identity?.kind === "player" ? identity.playerId : undefined;
+  const isObserver = identity?.kind === "observer";
   const { data: groupsData } = useListRoundGroups(tripId, roundId, {
     query: { queryKey: getListRoundGroupsQueryKey(tripId, roundId), enabled: !!tripId && !!roundId },
   });
-  const myGroupNumber: number | undefined = identity && groupsData
-    ? groupsData.assignments.find(a => a.playerId === identity.playerId)?.groupNumber
+  const myGroupNumber: number | undefined = myPlayerId !== undefined && groupsData
+    ? groupsData.assignments.find(a => a.playerId === myPlayerId)?.groupNumber
     : undefined;
 
   const viewKey = `round:${roundId}:view`;
@@ -403,12 +405,12 @@ export default function RoundPage() {
     (groupsData?.assignments ?? []).map(a => [a.playerId, { groupNumber: a.groupNumber, slotIndex: a.slotIndex }])
   );
 
-  const mySlotIndex = identity ? slotMap.get(identity.playerId)?.slotIndex : undefined;
+  const mySlotIndex = myPlayerId !== undefined ? slotMap.get(myPlayerId)?.slotIndex : undefined;
   // Slots 1-2 = Team A, slots 3-4 = Team B
   const myTeamSide = mySlotIndex !== undefined ? (mySlotIndex <= 2 ? "A" : "B") : undefined;
 
   function playerSortKey(playerId: number): number {
-    if (identity && playerId === identity.playerId) return 0; // me first
+    if (myPlayerId !== undefined && playerId === myPlayerId) return 0; // me first
     const slot = slotMap.get(playerId);
     if (slot === undefined) return 100; // unassigned — original order
     if (myGroupNumber !== undefined && slot.groupNumber !== myGroupNumber) {
@@ -554,8 +556,8 @@ export default function RoundPage() {
   // top-to-bottom; in "group" entry mode, scan row-by-row across players.
   function findFirstEmptyCell(): { playerId: number; holeIdx: number } | null {
     if (!visiblePlayers || visiblePlayers.length === 0) return null;
-    if (entryMode === "mine" && identity) {
-      const me = visiblePlayers.find(p => p.id === identity.playerId);
+    if (entryMode === "mine" && myPlayerId !== undefined) {
+      const me = visiblePlayers.find(p => p.id === myPlayerId);
       if (me) {
         for (let h = 0; h < 18; h++) {
           if (getScore(me.id, h) == null) return { playerId: me.id, holeIdx: h };
@@ -572,6 +574,7 @@ export default function RoundPage() {
   }
 
   function startEdit(playerId: number, holeIdx: number) {
+    if (isObserver) return;
     if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
     const current = getScore(playerId, holeIdx);
     setEditingCell({ playerId, hole: holeIdx });
@@ -668,6 +671,7 @@ export default function RoundPage() {
 
   // Scramble score editing
   function startEditScramble(teamKey: string, holeIdx: number) {
+    if (isObserver) return;
     if (scrambleAdvanceTimer.current) clearTimeout(scrambleAdvanceTimer.current);
     const current = getScrambleScore(teamKey, holeIdx);
     setEditingScramble({ teamKey, hole: holeIdx });
@@ -850,6 +854,7 @@ export default function RoundPage() {
   }, [round]);
 
   function handleSaveSetup() {
+    if (isObserver) return;
     const ratingNum = parseFloat(setupRating);
     const slopeNum = parseInt(setupSlope);
     updateRound.mutate(
@@ -933,7 +938,7 @@ export default function RoundPage() {
   const SUBTABS: { id: SubTab; label: string; icon: typeof Trophy }[] = [
     { id: "scorecard", label: "Scorecard", icon: Grid3X3 },
     { id: "results", label: "Results", icon: Trophy },
-    { id: "setup", label: "Setup", icon: Settings },
+    ...(isObserver ? [] : [{ id: "setup" as const, label: "Setup", icon: Settings }]),
   ];
 
   if (roundLoading) {
@@ -1099,7 +1104,7 @@ export default function RoundPage() {
                       const ph = playingHcps.get(p.id) ?? 0;
                       return (
                         <th key={p.id} className="px-1 py-2 text-center text-xs font-sans font-semibold"
-                          style={{ color: "hsl(42 45% 80%)", ...(identity?.playerId === p.id ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
+                          style={{ color: "hsl(42 45% 80%)", ...(myPlayerId === p.id ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
                           <div style={{ maxWidth: 46, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
                           <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 9 }} title={`Index ${formatHandicap(p.handicap)} · Course HCP ${ch}${ph !== ch ? ` · Playing ${ph}` : ""}`}>
                             {ch}

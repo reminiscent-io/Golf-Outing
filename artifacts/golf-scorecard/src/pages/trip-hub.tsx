@@ -25,6 +25,7 @@ import {
   Users, Calendar, Edit3, Check, X, Share2, Bookmark, BookmarkCheck
 } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
+import { useTripIdentity } from "@/lib/trip-identity";
 import { SignInModal } from "@/components/sign-in-modal";
 import {
   searchCourses,
@@ -55,6 +56,8 @@ export default function TripHubPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("rounds");
   const session = useAuthSession();
+  const identity = useTripIdentity(tripId);
+  const isObserver = identity?.kind === "observer";
   const [signInOpen, setSignInOpen] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
 
@@ -216,6 +219,7 @@ export default function TripHubPage() {
 
   function handleAddPlayer(e: React.FormEvent) {
     e.preventDefault();
+    if (isObserver) return;
     if (!newPlayerName.trim()) return;
     createPlayer.mutate(
       { tripId, data: { name: newPlayerName.trim(), handicap: parseHandicap(newPlayerHcp) } },
@@ -232,6 +236,7 @@ export default function TripHubPage() {
   }
 
   function handleUpdatePlayer(playerId: number) {
+    if (isObserver) return;
     updatePlayer.mutate(
       { tripId, playerId, data: { name: editPlayerName, handicap: parseHandicap(editPlayerHcp) } },
       {
@@ -244,6 +249,7 @@ export default function TripHubPage() {
   }
 
   function handleDeletePlayer(playerId: number) {
+    if (isObserver) return;
     if (!confirm("Remove this player?")) return;
     deletePlayer.mutate(
       { tripId, playerId },
@@ -253,6 +259,7 @@ export default function TripHubPage() {
 
   function handleAddRound(e: React.FormEvent) {
     e.preventDefault();
+    if (isObserver) return;
     const effectiveCourse = newRoundCourse.trim() || selectedCourse?.clubName || "";
     const defaultName = effectiveCourse && newRoundDate
       ? `${effectiveCourse} - ${newRoundDate}`
@@ -295,6 +302,7 @@ export default function TripHubPage() {
 
   function handleDeleteRound(roundId: number, e: React.MouseEvent) {
     e.stopPropagation();
+    if (isObserver) return;
     if (!confirm("Delete this round?")) return;
     deleteRound.mutate(
       { tripId, roundId },
@@ -409,7 +417,7 @@ export default function TripHubPage() {
         {/* ROUNDS TAB */}
         {tab === "rounds" && (
           <div className="space-y-3">
-            {!showAddRound && (
+            {!showAddRound && !isObserver && (
               <button
                 onClick={() => {
                   if (!session) { setSignInOpen(true); return; }
@@ -657,13 +665,15 @@ export default function TripHubPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={e => handleDeleteRound(round.id, e)}
-                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
-                      style={{ color: "hsl(0 45% 45%)" }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {!isObserver && (
+                      <button
+                        onClick={e => handleDeleteRound(round.id, e)}
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
+                        style={{ color: "hsl(0 45% 45%)" }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                     <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
                   </div>
                 </div>
@@ -756,7 +766,7 @@ export default function TripHubPage() {
         {/* PLAYERS TAB */}
         {tab === "players" && (
           <div className="space-y-2">
-            {!showAddPlayer && (
+            {!showAddPlayer && !isObserver && (
               <button
                 onClick={() => setShowAddPlayer(true)}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-sans font-semibold transition-all hover:opacity-90"
@@ -851,18 +861,20 @@ export default function TripHubPage() {
                         <div className="text-xs" style={{ color: "hsl(38 20% 38%)" }}>HCP {formatHandicap(p.handicap)}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => { setEditingPlayerId(p.id); setEditPlayerName(p.name); setEditPlayerHcp(formatHandicap(p.handicap)); }}
-                        className="p-1.5 rounded-lg" style={{ color: "hsl(38 20% 50%)" }}>
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDeletePlayer(p.id)}
-                        className="p-1.5 rounded-lg" style={{ color: "hsl(0 45% 45%)" }}>
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                    {!isObserver && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => { setEditingPlayerId(p.id); setEditPlayerName(p.name); setEditPlayerHcp(formatHandicap(p.handicap)); }}
+                          className="p-1.5 rounded-lg" style={{ color: "hsl(38 20% 50%)" }}>
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlayer(p.id)}
+                          className="p-1.5 rounded-lg" style={{ color: "hsl(0 45% 45%)" }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

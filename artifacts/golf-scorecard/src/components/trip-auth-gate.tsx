@@ -4,7 +4,9 @@ import {
   useCreatePlayer,
   useUpdatePlayer,
   useUpdateMe,
+  useSaveTrip,
   getListPlayersQueryKey,
+  getListMyTripsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTripIdentity, setTripIdentity } from "@/lib/trip-identity";
@@ -40,6 +42,7 @@ export function TripAuthGate({ tripId, children }: Props) {
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
   const updateMe = useUpdateMe();
+  const saveTrip = useSaveTrip();
   const { data: players } = useListPlayers(tripId, {
     query: {
       queryKey: getListPlayersQueryKey(tripId),
@@ -80,7 +83,20 @@ export function TripAuthGate({ tripId, children }: Props) {
         }
       );
     }
-    setTripIdentity(tripId, { playerId: player.id, playerName: player.name });
+    setTripIdentity(tripId, { kind: "player", playerId: player.id, playerName: player.name });
+  }
+
+  function handleJustWatch() {
+    // Auto-bookmark so the trip shows up in /me/trips later. Failure is non-fatal.
+    saveTrip.mutate(
+      { tripId },
+      {
+        onSettled: () => {
+          queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() });
+        },
+      }
+    );
+    setTripIdentity(tripId, { kind: "observer" });
   }
 
   function handleAddSelf(e: React.FormEvent) {
@@ -93,7 +109,7 @@ export function TripAuthGate({ tripId, children }: Props) {
       {
         onSuccess: (player) => {
           queryClient.invalidateQueries({ queryKey: getListPlayersQueryKey(tripId) });
-          setTripIdentity(tripId, { playerId: player.id, playerName: player.name });
+          setTripIdentity(tripId, { kind: "player", playerId: player.id, playerName: player.name });
         },
       }
     );
@@ -151,6 +167,14 @@ export function TripAuthGate({ tripId, children }: Props) {
               style={{ background: "transparent", color: "hsl(38 20% 38%)", border: "1.5px dashed hsl(38 25% 72%)" }}
             >
               I'm not in the list — add me
+            </button>
+            <button
+              type="button"
+              onClick={handleJustWatch}
+              className="w-full mt-2 py-2 font-sans text-xs hover:opacity-80 transition-opacity"
+              style={{ background: "transparent", color: "hsl(38 20% 38%)" }}
+            >
+              Just watching — don't add me as a player
             </button>
           </form>
         )}
