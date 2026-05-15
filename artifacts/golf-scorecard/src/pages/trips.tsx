@@ -255,15 +255,16 @@ export default function TripsPage() {
                       <button
                         onClick={e => handleSaveToggle(trip.id, trip.name, e)}
                         disabled={saveTrip.isPending || unsaveTrip.isPending}
-                        title={isSaved ? "In My Trips — tap to remove" : "Save to My Trips"}
                         aria-label={isSaved ? "Remove from My Trips" : "Save to My Trips"}
-                        className="p-1.5 rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+                        aria-pressed={isSaved}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-2 min-h-[44px] rounded-lg text-xs font-sans font-semibold transition-opacity hover:opacity-85 disabled:opacity-50"
                         style={{
                           background: isSaved ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
                           color: isSaved ? "hsl(38 30% 12%)" : "hsl(42 52% 59%)",
                         }}
                       >
                         {isSaved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                        <span>{isSaved ? "Saved" : "Save"}</span>
                       </button>
                     )}
                     <button
