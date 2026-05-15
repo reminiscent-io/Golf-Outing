@@ -14,6 +14,7 @@ import {
 import { Plus, Flag, Trash2, ChevronRight, Trophy, Bookmark, BookmarkCheck } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import { SignInModal } from "@/components/sign-in-modal";
+import { DeleteTripDialog } from "@/components/delete-trip-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 
@@ -28,6 +29,7 @@ export default function TripsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [tripName, setTripName] = useState("");
   const [signInOpen, setSignInOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   // My-trips data lets us mark each card as already-saved or already-linked
   // via a player record. Lookup is by trip id, value is the `via` field.
@@ -125,12 +127,28 @@ export default function TripsPage() {
     );
   }
 
-  function handleDelete(id: number, e: React.MouseEvent) {
+  function handleDeleteClick(trip: { id: number; name: string }, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm("Delete this trip?")) return;
+    setDeleteTarget(trip);
+  }
+
+  function handleDeleteConfirm(id: number) {
     deleteTrip.mutate(
       { tripId: id },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() }) }
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() });
+          setDeleteTarget(null);
+          toast({ description: "Trip deleted" });
+        },
+        onError: () => {
+          toast({
+            variant: "destructive",
+            description: "Couldn't delete that trip. Try again?",
+          });
+        },
+      }
     );
   }
 
@@ -268,11 +286,12 @@ export default function TripsPage() {
                       </button>
                     )}
                     <button
-                      onClick={e => handleDelete(trip.id, e)}
-                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
-                      style={{ color: "hsl(0 45% 45%)" }}
+                      onClick={e => handleDeleteClick({ id: trip.id, name: trip.name }, e)}
+                      aria-label={`Delete ${trip.name}`}
+                      className="p-2 min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg transition-opacity hover:opacity-100"
+                      style={{ color: "hsl(0 45% 45%)", opacity: 0.55 }}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                     <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
                   </div>
@@ -303,6 +322,13 @@ export default function TripsPage() {
             © Reminiscent Technologies LLC
           </p>
         </div>
+
+        <DeleteTripDialog
+          trip={deleteTarget}
+          pending={deleteTrip.isPending}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleDeleteConfirm}
+        />
       </div>
     </div>
   );
