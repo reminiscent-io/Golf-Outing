@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
 import TripsPage from "@/pages/trips";
 import TripHubPage from "@/pages/trip-hub";
 import RoundPage from "@/pages/round";
@@ -98,7 +99,8 @@ function Router() {
     <>
       <NavBar />
       <Switch>
-        <Route path="/" component={TripsPage} />
+        <Route path="/" component={LandingPage} />
+        <Route path="/trips" component={TripsPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/me/trips" component={MyTripsPage} />
         <Route path="/trips/:tripId" component={GatedTripHub} />
