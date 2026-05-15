@@ -14,11 +14,14 @@ import {
 import { Plus, Flag, Trash2, ChevronRight, Trophy, Bookmark, BookmarkCheck } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import { SignInModal } from "@/components/sign-in-modal";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 export default function TripsPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const session = useAuthSession();
+  const { toast } = useToast();
   const { data: trips, isLoading } = useListTrips();
   const createTrip = useCreateTrip();
   const deleteTrip = useDeleteTrip();
@@ -37,7 +40,7 @@ export default function TripsPage() {
   const saveTrip = useSaveTrip();
   const unsaveTrip = useUnsaveTrip();
 
-  function handleSaveToggle(tripId: number, e: React.MouseEvent) {
+  function handleSaveToggle(tripId: number, tripName: string, e: React.MouseEvent) {
     e.stopPropagation();
     if (!session) {
       setSignInOpen(true);
@@ -45,12 +48,48 @@ export default function TripsPage() {
     }
     const via = myTripsByTripId.get(tripId);
     const isSaved = via === "saved" || via === "both";
-    const onSuccess = () =>
+    const invalidate = () =>
       queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() });
+
     if (isSaved) {
-      unsaveTrip.mutate({ tripId }, { onSuccess });
+      unsaveTrip.mutate(
+        { tripId },
+        {
+          onSuccess: () => {
+            invalidate();
+            toast({ description: `Removed "${tripName}" from My Trips` });
+          },
+          onError: () => {
+            toast({
+              variant: "destructive",
+              description: "Couldn't remove that trip. Try again?",
+            });
+          },
+        }
+      );
     } else {
-      saveTrip.mutate({ tripId }, { onSuccess });
+      saveTrip.mutate(
+        { tripId },
+        {
+          onSuccess: () => {
+            invalidate();
+            toast({
+              description: `Saved "${tripName}" to My Trips`,
+              action: (
+                <ToastAction altText="View My Trips" onClick={() => navigate("/me/trips")}>
+                  View
+                </ToastAction>
+              ),
+            });
+          },
+          onError: () => {
+            toast({
+              variant: "destructive",
+              description: "Couldn't save that trip. Try again?",
+            });
+          },
+        }
+      );
     }
   }
 
@@ -214,7 +253,7 @@ export default function TripsPage() {
                   <div className="flex items-center gap-2">
                     {showSave && (
                       <button
-                        onClick={e => handleSaveToggle(trip.id, e)}
+                        onClick={e => handleSaveToggle(trip.id, trip.name, e)}
                         disabled={saveTrip.isPending || unsaveTrip.isPending}
                         title={isSaved ? "In My Trips — tap to remove" : "Save to My Trips"}
                         aria-label={isSaved ? "Remove from My Trips" : "Save to My Trips"}
