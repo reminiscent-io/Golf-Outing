@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,6 +21,22 @@ export default function TripsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [tripName, setTripName] = useState("");
   const [signInOpen, setSignInOpen] = useState(false);
+
+  // Auto-open the create form when arriving with ?new=1 (e.g. from the empty
+  // state on /me/trips). If the visitor isn't signed in, surface the sign-in
+  // modal instead — the existing onSignedIn handler will then flip showCreate.
+  useEffect(() => {
+    const params = new URLSearchParams(globalThis.location.search);
+    if (params.get("new") !== "1") return;
+    if (session) {
+      setShowCreate(true);
+    } else {
+      setSignInOpen(true);
+    }
+    const url = new URL(globalThis.location.href);
+    url.searchParams.delete("new");
+    globalThis.history.replaceState({}, "", url.toString());
+  }, []);
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
