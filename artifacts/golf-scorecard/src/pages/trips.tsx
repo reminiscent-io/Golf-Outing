@@ -5,9 +5,13 @@ import {
   useListTrips,
   useCreateTrip,
   useDeleteTrip,
+  useListMyTrips,
+  useSaveTrip,
+  useUnsaveTrip,
   getListTripsQueryKey,
+  getListMyTripsQueryKey,
 } from "@workspace/api-client-react";
-import { Plus, Flag, Trash2, ChevronRight, Trophy } from "lucide-react";
+import { Plus, Flag, Trash2, ChevronRight, Trophy, Bookmark, BookmarkCheck } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import { SignInModal } from "@/components/sign-in-modal";
 
@@ -21,6 +25,34 @@ export default function TripsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [tripName, setTripName] = useState("");
   const [signInOpen, setSignInOpen] = useState(false);
+
+  // My-trips data lets us mark each card as already-saved or already-linked
+  // via a player record. Lookup is by trip id, value is the `via` field.
+  const { data: myTrips } = useListMyTrips({
+    query: { queryKey: getListMyTripsQueryKey(), enabled: !!session },
+  });
+  const myTripsByTripId = new Map(
+    (myTrips ?? []).map(item => [item.trip.id, item.via] as const)
+  );
+  const saveTrip = useSaveTrip();
+  const unsaveTrip = useUnsaveTrip();
+
+  function handleSaveToggle(tripId: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!session) {
+      setSignInOpen(true);
+      return;
+    }
+    const via = myTripsByTripId.get(tripId);
+    const isSaved = via === "saved" || via === "both";
+    const onSuccess = () =>
+      queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() });
+    if (isSaved) {
+      unsaveTrip.mutate({ tripId }, { onSuccess });
+    } else {
+      saveTrip.mutate({ tripId }, { onSuccess });
+    }
+  }
 
   // Auto-open the create form when arriving with ?new=1 (e.g. from the empty
   // state on /me/trips). If the visitor isn't signed in, surface the sign-in
@@ -154,38 +186,59 @@ export default function TripsPage() {
           </div>
         ) : trips && trips.length > 0 ? (
           <div className="space-y-3">
-            {trips.map(trip => (
-              <div
-                key={trip.id}
-                onClick={() => navigate(`/trips/${trip.id}`)}
-                className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between group transition-all hover:scale-[1.01]"
-                style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg p-2" style={{ background: "hsl(158 35% 20%)" }}>
-                    <Flag size={16} style={{ color: "hsl(42 52% 59%)" }} />
+            {trips.map(trip => {
+              const via = myTripsByTripId.get(trip.id);
+              const hasPlayer = via === "player" || via === "both";
+              const isSaved = via === "saved" || via === "both";
+              const showSave = !!session && !hasPlayer;
+              return (
+                <div
+                  key={trip.id}
+                  onClick={() => navigate(`/trips/${trip.id}`)}
+                  className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between group transition-all hover:scale-[1.01]"
+                  style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg p-2" style={{ background: "hsl(158 35% 20%)" }}>
+                      <Flag size={16} style={{ color: "hsl(42 52% 59%)" }} />
+                    </div>
+                    <div>
+                      <div className="font-sans font-600 text-sm" style={{ color: "hsl(38 30% 14%)" }}>
+                        {trip.name}
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: "hsl(38 20% 38%)" }}>
+                        {new Date(trip.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-sans font-600 text-sm" style={{ color: "hsl(38 30% 14%)" }}>
-                      {trip.name}
-                    </div>
-                    <div className="text-xs mt-0.5" style={{ color: "hsl(38 20% 38%)" }}>
-                      {new Date(trip.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    {showSave && (
+                      <button
+                        onClick={e => handleSaveToggle(trip.id, e)}
+                        disabled={saveTrip.isPending || unsaveTrip.isPending}
+                        title={isSaved ? "In My Trips — tap to remove" : "Save to My Trips"}
+                        aria-label={isSaved ? "Remove from My Trips" : "Save to My Trips"}
+                        className="p-1.5 rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+                        style={{
+                          background: isSaved ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
+                          color: isSaved ? "hsl(38 30% 12%)" : "hsl(42 52% 59%)",
+                        }}
+                      >
+                        {isSaved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                      </button>
+                    )}
+                    <button
+                      onClick={e => handleDelete(trip.id, e)}
+                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
+                      style={{ color: "hsl(0 45% 45%)" }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={e => handleDelete(trip.id, e)}
-                    className="p-1.5 rounded-lg opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
-                    style={{ color: "hsl(0 45% 45%)" }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                  <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-16">
