@@ -22,41 +22,89 @@ export interface CreateTripBody {
   name: string;
   /** @nullable */
   description?: string | null;
-  /** Plaintext soft gate password. Stored lowercased-compared. Empty string disables the gate. */
-  password?: string;
 }
 
 export interface UpdateTripBody {
   name?: string;
   /** @nullable */
   description?: string | null;
-  password?: string;
 }
 
-export interface AuthenticateTripBody {
-  password: string;
+export interface User {
+  id: number;
+  /** E.164-formatted phone number */
+  phone: string;
+  fullName: string;
+  createdAt: string;
 }
 
-export interface AuthenticateTripResponse {
+export interface RequestOtpBody {
+  /** E.164-formatted phone number */
+  phone: string;
+  /** Optional. Only honored if a brand-new user is created at verify time. */
+  fullName?: string;
+}
+
+export interface RequestOtpResponse {
   ok: boolean;
+  expiresAt: string;
+  isNewUser: boolean;
 }
+
+export interface VerifyOtpBody {
+  phone: string;
+  /**
+   * @minLength 6
+   * @maxLength 6
+   */
+  code: string;
+  /** Required when verifying for a phone number that has no user yet. */
+  fullName?: string;
+}
+
+export interface AuthSession {
+  token: string;
+  expiresAt: string;
+  user: User;
+}
+
+export type UserTripAssociationVia =
+  (typeof UserTripAssociationVia)[keyof typeof UserTripAssociationVia];
+
+export const UserTripAssociationVia = {
+  player: "player",
+  saved: "saved",
+  both: "both",
+} as const;
 
 export interface Player {
   id: number;
   tripId: number;
+  /** @nullable */
+  userId?: number | null;
   name: string;
   handicap: number;
   createdAt: string;
 }
 
+export interface UserTripAssociation {
+  trip: Trip;
+  via: UserTripAssociationVia;
+  players: Player[];
+}
+
 export interface CreatePlayerBody {
   name: string;
   handicap: number;
+  /** @nullable */
+  userId?: number | null;
 }
 
 export interface UpdatePlayerBody {
   name?: string;
   handicap?: number;
+  /** @nullable */
+  userId?: number | null;
 }
 
 /**

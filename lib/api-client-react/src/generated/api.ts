@@ -17,14 +17,15 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
-  AuthenticateTripBody,
-  AuthenticateTripResponse,
+  AuthSession,
   CreatePlayerBody,
   CreateRoundBody,
   CreateTripBody,
   HealthStatus,
   Player,
   PlayerScore,
+  RequestOtpBody,
+  RequestOtpResponse,
   Round,
   RoundGroupAssignments,
   RoundLeaderboard,
@@ -37,6 +38,9 @@ import type {
   UpdateTripBody,
   UpsertScoreBody,
   UpsertScrambleScoreBody,
+  User,
+  UserTripAssociation,
+  VerifyOtpBody,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -208,7 +212,7 @@ export const createTrip = async (
 };
 
 export const getCreateTripMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -249,13 +253,13 @@ export type CreateTripMutationResult = NonNullable<
   Awaited<ReturnType<typeof createTrip>>
 >;
 export type CreateTripMutationBody = BodyType<CreateTripBody>;
-export type CreateTripMutationError = ErrorType<unknown>;
+export type CreateTripMutationError = ErrorType<void>;
 
 /**
  * @summary Create a new golf trip
  */
 export const useCreateTrip = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -523,43 +527,42 @@ export const useDeleteTrip = <
 };
 
 /**
- * @summary Verify a trip's soft-gate password
+ * @summary Request a 6-digit OTP sent via SMS
  */
-export const getAuthenticateTripUrl = (tripId: number) => {
-  return `/api/trips/${tripId}/auth`;
+export const getRequestOtpUrl = () => {
+  return `/api/auth/request-otp`;
 };
 
-export const authenticateTrip = async (
-  tripId: number,
-  authenticateTripBody: AuthenticateTripBody,
+export const requestOtp = async (
+  requestOtpBody: RequestOtpBody,
   options?: RequestInit,
-): Promise<AuthenticateTripResponse> => {
-  return customFetch<AuthenticateTripResponse>(getAuthenticateTripUrl(tripId), {
+): Promise<RequestOtpResponse> => {
+  return customFetch<RequestOtpResponse>(getRequestOtpUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(authenticateTripBody),
+    body: JSON.stringify(requestOtpBody),
   });
 };
 
-export const getAuthenticateTripMutationOptions = <
+export const getRequestOtpMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof authenticateTrip>>,
+    Awaited<ReturnType<typeof requestOtp>>,
     TError,
-    { tripId: number; data: BodyType<AuthenticateTripBody> },
+    { data: BodyType<RequestOtpBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof authenticateTrip>>,
+  Awaited<ReturnType<typeof requestOtp>>,
   TError,
-  { tripId: number; data: BodyType<AuthenticateTripBody> },
+  { data: BodyType<RequestOtpBody> },
   TContext
 > => {
-  const mutationKey = ["authenticateTrip"];
+  const mutationKey = ["requestOtp"];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation &&
       "mutationKey" in options.mutation &&
@@ -569,44 +572,517 @@ export const getAuthenticateTripMutationOptions = <
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof authenticateTrip>>,
-    { tripId: number; data: BodyType<AuthenticateTripBody> }
+    Awaited<ReturnType<typeof requestOtp>>,
+    { data: BodyType<RequestOtpBody> }
   > = (props) => {
-    const { tripId, data } = props ?? {};
+    const { data } = props ?? {};
 
-    return authenticateTrip(tripId, data, requestOptions);
+    return requestOtp(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type AuthenticateTripMutationResult = NonNullable<
-  Awaited<ReturnType<typeof authenticateTrip>>
+export type RequestOtpMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestOtp>>
 >;
-export type AuthenticateTripMutationBody = BodyType<AuthenticateTripBody>;
-export type AuthenticateTripMutationError = ErrorType<void>;
+export type RequestOtpMutationBody = BodyType<RequestOtpBody>;
+export type RequestOtpMutationError = ErrorType<void>;
 
 /**
- * @summary Verify a trip's soft-gate password
+ * @summary Request a 6-digit OTP sent via SMS
  */
-export const useAuthenticateTrip = <
+export const useRequestOtp = <
   TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof authenticateTrip>>,
+    Awaited<ReturnType<typeof requestOtp>>,
     TError,
-    { tripId: number; data: BodyType<AuthenticateTripBody> },
+    { data: BodyType<RequestOtpBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
-  Awaited<ReturnType<typeof authenticateTrip>>,
+  Awaited<ReturnType<typeof requestOtp>>,
   TError,
-  { tripId: number; data: BodyType<AuthenticateTripBody> },
+  { data: BodyType<RequestOtpBody> },
   TContext
 > => {
-  return useMutation(getAuthenticateTripMutationOptions(options));
+  return useMutation(getRequestOtpMutationOptions(options));
+};
+
+/**
+ * @summary Verify a 6-digit OTP and return a 30d JWT
+ */
+export const getVerifyOtpUrl = () => {
+  return `/api/auth/verify-otp`;
+};
+
+export const verifyOtp = async (
+  verifyOtpBody: VerifyOtpBody,
+  options?: RequestInit,
+): Promise<AuthSession> => {
+  return customFetch<AuthSession>(getVerifyOtpUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(verifyOtpBody),
+  });
+};
+
+export const getVerifyOtpMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyOtp>>,
+    TError,
+    { data: BodyType<VerifyOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyOtp>>,
+  TError,
+  { data: BodyType<VerifyOtpBody> },
+  TContext
+> => {
+  const mutationKey = ["verifyOtp"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyOtp>>,
+    { data: BodyType<VerifyOtpBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return verifyOtp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyOtpMutationResult = NonNullable<
+  Awaited<ReturnType<typeof verifyOtp>>
+>;
+export type VerifyOtpMutationBody = BodyType<VerifyOtpBody>;
+export type VerifyOtpMutationError = ErrorType<void>;
+
+/**
+ * @summary Verify a 6-digit OTP and return a 30d JWT
+ */
+export const useVerifyOtp = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyOtp>>,
+    TError,
+    { data: BodyType<VerifyOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyOtp>>,
+  TError,
+  { data: BodyType<VerifyOtpBody> },
+  TContext
+> => {
+  return useMutation(getVerifyOtpMutationOptions(options));
+};
+
+/**
+ * @summary Get the current user from a bearer JWT
+ */
+export const getGetMeUrl = () => {
+  return `/api/auth/me`;
+};
+
+export const getMe = async (options?: RequestInit): Promise<User> => {
+  return customFetch<User>(getGetMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMeQueryKey = () => {
+  return [`/api/auth/me`] as const;
+};
+
+export const getGetMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMe>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMe>>> = ({
+    signal,
+  }) => getMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMeQueryResult = NonNullable<Awaited<ReturnType<typeof getMe>>>;
+export type GetMeQueryError = ErrorType<void>;
+
+/**
+ * @summary Get the current user from a bearer JWT
+ */
+
+export function useGetMe<
+  TData = Awaited<ReturnType<typeof getMe>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Issue a new 30d JWT for the current user
+ */
+export const getRefreshSessionUrl = () => {
+  return `/api/auth/refresh`;
+};
+
+export const refreshSession = async (
+  options?: RequestInit,
+): Promise<AuthSession> => {
+  return customFetch<AuthSession>(getRefreshSessionUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRefreshSessionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshSession>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refreshSession>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["refreshSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refreshSession>>,
+    void
+  > = () => {
+    return refreshSession(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RefreshSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refreshSession>>
+>;
+
+export type RefreshSessionMutationError = ErrorType<void>;
+
+/**
+ * @summary Issue a new 30d JWT for the current user
+ */
+export const useRefreshSession = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshSession>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof refreshSession>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRefreshSessionMutationOptions(options));
+};
+
+/**
+ * @summary List trips associated with the current user (via player link or saved)
+ */
+export const getListMyTripsUrl = () => {
+  return `/api/users/me/trips`;
+};
+
+export const listMyTrips = async (
+  options?: RequestInit,
+): Promise<UserTripAssociation[]> => {
+  return customFetch<UserTripAssociation[]>(getListMyTripsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMyTripsQueryKey = () => {
+  return [`/api/users/me/trips`] as const;
+};
+
+export const getListMyTripsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyTrips>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyTrips>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMyTripsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyTrips>>> = ({
+    signal,
+  }) => listMyTrips({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyTrips>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMyTripsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyTrips>>
+>;
+export type ListMyTripsQueryError = ErrorType<void>;
+
+/**
+ * @summary List trips associated with the current user (via player link or saved)
+ */
+
+export function useListMyTrips<
+  TData = Awaited<ReturnType<typeof listMyTrips>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyTrips>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMyTripsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save (follow) a trip to the current user's account
+ */
+export const getSaveTripUrl = (tripId: number) => {
+  return `/api/users/me/trips/${tripId}`;
+};
+
+export const saveTrip = async (
+  tripId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getSaveTripUrl(tripId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSaveTripMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveTrip>>,
+    TError,
+    { tripId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveTrip>>,
+  TError,
+  { tripId: number },
+  TContext
+> => {
+  const mutationKey = ["saveTrip"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveTrip>>,
+    { tripId: number }
+  > = (props) => {
+    const { tripId } = props ?? {};
+
+    return saveTrip(tripId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveTripMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveTrip>>
+>;
+
+export type SaveTripMutationError = ErrorType<void>;
+
+/**
+ * @summary Save (follow) a trip to the current user's account
+ */
+export const useSaveTrip = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveTrip>>,
+    TError,
+    { tripId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveTrip>>,
+  TError,
+  { tripId: number },
+  TContext
+> => {
+  return useMutation(getSaveTripMutationOptions(options));
+};
+
+/**
+ * @summary Unsave a trip from the current user's account
+ */
+export const getUnsaveTripUrl = (tripId: number) => {
+  return `/api/users/me/trips/${tripId}`;
+};
+
+export const unsaveTrip = async (
+  tripId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getUnsaveTripUrl(tripId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getUnsaveTripMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unsaveTrip>>,
+    TError,
+    { tripId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unsaveTrip>>,
+  TError,
+  { tripId: number },
+  TContext
+> => {
+  const mutationKey = ["unsaveTrip"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unsaveTrip>>,
+    { tripId: number }
+  > = (props) => {
+    const { tripId } = props ?? {};
+
+    return unsaveTrip(tripId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnsaveTripMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unsaveTrip>>
+>;
+
+export type UnsaveTripMutationError = ErrorType<void>;
+
+/**
+ * @summary Unsave a trip from the current user's account
+ */
+export const useUnsaveTrip = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unsaveTrip>>,
+    TError,
+    { tripId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unsaveTrip>>,
+  TError,
+  { tripId: number },
+  TContext
+> => {
+  return useMutation(getUnsaveTripMutationOptions(options));
 };
 
 /**
@@ -1064,7 +1540,7 @@ export const createRound = async (
 };
 
 export const getCreateRoundMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1105,13 +1581,13 @@ export type CreateRoundMutationResult = NonNullable<
   Awaited<ReturnType<typeof createRound>>
 >;
 export type CreateRoundMutationBody = BodyType<CreateRoundBody>;
-export type CreateRoundMutationError = ErrorType<unknown>;
+export type CreateRoundMutationError = ErrorType<void>;
 
 /**
  * @summary Create a round in a trip
  */
 export const useCreateRound = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

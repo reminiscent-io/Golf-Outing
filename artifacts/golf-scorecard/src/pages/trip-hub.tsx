@@ -11,15 +11,21 @@ import {
   useDeletePlayer,
   useCreateRound,
   useDeleteRound,
+  useListMyTrips,
+  useSaveTrip,
+  useUnsaveTrip,
   getGetTripQueryKey,
   getListPlayersQueryKey,
   getListRoundsQueryKey,
   getGetTripLeaderboardQueryKey,
+  getListMyTripsQueryKey,
 } from "@workspace/api-client-react";
 import {
   ArrowLeft, Plus, Trash2, ChevronRight, Trophy, Flag,
-  Users, Calendar, Edit3, Check, X
+  Users, Calendar, Edit3, Check, X, Share2, Bookmark, BookmarkCheck
 } from "lucide-react";
+import { useAuthSession } from "@/lib/auth";
+import { SignInModal } from "@/components/sign-in-modal";
 import {
   searchCourses,
   getCourseDetail,
@@ -48,6 +54,52 @@ export default function TripHubPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("rounds");
+  const session = useAuthSession();
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+
+  // My-trips data lets us show the right Save/Unsave state.
+  const { data: myTrips } = useListMyTrips({
+    query: {
+      queryKey: getListMyTripsQueryKey(),
+      enabled: !!session,
+    },
+  });
+  const myEntry = myTrips?.find(t => t.trip.id === tripId);
+  const hasPlayer = myEntry?.via === "player" || myEntry?.via === "both";
+  const hasSaved = myEntry?.via === "saved" || myEntry?.via === "both";
+
+  const saveTrip = useSaveTrip();
+  const unsaveTrip = useUnsaveTrip();
+
+  function handleShare() {
+    const url = `${window.location.origin}${window.location.pathname.split("/trips/")[0] || ""}/trips/${tripId}`;
+    if (typeof navigator.share === "function") {
+      void navigator.share({ url, text: "Join my golf trip", title: "Golf Outing" }).catch(() => {});
+      return;
+    }
+    try {
+      void navigator.clipboard.writeText(url);
+      setShareToast("Link copied");
+      setTimeout(() => setShareToast(null), 2000);
+    } catch {
+      setShareToast(url);
+      setTimeout(() => setShareToast(null), 4000);
+    }
+  }
+
+  function handleSaveToggle() {
+    if (!session) { setSignInOpen(true); return; }
+    if (hasSaved) {
+      unsaveTrip.mutate({ tripId }, {
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() }),
+      });
+    } else {
+      saveTrip.mutate({ tripId }, {
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() }),
+      });
+    }
+  }
 
   const { data: trip, isLoading: tripLoading } = useGetTrip(tripId, {
     query: { queryKey: getGetTripQueryKey(tripId), enabled: !!tripId },
@@ -277,9 +329,37 @@ export default function TripHubPage() {
             <ArrowLeft size={14} />
             All Trips
           </button>
-          <h1 className="text-2xl font-serif" style={{ color: "hsl(42 52% 59%)" }}>
-            {trip?.name}
-          </h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl font-serif" style={{ color: "hsl(42 52% 59%)" }}>
+              {trip?.name}
+            </h1>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleShare}
+                title="Share trip link"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-sans hover:opacity-80"
+                style={{ background: "hsl(158 35% 20%)", color: "hsl(42 52% 59%)" }}
+              >
+                <Share2 size={12} />
+                Share
+              </button>
+              {session && !hasPlayer && (
+                <button
+                  onClick={handleSaveToggle}
+                  disabled={saveTrip.isPending || unsaveTrip.isPending}
+                  title={hasSaved ? "Saved to your account" : "Save to your account"}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-sans hover:opacity-80"
+                  style={{
+                    background: hasSaved ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
+                    color: hasSaved ? "hsl(38 30% 12%)" : "hsl(42 52% 59%)",
+                  }}
+                >
+                  {hasSaved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+                  {hasSaved ? "Saved" : "Save"}
+                </button>
+              )}
+            </div>
+          </div>
           <div className="flex items-center gap-3 mt-1 text-xs font-sans" style={{ color: "hsl(42 20% 55%)" }}>
             <span>{players?.length ?? 0} players</span>
             <span>·</span>
@@ -288,6 +368,19 @@ export default function TripHubPage() {
           <div className="mt-2">
             <SignedInAs tripId={tripId} />
           </div>
+          {shareToast && (
+            <div
+              className="mt-2 inline-block px-3 py-1 rounded text-xs font-sans"
+              style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
+            >
+              {shareToast}
+            </div>
+          )}
+          <SignInModal
+            open={signInOpen}
+            onClose={() => setSignInOpen(false)}
+            onSignedIn={() => setSignInOpen(false)}
+          />
         </div>
       </div>
 
@@ -318,7 +411,10 @@ export default function TripHubPage() {
           <div className="space-y-3">
             {!showAddRound && (
               <button
-                onClick={() => setShowAddRound(true)}
+                onClick={() => {
+                  if (!session) { setSignInOpen(true); return; }
+                  setShowAddRound(true);
+                }}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-sans font-semibold transition-all hover:opacity-90"
                 style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
               >

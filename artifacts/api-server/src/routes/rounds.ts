@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, roundsTable } from "@workspace/db";
+import { db, roundsTable, playersTable, userTripFollowsTable } from "@workspace/db";
 import { ser } from "../lib/serialize";
 import {
   CreateRoundBody,
@@ -14,6 +14,7 @@ import {
   UpdateRoundResponse,
   DeleteRoundParams,
 } from "@workspace/api-zod";
+import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
 
 const DEFAULT_PAR = Array(18).fill(4);
 const DEFAULT_HCP = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -40,7 +41,11 @@ router.get("/trips/:tripId/rounds", async (req, res): Promise<void> => {
   res.json(ListRoundsResponse.parse(ser(rounds)));
 });
 
-router.post("/trips/:tripId/rounds", async (req, res): Promise<void> => {
+router.post("/trips/:tripId/rounds", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const params = CreateRoundParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -51,6 +56,30 @@ router.post("/trips/:tripId/rounds", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  // Membership check: caller must have a player in the trip OR a saved-trip row.
+  const [playerRow] = await db
+    .select()
+    .from(playersTable)
+    .where(and(eq(playersTable.tripId, params.data.tripId), eq(playersTable.userId, req.user.id)))
+    .limit(1);
+  let hasMembership = !!playerRow;
+  if (!hasMembership) {
+    const [followRow] = await db
+      .select()
+      .from(userTripFollowsTable)
+      .where(and(
+        eq(userTripFollowsTable.tripId, params.data.tripId),
+        eq(userTripFollowsTable.userId, req.user.id),
+      ))
+      .limit(1);
+    hasMembership = !!followRow;
+  }
+  if (!hasMembership) {
+    res.status(403).json({ error: "Not a member of this trip" });
+    return;
+  }
+
   const [round] = await db.insert(roundsTable).values({
     tripId: params.data.tripId,
     name: parsed.data.name,
