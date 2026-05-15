@@ -4,6 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import {
   RequestOtpBody,
   VerifyOtpBody,
+  UpdateMeBody,
 } from "@workspace/api-zod";
 import { ser } from "../lib/serialize";
 import { logger } from "../lib/logger";
@@ -135,6 +136,41 @@ router.get("/auth/me", requireAuth, async (req: AuthedRequest, res): Promise<voi
     return;
   }
   res.json(ser(user));
+});
+
+router.patch("/auth/me", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const parsed = UpdateMeBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const patch: { handicap?: number | null } = {};
+  if (parsed.data.handicap !== undefined) {
+    patch.handicap = parsed.data.handicap;
+  }
+  if (Object.keys(patch).length === 0) {
+    const [current] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+    if (!current) {
+      res.status(401).json({ error: "User not found" });
+      return;
+    }
+    res.json(ser(current));
+    return;
+  }
+  const [updated] = await db
+    .update(usersTable)
+    .set(patch)
+    .where(eq(usersTable.id, req.user.id))
+    .returning();
+  if (!updated) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
+  res.json(ser(updated));
 });
 
 router.post("/auth/refresh", requireAuth, async (req: AuthedRequest, res): Promise<void> => {

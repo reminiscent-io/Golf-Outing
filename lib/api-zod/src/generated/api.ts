@@ -119,6 +119,12 @@ export const VerifyOtpResponse = zod.object({
     id: zod.number(),
     phone: zod.string().describe("E.164-formatted phone number"),
     fullName: zod.string(),
+    handicap: zod
+      .number()
+      .nullish()
+      .describe(
+        "User's current handicap index; autofilled when joining new trips.",
+      ),
     createdAt: zod.string(),
   }),
 });
@@ -130,6 +136,39 @@ export const GetMeResponse = zod.object({
   id: zod.number(),
   phone: zod.string().describe("E.164-formatted phone number"),
   fullName: zod.string(),
+  handicap: zod
+    .number()
+    .nullish()
+    .describe(
+      "User's current handicap index; autofilled when joining new trips.",
+    ),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Update the current user's profile (handicap)
+ */
+export const updateMeBodyHandicapMin = 0;
+export const updateMeBodyHandicapMax = 54;
+
+export const UpdateMeBody = zod.object({
+  handicap: zod
+    .number()
+    .min(updateMeBodyHandicapMin)
+    .max(updateMeBodyHandicapMax)
+    .nullish(),
+});
+
+export const UpdateMeResponse = zod.object({
+  id: zod.number(),
+  phone: zod.string().describe("E.164-formatted phone number"),
+  fullName: zod.string(),
+  handicap: zod
+    .number()
+    .nullish()
+    .describe(
+      "User's current handicap index; autofilled when joining new trips.",
+    ),
   createdAt: zod.string(),
 });
 
@@ -143,6 +182,12 @@ export const RefreshSessionResponse = zod.object({
     id: zod.number(),
     phone: zod.string().describe("E.164-formatted phone number"),
     fullName: zod.string(),
+    handicap: zod
+      .number()
+      .nullish()
+      .describe(
+        "User's current handicap index; autofilled when joining new trips.",
+      ),
     createdAt: zod.string(),
   }),
 });

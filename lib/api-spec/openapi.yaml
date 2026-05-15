@@ -194,6 +194,27 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           description: Unauthorized
+    patch:
+      operationId: updateMe
+      tags: [auth]
+      summary: Update the current user's profile (handicap)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMeBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
 
   /auth/refresh:
     post:
@@ -750,6 +771,9 @@ components:
           description: E.164-formatted phone number
         fullName:
           type: string
+        handicap:
+          type: ["number", "null"]
+          description: User's current handicap index; autofilled when joining new trips.
         createdAt:
           type: string
       required:
@@ -757,6 +781,14 @@ components:
         - phone
         - fullName
         - createdAt
+
+    UpdateMeBody:
+      type: object
+      properties:
+        handicap:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 54
 
     RequestOtpBody:
       type: object

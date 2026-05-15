@@ -35,7 +35,21 @@ export interface User {
   /** E.164-formatted phone number */
   phone: string;
   fullName: string;
+  /**
+   * User's current handicap index; autofilled when joining new trips.
+   * @nullable
+   */
+  handicap?: number | null;
   createdAt: string;
+}
+
+export interface UpdateMeBody {
+  /**
+   * @minimum 0
+   * @maximum 54
+   * @nullable
+   */
+  handicap?: number | null;
 }
 
 export interface RequestOtpBody {

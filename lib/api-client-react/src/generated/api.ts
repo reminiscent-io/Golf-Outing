@@ -33,6 +33,7 @@ import type {
   ScrambleTeamScore,
   Trip,
   TripLeaderboard,
+  UpdateMeBody,
   UpdatePlayerBody,
   UpdateRoundBody,
   UpdateTripBody,
@@ -760,6 +761,92 @@ export function useGetMe<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Update the current user's profile (handicap)
+ */
+export const getUpdateMeUrl = () => {
+  return `/api/auth/me`;
+};
+
+export const updateMe = async (
+  updateMeBody: UpdateMeBody,
+  options?: RequestInit,
+): Promise<User> => {
+  return customFetch<User>(getUpdateMeUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateMeBody),
+  });
+};
+
+export const getUpdateMeMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMe>>,
+    TError,
+    { data: BodyType<UpdateMeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMe>>,
+  TError,
+  { data: BodyType<UpdateMeBody> },
+  TContext
+> => {
+  const mutationKey = ["updateMe"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMe>>,
+    { data: BodyType<UpdateMeBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateMe(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMe>>
+>;
+export type UpdateMeMutationBody = BodyType<UpdateMeBody>;
+export type UpdateMeMutationError = ErrorType<void>;
+
+/**
+ * @summary Update the current user's profile (handicap)
+ */
+export const useUpdateMe = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMe>>,
+    TError,
+    { data: BodyType<UpdateMeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMe>>,
+  TError,
+  { data: BodyType<UpdateMeBody> },
+  TContext
+> => {
+  return useMutation(getUpdateMeMutationOptions(options));
+};
 
 /**
  * @summary Issue a new 30d JWT for the current user

@@ -5,8 +5,15 @@ export type AuthUser = {
   id: number;
   phone: string;
   fullName: string;
+  handicap?: number | null;
   createdAt: string;
 };
+
+export function updateSessionUser(patch: Partial<AuthUser>): void {
+  const current = readSession();
+  if (!current) return;
+  setSession({ ...current, user: { ...current.user, ...patch } });
+}
 
 export type AuthSession = {
   token: string;
