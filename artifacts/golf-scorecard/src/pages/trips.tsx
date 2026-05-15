@@ -14,17 +14,22 @@ import {
 import { Plus, Flag, Trash2, ChevronRight, Trophy, Bookmark, BookmarkCheck } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import { SignInModal } from "@/components/sign-in-modal";
+import { DeleteTripDialog } from "@/components/delete-trip-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 export default function TripsPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const session = useAuthSession();
+  const { toast } = useToast();
   const { data: trips, isLoading } = useListTrips();
   const createTrip = useCreateTrip();
   const deleteTrip = useDeleteTrip();
   const [showCreate, setShowCreate] = useState(false);
   const [tripName, setTripName] = useState("");
   const [signInOpen, setSignInOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   // My-trips data lets us mark each card as already-saved or already-linked
   // via a player record. Lookup is by trip id, value is the `via` field.
@@ -37,7 +42,7 @@ export default function TripsPage() {
   const saveTrip = useSaveTrip();
   const unsaveTrip = useUnsaveTrip();
 
-  function handleSaveToggle(tripId: number, e: React.MouseEvent) {
+  function handleSaveToggle(tripId: number, tripName: string, e: React.MouseEvent) {
     e.stopPropagation();
     if (!session) {
       setSignInOpen(true);
@@ -45,12 +50,48 @@ export default function TripsPage() {
     }
     const via = myTripsByTripId.get(tripId);
     const isSaved = via === "saved" || via === "both";
-    const onSuccess = () =>
+    const invalidate = () =>
       queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() });
+
     if (isSaved) {
-      unsaveTrip.mutate({ tripId }, { onSuccess });
+      unsaveTrip.mutate(
+        { tripId },
+        {
+          onSuccess: () => {
+            invalidate();
+            toast({ description: `Removed "${tripName}" from My Trips` });
+          },
+          onError: () => {
+            toast({
+              variant: "destructive",
+              description: "Couldn't remove that trip. Try again?",
+            });
+          },
+        }
+      );
     } else {
-      saveTrip.mutate({ tripId }, { onSuccess });
+      saveTrip.mutate(
+        { tripId },
+        {
+          onSuccess: () => {
+            invalidate();
+            toast({
+              description: `Saved "${tripName}" to My Trips`,
+              action: (
+                <ToastAction altText="View My Trips" onClick={() => navigate("/me/trips")}>
+                  View
+                </ToastAction>
+              ),
+            });
+          },
+          onError: () => {
+            toast({
+              variant: "destructive",
+              description: "Couldn't save that trip. Try again?",
+            });
+          },
+        }
+      );
     }
   }
 
@@ -86,12 +127,28 @@ export default function TripsPage() {
     );
   }
 
-  function handleDelete(id: number, e: React.MouseEvent) {
+  function handleDeleteClick(trip: { id: number; name: string }, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm("Delete this trip?")) return;
+    setDeleteTarget(trip);
+  }
+
+  function handleDeleteConfirm(id: number) {
     deleteTrip.mutate(
       { tripId: id },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() }) }
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() });
+          setDeleteTarget(null);
+          toast({ description: "Trip deleted" });
+        },
+        onError: () => {
+          toast({
+            variant: "destructive",
+            description: "Couldn't delete that trip. Try again?",
+          });
+        },
+      }
     );
   }
 
@@ -123,7 +180,7 @@ export default function TripsPage() {
         {!showCreate && (
           <button
             onClick={handleNewTripClick}
-            className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-sans font-600 text-sm mb-6 transition-all hover:opacity-90 active:scale-98"
+            className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-sans font-semibold text-sm mb-6 transition-all hover:opacity-90 active:scale-98"
             style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
           >
             <Plus size={18} />
@@ -134,7 +191,7 @@ export default function TripsPage() {
         {/* Create form — only visible when signed in */}
         {showCreate && session && (
           <form onSubmit={handleCreate} className="mb-6 rounded-xl p-4" style={{ background: "hsl(42 45% 91%)" }}>
-            <label className="block text-xs font-sans font-600 uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>
+            <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>
               Trip Name
             </label>
             <input
@@ -153,7 +210,7 @@ export default function TripsPage() {
               <button
                 type="submit"
                 disabled={createTrip.isPending}
-                className="flex-1 py-2.5 rounded-lg font-sans font-600 text-sm transition-all hover:opacity-90"
+                className="flex-1 py-2.5 rounded-lg font-sans font-semibold text-sm transition-all hover:opacity-90"
                 style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
               >
                 {createTrip.isPending ? "Creating..." : "Create Trip"}
@@ -195,7 +252,7 @@ export default function TripsPage() {
                 <div
                   key={trip.id}
                   onClick={() => navigate(`/trips/${trip.id}`)}
-                  className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between group transition-all hover:scale-[1.01]"
+                  className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between transition-all hover:scale-[1.01]"
                   style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}
                 >
                   <div className="flex items-center gap-3">
@@ -203,7 +260,7 @@ export default function TripsPage() {
                       <Flag size={16} style={{ color: "hsl(42 52% 59%)" }} />
                     </div>
                     <div>
-                      <div className="font-sans font-600 text-sm" style={{ color: "hsl(38 30% 14%)" }}>
+                      <div className="font-sans font-semibold text-sm" style={{ color: "hsl(38 30% 14%)" }}>
                         {trip.name}
                       </div>
                       <div className="text-xs mt-0.5" style={{ color: "hsl(38 20% 38%)" }}>
@@ -214,25 +271,27 @@ export default function TripsPage() {
                   <div className="flex items-center gap-2">
                     {showSave && (
                       <button
-                        onClick={e => handleSaveToggle(trip.id, e)}
+                        onClick={e => handleSaveToggle(trip.id, trip.name, e)}
                         disabled={saveTrip.isPending || unsaveTrip.isPending}
-                        title={isSaved ? "In My Trips — tap to remove" : "Save to My Trips"}
                         aria-label={isSaved ? "Remove from My Trips" : "Save to My Trips"}
-                        className="p-1.5 rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+                        aria-pressed={isSaved}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-2 min-h-[44px] rounded-lg text-xs font-sans font-semibold transition-opacity hover:opacity-85 disabled:opacity-50"
                         style={{
                           background: isSaved ? "hsl(42 52% 59%)" : "hsl(158 35% 20%)",
                           color: isSaved ? "hsl(38 30% 12%)" : "hsl(42 52% 59%)",
                         }}
                       >
                         {isSaved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                        <span>{isSaved ? "Saved" : "Save"}</span>
                       </button>
                     )}
                     <button
-                      onClick={e => handleDelete(trip.id, e)}
-                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
-                      style={{ color: "hsl(0 45% 45%)" }}
+                      onClick={e => handleDeleteClick({ id: trip.id, name: trip.name }, e)}
+                      aria-label={`Delete ${trip.name}`}
+                      className="p-2 min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg transition-opacity opacity-70 hover:opacity-100"
+                      style={{ color: "hsl(0 50% 35%)" }}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                     <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
                   </div>
@@ -263,6 +322,13 @@ export default function TripsPage() {
             © Reminiscent Technologies LLC
           </p>
         </div>
+
+        <DeleteTripDialog
+          trip={deleteTarget}
+          pending={deleteTrip.isPending}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleDeleteConfirm}
+        />
       </div>
     </div>
   );

@@ -283,7 +283,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-dvh" style={{ background: FOREST_BG, color: CREAM_FG }}>
+    <div className="min-h-screen" style={{ background: FOREST_BG, color: CREAM_FG }}>
       <style>{`
         @keyframes society-rise {
           from { opacity: 0; transform: translateY(8px); }
@@ -318,7 +318,7 @@ export default function LandingPage() {
 
         <div className="relative max-w-lg mx-auto px-6 pt-10 pb-14">
           <div className="rise" style={{ animationDelay: "60ms" }}>
-            <Eyebrow>The Society · Est. on the first tee</Eyebrow>
+            <Eyebrow>Track your game · Track your progress</Eyebrow>
           </div>
 
           <h1
@@ -332,7 +332,7 @@ export default function LandingPage() {
           >
             Live scoring{" "}
             <span style={{ color: BRASS, fontStyle: "italic", fontWeight: 500 }}>
-              for your golf trip.
+              for your golf trip
             </span>
           </h1>
 
@@ -341,8 +341,7 @@ export default function LandingPage() {
             style={{ color: BRASS_MUTED, lineHeight: 1.55, animationDelay: "300ms" }}
           >
             Stableford. Skins. Nassau. Net Stroke. Everyone in the group sees the leaderboard
-            update as fast as you tap a score — built for the post-round texts, not the tour.
-          </p>
+            update as fast as you tap a score. Built for solo-play or group outings     </p>
 
           <div
             className="mt-8 flex flex-col items-start gap-3 rise"
