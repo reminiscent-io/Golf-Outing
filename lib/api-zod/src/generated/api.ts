@@ -32,12 +32,6 @@ export const ListTripsResponse = zod.array(ListTripsResponseItem);
 export const CreateTripBody = zod.object({
   name: zod.string(),
   description: zod.string().nullish(),
-  password: zod
-    .string()
-    .optional()
-    .describe(
-      "Plaintext soft gate password. Stored lowercased-compared. Empty string disables the gate.",
-    ),
 });
 
 /**
@@ -65,7 +59,6 @@ export const UpdateTripParams = zod.object({
 export const UpdateTripBody = zod.object({
   name: zod.string().optional(),
   description: zod.string().nullish(),
-  password: zod.string().optional(),
 });
 
 export const UpdateTripResponse = zod.object({
@@ -84,18 +77,113 @@ export const DeleteTripParams = zod.object({
 });
 
 /**
- * @summary Verify a trip's soft-gate password
+ * @summary Request a 6-digit OTP sent via SMS
  */
-export const AuthenticateTripParams = zod.object({
+export const RequestOtpBody = zod.object({
+  phone: zod.string().describe("E.164-formatted phone number"),
+  fullName: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional. Only honored if a brand-new user is created at verify time.",
+    ),
+});
+
+export const RequestOtpResponse = zod.object({
+  ok: zod.boolean(),
+  expiresAt: zod.string(),
+  isNewUser: zod.boolean(),
+});
+
+/**
+ * @summary Verify a 6-digit OTP and return a 30d JWT
+ */
+export const verifyOtpBodyCodeMin = 6;
+export const verifyOtpBodyCodeMax = 6;
+
+export const VerifyOtpBody = zod.object({
+  phone: zod.string(),
+  code: zod.string().min(verifyOtpBodyCodeMin).max(verifyOtpBodyCodeMax),
+  fullName: zod
+    .string()
+    .optional()
+    .describe(
+      "Required when verifying for a phone number that has no user yet.",
+    ),
+});
+
+export const VerifyOtpResponse = zod.object({
+  token: zod.string(),
+  expiresAt: zod.string(),
+  user: zod.object({
+    id: zod.number(),
+    phone: zod.string().describe("E.164-formatted phone number"),
+    fullName: zod.string(),
+    createdAt: zod.string(),
+  }),
+});
+
+/**
+ * @summary Get the current user from a bearer JWT
+ */
+export const GetMeResponse = zod.object({
+  id: zod.number(),
+  phone: zod.string().describe("E.164-formatted phone number"),
+  fullName: zod.string(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Issue a new 30d JWT for the current user
+ */
+export const RefreshSessionResponse = zod.object({
+  token: zod.string(),
+  expiresAt: zod.string(),
+  user: zod.object({
+    id: zod.number(),
+    phone: zod.string().describe("E.164-formatted phone number"),
+    fullName: zod.string(),
+    createdAt: zod.string(),
+  }),
+});
+
+/**
+ * @summary List trips associated with the current user (via player link or saved)
+ */
+export const ListMyTripsResponseItem = zod.object({
+  trip: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    description: zod.string().nullish(),
+    createdAt: zod.string(),
+    updatedAt: zod.string(),
+  }),
+  via: zod.enum(["player", "saved", "both"]),
+  players: zod.array(
+    zod.object({
+      id: zod.number(),
+      tripId: zod.number(),
+      userId: zod.number().nullish(),
+      name: zod.string(),
+      handicap: zod.number(),
+      createdAt: zod.string(),
+    }),
+  ),
+});
+export const ListMyTripsResponse = zod.array(ListMyTripsResponseItem);
+
+/**
+ * @summary Save (follow) a trip to the current user's account
+ */
+export const SaveTripParams = zod.object({
   tripId: zod.coerce.number(),
 });
 
-export const AuthenticateTripBody = zod.object({
-  password: zod.string(),
-});
-
-export const AuthenticateTripResponse = zod.object({
-  ok: zod.boolean(),
+/**
+ * @summary Unsave a trip from the current user's account
+ */
+export const UnsaveTripParams = zod.object({
+  tripId: zod.coerce.number(),
 });
 
 /**
@@ -108,6 +196,7 @@ export const ListPlayersParams = zod.object({
 export const ListPlayersResponseItem = zod.object({
   id: zod.number(),
   tripId: zod.number(),
+  userId: zod.number().nullish(),
   name: zod.string(),
   handicap: zod.number(),
   createdAt: zod.string(),
@@ -124,6 +213,7 @@ export const CreatePlayerParams = zod.object({
 export const CreatePlayerBody = zod.object({
   name: zod.string(),
   handicap: zod.number(),
+  userId: zod.number().nullish(),
 });
 
 /**
@@ -137,11 +227,13 @@ export const UpdatePlayerParams = zod.object({
 export const UpdatePlayerBody = zod.object({
   name: zod.string().optional(),
   handicap: zod.number().optional(),
+  userId: zod.number().nullish(),
 });
 
 export const UpdatePlayerResponse = zod.object({
   id: zod.number(),
   tripId: zod.number(),
+  userId: zod.number().nullish(),
   name: zod.string(),
   handicap: zod.number(),
   createdAt: zod.string(),

@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Phone+OTP authentication
+  - name: users
+    description: Current user account operations
   - name: trips
     description: Golf trip operations
   - name: players
@@ -55,6 +59,8 @@ paths:
       operationId: createTrip
       tags: [trips]
       summary: Create a new golf trip
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -68,6 +74,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Trip"
+        "401":
+          description: Unauthorized
 
   /trips/{tripId}:
     get:
@@ -126,34 +134,140 @@ paths:
         "204":
           description: Deleted
 
-  /trips/{tripId}/auth:
+  /auth/request-otp:
     post:
-      operationId: authenticateTrip
-      tags: [trips]
-      summary: Verify a trip's soft-gate password
+      operationId: requestOtp
+      tags: [auth]
+      summary: Request a 6-digit OTP sent via SMS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestOtpBody"
+      responses:
+        "200":
+          description: OTP issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestOtpResponse"
+        "429":
+          description: Rate limited
+
+  /auth/verify-otp:
+    post:
+      operationId: verifyOtp
+      tags: [auth]
+      summary: Verify a 6-digit OTP and return a 30d JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOtpBody"
+      responses:
+        "200":
+          description: Verified; token issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Bad code or missing full name for new user
+        "401":
+          description: OTP not valid
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get the current user from a bearer JWT
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  /auth/refresh:
+    post:
+      operationId: refreshSession
+      tags: [auth]
+      summary: Issue a new 30d JWT for the current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Unauthorized
+
+  /users/me/trips:
+    get:
+      operationId: listMyTrips
+      tags: [users]
+      summary: List trips associated with the current user (via player link or saved)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of user-trip associations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserTripAssociation"
+        "401":
+          description: Unauthorized
+
+  /users/me/trips/{tripId}:
+    post:
+      operationId: saveTrip
+      tags: [users]
+      summary: Save (follow) a trip to the current user's account
+      security:
+        - bearerAuth: []
       parameters:
         - name: tripId
           in: path
           required: true
           schema:
             type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AuthenticateTripBody"
       responses:
-        "200":
-          description: Password accepted (or trip has no password set)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthenticateTripResponse"
+        "204":
+          description: Saved
         "401":
-          description: Password rejected
+          description: Unauthorized
         "404":
           description: Trip not found
+    delete:
+      operationId: unsaveTrip
+      tags: [users]
+      summary: Unsave a trip from the current user's account
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+        "401":
+          description: Unauthorized
 
   /trips/{tripId}/players:
     get:
@@ -271,6 +385,8 @@ paths:
       operationId: createRound
       tags: [rounds]
       summary: Create a round in a trip
+      security:
+        - bearerAuth: []
       parameters:
         - name: tripId
           in: path
@@ -290,6 +406,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Round"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Caller is not a player or follower of this trip
 
   /trips/{tripId}/rounds/{roundId}:
     get:
@@ -569,6 +689,11 @@ paths:
                 $ref: "#/components/schemas/TripLeaderboard"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     HealthStatus:
       type: object
@@ -604,9 +729,6 @@ components:
           type: string
         description:
           type: ["string", "null"]
-        password:
-          type: string
-          description: Plaintext soft gate password. Stored lowercased-compared. Empty string disables the gate.
       required:
         - name
 
@@ -617,24 +739,97 @@ components:
           type: string
         description:
           type: ["string", "null"]
-        password:
-          type: string
 
-    AuthenticateTripBody:
+    User:
       type: object
       properties:
-        password:
+        id:
+          type: integer
+        phone:
+          type: string
+          description: E.164-formatted phone number
+        fullName:
+          type: string
+        createdAt:
           type: string
       required:
-        - password
+        - id
+        - phone
+        - fullName
+        - createdAt
 
-    AuthenticateTripResponse:
+    RequestOtpBody:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: E.164-formatted phone number
+        fullName:
+          type: string
+          description: Optional. Only honored if a brand-new user is created at verify time.
+      required:
+        - phone
+
+    RequestOtpResponse:
       type: object
       properties:
         ok:
           type: boolean
+        expiresAt:
+          type: string
+        isNewUser:
+          type: boolean
       required:
         - ok
+        - expiresAt
+        - isNewUser
+
+    VerifyOtpBody:
+      type: object
+      properties:
+        phone:
+          type: string
+        code:
+          type: string
+          minLength: 6
+          maxLength: 6
+        fullName:
+          type: string
+          description: Required when verifying for a phone number that has no user yet.
+      required:
+        - phone
+        - code
+
+    AuthSession:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresAt:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - expiresAt
+        - user
+
+    UserTripAssociation:
+      type: object
+      properties:
+        trip:
+          $ref: "#/components/schemas/Trip"
+        via:
+          type: string
+          enum: [player, saved, both]
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/Player"
+      required:
+        - trip
+        - via
+        - players
 
     Player:
       type: object
@@ -643,6 +838,8 @@ components:
           type: integer
         tripId:
           type: integer
+        userId:
+          type: ["integer", "null"]
         name:
           type: string
         handicap:
@@ -663,6 +860,8 @@ components:
           type: string
         handicap:
           type: number
+        userId:
+          type: ["integer", "null"]
       required:
         - name
         - handicap
@@ -674,6 +873,8 @@ components:
           type: string
         handicap:
           type: number
+        userId:
+          type: ["integer", "null"]
 
     Round:
       type: object

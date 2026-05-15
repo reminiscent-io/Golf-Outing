@@ -8,28 +8,30 @@ import {
   getListTripsQueryKey,
 } from "@workspace/api-client-react";
 import { Plus, Flag, Trash2, ChevronRight, Trophy } from "lucide-react";
+import { useAuthSession } from "@/lib/auth";
+import { SignInModal } from "@/components/sign-in-modal";
 
 export default function TripsPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
+  const session = useAuthSession();
   const { data: trips, isLoading } = useListTrips();
   const createTrip = useCreateTrip();
   const deleteTrip = useDeleteTrip();
   const [showCreate, setShowCreate] = useState(false);
   const [tripName, setTripName] = useState("");
-  const [tripPassword, setTripPassword] = useState("");
+  const [signInOpen, setSignInOpen] = useState(false);
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!tripName.trim()) return;
     createTrip.mutate(
-      { data: { name: tripName.trim(), password: tripPassword } },
+      { data: { name: tripName.trim() } },
       {
         onSuccess: (trip) => {
           queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() });
           setShowCreate(false);
           setTripName("");
-          setTripPassword("");
           navigate(`/trips/${trip.id}`);
         },
       }
@@ -43,6 +45,14 @@ export default function TripsPage() {
       { tripId: id },
       { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() }) }
     );
+  }
+
+  function handleNewTripClick() {
+    if (!session) {
+      setSignInOpen(true);
+      return;
+    }
+    setShowCreate(true);
   }
 
   return (
@@ -64,7 +74,7 @@ export default function TripsPage() {
         {/* Create button */}
         {!showCreate && (
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={handleNewTripClick}
             className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-sans font-600 text-sm mb-6 transition-all hover:opacity-90 active:scale-98"
             style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
           >
@@ -73,8 +83,8 @@ export default function TripsPage() {
           </button>
         )}
 
-        {/* Create form */}
-        {showCreate && (
+        {/* Create form — only visible when signed in */}
+        {showCreate && session && (
           <form onSubmit={handleCreate} className="mb-6 rounded-xl p-4" style={{ background: "hsl(42 45% 91%)" }}>
             <label className="block text-xs font-sans font-600 uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>
               Trip Name
@@ -84,21 +94,6 @@ export default function TripsPage() {
               value={tripName}
               onChange={e => setTripName(e.target.value)}
               placeholder="The Family Cup 2025..."
-              className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
-              style={{
-                background: "white",
-                color: "hsl(38 30% 14%)",
-                border: "1.5px solid hsl(38 25% 72%)",
-              }}
-            />
-            <label className="block text-xs font-sans font-600 uppercase tracking-widest mb-2 mt-3" style={{ color: "hsl(38 20% 38%)" }}>
-              Password (optional)
-            </label>
-            <input
-              type="password"
-              value={tripPassword}
-              onChange={e => setTripPassword(e.target.value)}
-              placeholder="leave blank for open access"
               className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
               style={{
                 background: "white",
@@ -126,6 +121,13 @@ export default function TripsPage() {
             </div>
           </form>
         )}
+
+        <SignInModal
+          open={signInOpen}
+          onClose={() => setSignInOpen(false)}
+          onSignedIn={() => { setSignInOpen(false); setShowCreate(true); }}
+          title="Sign in to create a trip"
+        />
 
         {/* Trips list */}
         {isLoading ? (
