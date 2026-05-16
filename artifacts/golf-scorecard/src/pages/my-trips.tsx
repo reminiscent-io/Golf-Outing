@@ -32,10 +32,28 @@ function MyTripsContent({ session }: { session: AuthSession }) {
             <ArrowLeft size={14} />
             Home
           </button>
-          <h1 className="text-3xl font-serif" style={{ color: BRASS }}>My Trips</h1>
-          <p className="text-sm font-sans mt-1" style={{ color: BRASS_FAINT }}>
-            Trips you made, joined, or are watching.
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-3xl font-serif" style={{ color: BRASS }}>My Trips</h1>
+              <p className="text-sm font-sans mt-1" style={{ color: BRASS_FAINT }}>
+                Trips you made, joined, or are watching.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/trips?new=1")}
+              aria-label="Start a new round"
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full font-sans text-xs font-semibold uppercase tracking-wider transition-opacity hover:opacity-90 active:opacity-80"
+              style={{
+                background: BRASS,
+                color: "hsl(38 30% 12%)",
+                boxShadow: "0 1px 0 hsl(42 60% 48%) inset, 0 8px 18px -8px hsla(42, 60%, 50%, 0.55)",
+                letterSpacing: "0.12em",
+              }}
+            >
+              <Plus size={14} strokeWidth={2.25} />
+              New
+            </button>
+          </div>
         </div>
       </div>
 
