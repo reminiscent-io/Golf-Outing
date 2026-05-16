@@ -18,6 +18,10 @@ import { DeleteTripDialog } from "@/components/delete-trip-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 
+function defaultRoundName(): string {
+  return new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
 export default function TripsPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
@@ -30,6 +34,11 @@ export default function TripsPage() {
   const [tripName, setTripName] = useState("");
   const [signInOpen, setSignInOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+
+  function openCreateForm() {
+    setTripName(defaultRoundName());
+    setShowCreate(true);
+  }
 
   // My-trips data lets us mark each card as already-saved or already-linked
   // via a player record. Lookup is by trip id, value is the `via` field.
@@ -102,7 +111,7 @@ export default function TripsPage() {
     const params = new URLSearchParams(globalThis.location.search);
     if (params.get("new") !== "1") return;
     if (session) {
-      setShowCreate(true);
+      openCreateForm();
     } else {
       setSignInOpen(true);
     }
@@ -157,7 +166,7 @@ export default function TripsPage() {
       setSignInOpen(true);
       return;
     }
-    setShowCreate(true);
+    openCreateForm();
   }
 
   return (
@@ -198,6 +207,7 @@ export default function TripsPage() {
               autoFocus
               value={tripName}
               onChange={e => setTripName(e.target.value)}
+              onFocus={e => e.currentTarget.select()}
               placeholder="The Family Cup 2025..."
               className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
               style={{
@@ -230,7 +240,7 @@ export default function TripsPage() {
         <SignInModal
           open={signInOpen}
           onClose={() => setSignInOpen(false)}
-          onSignedIn={() => { setSignInOpen(false); setShowCreate(true); }}
+          onSignedIn={() => { setSignInOpen(false); openCreateForm(); }}
           title="Sign in to create a trip"
         />
 
