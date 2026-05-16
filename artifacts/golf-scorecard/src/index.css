@@ -200,6 +200,34 @@
     @apply hidden;
   }
 
+  /* iOS Safari auto-zooms any focused input/textarea/select whose computed
+     font-size is under 16px. The zoom then leaves the page wider than the
+     viewport, which reads as inputs "bleeding" off the right edge. Bump small
+     Tailwind text sizes up to 16px on phone widths only — desktop keeps the
+     intended visual scale. Specificity (input.text-sm = 0,1,1) beats the bare
+     .text-sm utility (0,1,0), so no !important needed. */
+  @media (max-width: 640px) {
+    input.text-xs, input.text-sm,
+    textarea.text-xs, textarea.text-sm,
+    select.text-xs, select.text-sm {
+      font-size: 16px;
+    }
+
+    /* Native date/time inputs on iOS have a UA-default intrinsic min-width
+       sized to the date format. In a two-column grid like Course Info,
+       that min-width overrides w-full and pushes the input past its cell.
+       appearance:none drops the native widget so the explicit width wins. */
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"] {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 0;
+    }
+  }
+
   .no-default-hover-elevate {}
   .no-default-active-elevate {}
 
