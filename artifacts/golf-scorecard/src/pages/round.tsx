@@ -1394,7 +1394,7 @@ export default function RoundPage() {
                     const outcomeLabel = (side: "A" | "B" | "halved" | null, margin: number) => {
                       if (side == null) return "—";
                       if (side === "halved") return "All square";
-                      return `${side === "A" ? `Team ${m.teamA}` : `Team ${m.teamB}`} ${margin} up`;
+                      return `${side === "A" ? `Team ${m.teamA}` : `Team ${m.teamB}` } · ${margin} up`;
                     };
                     return (
                       <div key={m.groupNumber} className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
