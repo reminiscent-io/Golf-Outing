@@ -19,7 +19,7 @@ import {
   useUpsertScrambleScore,
   getGetScrambleScoresQueryKey,
 } from "@workspace/api-client-react";
-import { ArrowLeft, Settings, Trophy, Grid3X3 } from "lucide-react";
+import { ArrowLeft, Settings, Trophy, Grid3X3, Info } from "lucide-react";
 import {
   searchCourses,
   getCourseDetail,
@@ -29,7 +29,7 @@ import {
 } from "@/lib/course-lookup";
 import { SignedInAs } from "@/components/signed-in-as";
 import { RoundGroupsEditor } from "@/components/round-groups-editor";
-import { GameInfoButton } from "@/components/game-info-modal";
+import { GameInfoButton, GameInfoModal } from "@/components/game-info-modal";
 import { useTripIdentity } from "@/lib/trip-identity";
 
 type SubTab = "scorecard" | "results" | "setup";
@@ -346,6 +346,7 @@ export default function RoundPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const [subTab, setSubTab] = useState<SubTab>("scorecard");
+  const [resultsInfoOpen, setResultsInfoOpen] = useState(false);
 
   const { data: round, isLoading: roundLoading } = useGetRound(tripId, roundId, {
     query: { queryKey: getGetRoundQueryKey(tripId, roundId), enabled: !!tripId && !!roundId },
@@ -1275,10 +1276,22 @@ export default function RoundPage() {
             </div>
           ) : leaderboard ? (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="font-serif text-lg" style={{ color: "hsl(42 45% 80%)" }}>Round Results</h2>
-                <span className="text-xs font-sans" style={{ color: "hsl(42 20% 55%)" }}>Auto-updates every 10s</span>
+              <div>
+                <div className="flex items-center justify-between">
+                  <h2 className="font-serif text-lg" style={{ color: "hsl(42 45% 80%)" }}>Round Results</h2>
+                  <span className="text-xs font-sans" style={{ color: "hsl(42 20% 55%)" }}>Auto-updates every 10s</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setResultsInfoOpen(true)}
+                  className="mt-1 inline-flex items-center gap-1.5 italic text-xs font-sans transition-opacity hover:opacity-100"
+                  style={{ color: "hsl(42 30% 65%)", opacity: 0.85 }}
+                >
+                  <Info size={12} strokeWidth={2.25} />
+                  How scoring works
+                </button>
               </div>
+              <GameInfoModal open={resultsInfoOpen} onOpenChange={setResultsInfoOpen} />
 
               {/* Scramble leaderboard — replaces individual results when scramble is on */}
               {scrambleEnabled && leaderboard.scrambleResult && leaderboard.scrambleResult.teams.length > 0 && (
@@ -1344,9 +1357,9 @@ export default function RoundPage() {
                   style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
                   <span>Player</span>
                   <span className="text-right">Gross</span>
-                  <span className="text-right flex items-center justify-end gap-1">Net <GameInfoButton game="netStroke" size={12} /></span>
-                  <span className="text-right flex items-center justify-end gap-1">Stblfd <GameInfoButton game="stableford" size={12} /></span>
-                  <span className="text-right flex items-center justify-end gap-1">Skins <GameInfoButton game="skins" size={12} /></span>
+                  <span className="text-right">Net</span>
+                  <span className="text-right">Stblfd</span>
+                  <span className="text-right">Skins</span>
                 </div>
                 {[...leaderboard.entries]
                   .sort((a, b) => (b.stablefordTotal ?? 0) - (a.stablefordTotal ?? 0))
@@ -1382,9 +1395,8 @@ export default function RoundPage() {
                 leaderboard.nassauResult?.matches &&
                 leaderboard.nassauResult.matches.length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="font-sans font-semibold text-xs uppercase tracking-widest flex items-center gap-1.5" style={{ color: "hsl(42 52% 59%)" }}>
+                  <h3 className="font-sans font-semibold text-xs uppercase tracking-widest" style={{ color: "hsl(42 52% 59%)" }}>
                     Team Nassau
-                    <GameInfoButton game="nassau" size={13} />
                   </h3>
                   {leaderboard.nassauResult.matches.map(m => {
                     const nameFor = (id: number) =>
@@ -1394,7 +1406,7 @@ export default function RoundPage() {
                     const outcomeLabel = (side: "A" | "B" | "halved" | null, margin: number) => {
                       if (side == null) return "—";
                       if (side === "halved") return "All square";
-                      return `${side === "A" ? `Team ${m.teamA}` : `Team ${m.teamB}`} ${margin} up`;
+                      return `${side === "A" ? `Team ${m.teamA}` : `Team ${m.teamB}` } · ${margin} up`;
                     };
                     return (
                       <div key={m.groupNumber} className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
@@ -1432,7 +1444,7 @@ export default function RoundPage() {
                   <div className="px-4 py-2.5 grid grid-cols-[1fr_2fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
                     style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
                     <span>Hole</span>
-                    <span className="flex items-center gap-1">Winner <GameInfoButton game="skins" size={12} /></span>
+                    <span>Winner</span>
                     <span className="text-right">Skins</span>
                   </div>
                   {leaderboard.skinResults.map((s, idx) => (
