@@ -17,9 +17,8 @@ function MyTripsContent({ session }: { session: AuthSession }) {
   const { data: items, isLoading } = useListMyTrips();
 
   const myUserId = session.user.id;
-  const yours = (items ?? []).filter(it => it.trip.createdByUserId === myUserId);
-  const shared = (items ?? []).filter(it => it.trip.createdByUserId !== myUserId);
-  const hasAny = (items?.length ?? 0) > 0;
+  const rounds = items ?? [];
+  const hasAny = rounds.length > 0;
 
   return (
     <div className="min-h-dvh bg-background">
@@ -35,7 +34,7 @@ function MyTripsContent({ session }: { session: AuthSession }) {
           </button>
           <h1 className="text-3xl font-serif" style={{ color: BRASS }}>My Trips</h1>
           <p className="text-sm font-sans mt-1" style={{ color: BRASS_FAINT }}>
-            Trips you made and trips shared with you.
+            Trips you made, joined, or are watching.
           </p>
         </div>
       </div>
@@ -48,36 +47,15 @@ function MyTripsContent({ session }: { session: AuthSession }) {
             ))}
           </div>
         ) : hasAny ? (
-          <div className="space-y-8">
-            {yours.length > 0 && (
-              <Section label="Yours">
-                <div className="space-y-3">
-                  {yours.map(item => (
-                    <TripRow
-                      key={item.trip.id}
-                      item={item}
-                      showVia={false}
-                      onClick={() => navigate(`/trips/${item.trip.id}`)}
-                    />
-                  ))}
-                </div>
-              </Section>
-            )}
-
-            {shared.length > 0 && (
-              <Section label="Shared with you">
-                <div className="space-y-3">
-                  {shared.map(item => (
-                    <TripRow
-                      key={item.trip.id}
-                      item={item}
-                      showVia
-                      onClick={() => navigate(`/trips/${item.trip.id}`)}
-                    />
-                  ))}
-                </div>
-              </Section>
-            )}
+          <div className="space-y-3">
+            {rounds.map(item => (
+              <TripRow
+                key={item.trip.id}
+                item={item}
+                isOwn={item.trip.createdByUserId === myUserId}
+                onClick={() => navigate(`/trips/${item.trip.id}`)}
+              />
+            ))}
           </div>
         ) : (
           <div className="text-center py-16">
@@ -101,7 +79,7 @@ function MyTripsContent({ session }: { session: AuthSession }) {
               }}
             >
               <Plus size={16} strokeWidth={2.25} />
-              Create a Trip
+              Create a Round
             </button>
           </div>
         )}
@@ -110,31 +88,25 @@ function MyTripsContent({ session }: { session: AuthSession }) {
   );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div
-        className="font-sans text-[10px] font-semibold mb-3"
-        style={{ color: BRASS, letterSpacing: "0.32em", textTransform: "uppercase" }}
-      >
-        {label}
-      </div>
-      {children}
-    </div>
-  );
+function viaLabelFor(item: UserTripAssociation, isOwn: boolean): string {
+  if (isOwn) return "Yours";
+  if (item.via === "saved") return "Watching";
+  if (item.via === "both") return "Player + Saved";
+  return "Player";
 }
 
 function TripRow({
   item,
-  showVia,
+  isOwn,
   onClick,
-}: {
+}: Readonly<{
   item: UserTripAssociation;
-  showVia: boolean;
+  isOwn: boolean;
   onClick: () => void;
-}) {
-  const isObserver = item.via === "saved";
-  const viaLabel = item.via === "saved" ? "Watching" : item.via === "both" ? "Player + Saved" : "Player";
+}>) {
+  const isObserverOnly = item.via === "saved";
+  const viaLabel = viaLabelFor(item, isOwn);
+  const badgeMuted = isObserverOnly && !isOwn;
   return (
     <div
       onClick={onClick}
@@ -149,24 +121,20 @@ function TripRow({
           <div className="font-sans font-semibold text-sm truncate" style={{ color: INK }}>
             {item.trip.name}
           </div>
-          {(showVia || item.players.length > 0) && (
-            <div className="text-xs mt-0.5 flex items-center gap-2" style={{ color: INK_SOFT }}>
-              {showVia && (
-                <span
-                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-                  style={{
-                    background: isObserver ? "hsl(42 30% 80%)" : FOREST_ACCENT,
-                    color: isObserver ? "hsl(38 30% 20%)" : BRASS,
-                  }}
-                >
-                  {viaLabel}
-                </span>
-              )}
-              {item.players.length > 0 && (
-                <span className="truncate">as {item.players.map(p => p.name).join(", ")}</span>
-              )}
-            </div>
-          )}
+          <div className="text-xs mt-0.5 flex items-center gap-2" style={{ color: INK_SOFT }}>
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
+              style={{
+                background: badgeMuted ? "hsl(42 30% 80%)" : FOREST_ACCENT,
+                color: badgeMuted ? "hsl(38 30% 20%)" : BRASS,
+              }}
+            >
+              {viaLabel}
+            </span>
+            {item.players.length > 0 && (
+              <span className="truncate">as {item.players.map(p => p.name).join(", ")}</span>
+            )}
+          </div>
         </div>
       </div>
       <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />

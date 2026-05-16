@@ -44,7 +44,7 @@ function ProfileContent() {
       {
         onSuccess: (user) => {
           updateSessionUser({ handicap: user.handicap });
-          toast({ description: "Handicap saved" });
+          toast({ description: "Handicap saved", duration: 2000 });
         },
         onError: () => {
           toast({ description: "Could not save handicap", variant: "destructive" });
