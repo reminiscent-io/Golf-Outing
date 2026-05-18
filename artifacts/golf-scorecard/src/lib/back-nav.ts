@@ -7,8 +7,8 @@ export function goBackOr(
   fallback: string,
   navigate: (to: string) => void,
 ): void {
-  if (typeof window !== "undefined" && window.history.length > 1) {
-    window.history.back();
+  if (globalThis.history.length > 1) {
+    globalThis.history.back();
     return;
   }
   navigate(fallback);

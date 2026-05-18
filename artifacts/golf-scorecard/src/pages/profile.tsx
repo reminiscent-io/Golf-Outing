@@ -66,7 +66,7 @@ function ProfileContent() {
             style={{ color: "hsl(42 35% 65%)" }}
           >
             <ArrowLeft size={14} />
-            Home
+            Back
           </button>
           <h1 className="text-3xl font-serif" style={{ color: "hsl(42 52% 59%)" }}>
             Profile
