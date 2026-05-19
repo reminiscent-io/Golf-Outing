@@ -41,7 +41,7 @@ function MyTripsContent({ session }: { session: AuthSession }) {
             </div>
             <button
               onClick={() => navigate("/trips/new")}
-              aria-label="Start a new round"
+              aria-label="Start a new trip"
               className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full font-sans text-xs font-semibold uppercase tracking-wider transition-opacity hover:opacity-90 active:opacity-80"
               style={{
                 background: BRASS,
@@ -97,7 +97,7 @@ function MyTripsContent({ session }: { session: AuthSession }) {
               }}
             >
               <Plus size={16} strokeWidth={2.25} />
-              Create a Round
+              New Trip
             </button>
           </div>
         )}
