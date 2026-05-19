@@ -1,5 +1,5 @@
 /**
- * Return the first whitespace-delimited token of a person's full name.
+ * Return the first space-delimited token of a person's full name.
  * Empty / whitespace-only input returns the empty string.
  */
 export function firstName(fullName: string): string {
