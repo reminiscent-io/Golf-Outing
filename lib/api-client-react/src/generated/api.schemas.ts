@@ -233,6 +233,11 @@ export interface GamesConfig {
 export interface Round {
   id: number;
   tripId: number;
+  /**
+   * User who created the round; null for legacy rounds created before attribution.
+   * @nullable
+   */
+  createdByUserId?: number | null;
   name: string;
   /** @nullable */
   course?: string | null;

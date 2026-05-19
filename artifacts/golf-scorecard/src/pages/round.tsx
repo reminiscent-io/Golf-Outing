@@ -3,13 +3,17 @@ import { useLocation, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetRound,
+  useGetTrip,
   useListPlayers,
   useGetScores,
   useGetRoundLeaderboard,
   useUpsertScore,
   useUpdateRound,
+  useDeleteRound,
   getGetRoundQueryKey,
+  getGetTripQueryKey,
   getListPlayersQueryKey,
+  getListRoundsQueryKey,
   getGetScoresQueryKey,
   getGetRoundLeaderboardQueryKey,
   getGetTripLeaderboardQueryKey,
@@ -19,7 +23,7 @@ import {
   useUpsertScrambleScore,
   getGetScrambleScoresQueryKey,
 } from "@workspace/api-client-react";
-import { ArrowLeft, Settings, Trophy, Grid3X3, Info } from "lucide-react";
+import { ArrowLeft, Settings, Trophy, Grid3X3, Info, Trash2 } from "lucide-react";
 import {
   searchCourses,
   getCourseDetail,
@@ -31,6 +35,7 @@ import { SignedInAs } from "@/components/signed-in-as";
 import { RoundGroupsEditor } from "@/components/round-groups-editor";
 import { GameInfoButton, GameInfoModal } from "@/components/game-info-modal";
 import { useTripIdentity } from "@/lib/trip-identity";
+import { useAuthSession } from "@/lib/auth";
 
 type SubTab = "scorecard" | "results" | "setup";
 type ScrambleType = "fourMan" | "twoMan";
@@ -434,7 +439,33 @@ export default function RoundPage() {
 
   const upsertScore = useUpsertScore();
   const updateRound = useUpdateRound();
+  const deleteRound = useDeleteRound();
   const upsertScrambleScore = useUpsertScrambleScore();
+
+  const session = useAuthSession();
+  const { data: trip } = useGetTrip(tripId, {
+    query: { queryKey: getGetTripQueryKey(tripId), enabled: !!tripId },
+  });
+  const currentUserId = session?.user.id;
+  const canDeleteRound = !!currentUserId && (
+    round?.createdByUserId === currentUserId ||
+    trip?.createdByUserId === currentUserId
+  );
+
+  function handleDeleteRound() {
+    if (!canDeleteRound) return;
+    if (!confirm("Delete this round? This will permanently remove all scores and cannot be undone.")) return;
+    deleteRound.mutate(
+      { tripId, roundId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListRoundsQueryKey(tripId) });
+          queryClient.invalidateQueries({ queryKey: getGetTripLeaderboardQueryKey(tripId) });
+          navigate(`/trips/${tripId}`);
+        },
+      },
+    );
+  }
 
   // Scramble config + data
   const gamesConfig = (round?.gamesConfig ?? {}) as { scramble?: boolean; scrambleType?: ScrambleType | null };
@@ -1816,6 +1847,25 @@ export default function RoundPage() {
           >
             {updateRound.isPending ? "Saving..." : "Save Setup"}
           </button>
+
+          {canDeleteRound && (
+            <div className="rounded-xl p-4 mt-6" style={{ background: "hsl(0 30% 95%)", border: "1px solid hsl(0 35% 80%)" }}>
+              <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-1" style={{ color: "hsl(0 45% 35%)" }}>Danger zone</h3>
+              <p className="text-xs font-sans mb-3" style={{ color: "hsl(0 30% 35%)" }}>
+                Deleting this round removes all of its scores. This cannot be undone.
+              </p>
+              <button
+                type="button"
+                onClick={handleDeleteRound}
+                disabled={deleteRound.isPending}
+                className="w-full py-3 rounded-xl font-sans font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90"
+                style={{ background: "hsl(0 55% 42%)", color: "white" }}
+              >
+                <Trash2 size={14} />
+                {deleteRound.isPending ? "Deleting..." : "Delete round"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
