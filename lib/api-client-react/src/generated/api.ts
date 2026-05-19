@@ -22,6 +22,7 @@ import type {
   CreateRoundBody,
   CreateTripBody,
   HealthStatus,
+  MyStatsResponse,
   Player,
   PlayerScore,
   RequestOtpBody,
@@ -996,6 +997,81 @@ export function useListMyTrips<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListMyTripsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Aggregate golf history for the current user (rounds, hole outcomes, scoring, co-players)
+ */
+export const getGetMyStatsUrl = () => {
+  return `/api/users/me/stats`;
+};
+
+export const getMyStats = async (
+  options?: RequestInit,
+): Promise<MyStatsResponse> => {
+  return customFetch<MyStatsResponse>(getGetMyStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyStatsQueryKey = () => {
+  return [`/api/users/me/stats`] as const;
+};
+
+export const getGetMyStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyStats>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyStatsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyStats>>> = ({
+    signal,
+  }) => getMyStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyStats>>
+>;
+export type GetMyStatsQueryError = ErrorType<void>;
+
+/**
+ * @summary Aggregate golf history for the current user (rounds, hole outcomes, scoring, co-players)
+ */
+
+export function useGetMyStats<
+  TData = Awaited<ReturnType<typeof getMyStats>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyStatsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

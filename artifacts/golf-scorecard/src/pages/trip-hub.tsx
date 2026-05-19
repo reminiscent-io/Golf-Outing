@@ -50,6 +50,21 @@ function formatHandicap(h: number): string {
   return (Math.round(h * 10) / 10).toFixed(1);
 }
 
+function todayDateString(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// "2026-05-19" → "05-19-26"
+function formatRoundDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  return `${m[2]}-${m[3]}-${m[1].slice(2)}`;
+}
+
 export default function TripHubPage() {
   const { tripId: tripIdStr } = useParams<{ tripId: string }>();
   const tripId = Number(tripIdStr);
@@ -130,7 +145,7 @@ export default function TripHubPage() {
   const [showAddRound, setShowAddRound] = useState(false);
   const [newRoundName, setNewRoundName] = useState("");
   const [newRoundCourse, setNewRoundCourse] = useState("");
-  const [newRoundDate, setNewRoundDate] = useState("");
+  const [newRoundDate, setNewRoundDate] = useState(todayDateString());
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [newRoundTeeBox, setNewRoundTeeBox] = useState("");
   const [newRoundRating, setNewRoundRating] = useState("");
@@ -252,9 +267,10 @@ export default function TripHubPage() {
     e.preventDefault();
     if (isObserver) return;
     const effectiveCourse = newRoundCourse.trim() || selectedCourse?.clubName || "";
-    const defaultName = effectiveCourse && newRoundDate
-      ? `${effectiveCourse} - ${newRoundDate}`
-      : effectiveCourse || newRoundDate || "";
+    const formattedDate = newRoundDate ? formatRoundDate(newRoundDate) : "";
+    const defaultName = effectiveCourse && formattedDate
+      ? `${effectiveCourse} - ${formattedDate}`
+      : effectiveCourse || formattedDate || "";
     const finalName = newRoundName.trim() || defaultName;
     if (!finalName) return;
     const ratingNum = parseFloat(newRoundRating);
@@ -279,7 +295,7 @@ export default function TripHubPage() {
           setShowAddRound(false);
           setNewRoundName("");
           setNewRoundCourse("");
-          setNewRoundDate("");
+          setNewRoundDate(todayDateString());
           setShowAdvanced(false);
           setNewRoundTeeBox("");
           setNewRoundRating("");
@@ -545,8 +561,9 @@ export default function TripHubPage() {
                           onChange={e => setNewRoundName(e.target.value)}
                           placeholder={(() => {
                             const c = newRoundCourse.trim() || selectedCourse?.clubName || "";
-                            if (c && newRoundDate) return `${c} - ${newRoundDate}`;
-                            return c || newRoundDate || "Round 1";
+                            const d = newRoundDate ? formatRoundDate(newRoundDate) : "";
+                            if (c && d) return `${c} - ${d}`;
+                            return c || d || "Round 1";
                           })()}
                           className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
                           style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
@@ -702,9 +719,9 @@ export default function TripHubPage() {
                   <div className="px-4 py-2.5 grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-xs font-sans font-semibold uppercase tracking-widest"
                     style={{ background: "hsl(158 50% 14%)", color: "hsl(42 20% 55%)" }}>
                     <span>Player</span>
-                    <span className="text-right flex items-center justify-end gap-1">Stableford <GameInfoButton game="stableford" size={12} /></span>
-                    <span className="text-right flex items-center justify-end gap-1">Net <GameInfoButton game="netStroke" size={12} /></span>
-                    <span className="text-right flex items-center justify-end gap-1">Skins <GameInfoButton game="skins" size={12} /></span>
+                    <span className="text-right">Stableford</span>
+                    <span className="text-right">Net</span>
+                    <span className="text-right">Skins</span>
                     <span className="text-right">Rounds</span>
                   </div>
                   {/* Sort by stableford descending */}
@@ -757,7 +774,12 @@ export default function TripHubPage() {
           <div className="space-y-2">
             {!showAddPlayer && !isObserver && (
               <button
-                onClick={() => setShowAddPlayer(true)}
+                onClick={() => {
+                  if (players?.length === 0 && session?.user.fullName) {
+                    setNewPlayerName(session.user.fullName);
+                  }
+                  setShowAddPlayer(true);
+                }}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-sans font-semibold transition-all hover:opacity-90"
                 style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
               >
