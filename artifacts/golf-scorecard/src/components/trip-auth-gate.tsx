@@ -9,6 +9,7 @@ import {
   getListMyTripsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useTripIdentity, setTripIdentity } from "@/lib/trip-identity";
 import { useAuthSession, updateSessionUser } from "@/lib/auth";
 import { SignInModal } from "@/components/sign-in-modal";
@@ -38,6 +39,7 @@ export function TripAuthGate({ tripId, children }: Props) {
   const [showAddSelf, setShowAddSelf] = useState(false);
   const [newName, setNewName] = useState("");
   const [newHcp, setNewHcp] = useState(() => formatHandicap(session?.user.handicap));
+  const [, navigate] = useLocation();
 
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
@@ -66,17 +68,33 @@ export function TripAuthGate({ tripId, children }: Props) {
     return <>{children}</>;
   }
 
-  // If not signed in, force the mandatory sign-in modal first.
+  // If not signed in, force the sign-in modal. Dismissal exits to /.
   if (!session) {
     return (
       <div className="min-h-screen" style={{ background: "hsl(158 65% 9%)" }}>
-        <SignInModal open onSignedIn={() => { /* state will re-render */ }} title="Sign in to join this trip" />
+        <SignInModal
+          open
+          onClose={() => navigate("/", { replace: true })}
+          onSignedIn={() => { /* state will re-render */ }}
+          title="Sign in to join this trip"
+        />
+      </div>
+    );
+  }
+
+  // Wait for the players list to resolve before deciding what to show.
+  // The auto-resolve effect needs `players` to know whether a userId link exists;
+  // without this guard, the picker briefly renders with an empty <select>.
+  if (!players) {
+    return (
+      <div className="min-h-dvh bg-background flex items-center justify-center">
+        <div className="text-sm font-sans" style={{ color: "hsl(42 25% 60%)" }}>Loading...</div>
       </div>
     );
   }
 
   // Signed in but no per-trip identity yet — pick or add player.
-  const noPlayers = players !== undefined && players.length === 0;
+  const noPlayers = players.length === 0;
 
   function handleIdentitySubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -159,7 +177,7 @@ export function TripAuthGate({ tripId, children }: Props) {
               style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
             >
               <option value="">— choose —</option>
-              {(players ?? []).map(p => (
+              {players.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
