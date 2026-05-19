@@ -242,6 +242,60 @@ export const ListMyTripsResponseItem = zod.object({
 export const ListMyTripsResponse = zod.array(ListMyTripsResponseItem);
 
 /**
+ * @summary Aggregate golf history for the current user (rounds, hole outcomes, scoring, co-players)
+ */
+export const GetMyStatsResponse = zod
+  .object({
+    tripsCreated: zod
+      .number()
+      .describe("Trips where the user is the original creator."),
+    roundsPlayed: zod
+      .number()
+      .describe(
+        "Distinct rounds where the user (via any linked player) entered at least one hole score.",
+      ),
+    holesPlayed: zod
+      .number()
+      .describe("Total non-null hole scores recorded across all rounds."),
+    scoring: zod
+      .object({
+        bestGross: zod.number().nullable(),
+        worstGross: zod.number().nullable(),
+        avgGross: zod.number().nullable(),
+        completedRounds: zod
+          .number()
+          .describe("Number of 18-hole rounds with every hole scored."),
+      })
+      .describe("Gross stroke totals across COMPLETED 18-hole rounds only."),
+    holeOutcomes: zod
+      .object({
+        eagles: zod.number(),
+        birdies: zod.number(),
+        pars: zod.number(),
+        bogeys: zod.number(),
+        doubles: zod.number(),
+        triples: zod.number(),
+        quadPlus: zod.number(),
+      })
+      .describe(
+        "Counts of holes where (score - par) fell in each bucket. Eagles roll up albatross or better; quadPlus rolls up +4 or worse.",
+      ),
+    playersPlayedWith: zod
+      .array(
+        zod.object({
+          name: zod.string(),
+          rounds: zod.number(),
+        }),
+      )
+      .describe(
+        "Distinct co-players (excluding the user) ranked by number of shared rounds. The same person across trips appears once when their player rows share a userId, otherwise once per name.",
+      ),
+  })
+  .describe(
+    "Aggregate of every round the user has played plus every trip they've created.",
+  );
+
+/**
  * @summary Save (follow) a trip to the current user's account
  */
 export const SaveTripParams = zod.object({

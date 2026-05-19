@@ -112,6 +112,56 @@ export interface UserTripAssociation {
   players: Player[];
 }
 
+/**
+ * Gross stroke totals across COMPLETED 18-hole rounds only.
+ */
+export type MyStatsResponseScoring = {
+  /** @nullable */
+  bestGross: number | null;
+  /** @nullable */
+  worstGross: number | null;
+  /** @nullable */
+  avgGross: number | null;
+  /** Number of 18-hole rounds with every hole scored. */
+  completedRounds: number;
+};
+
+/**
+ * Counts of holes where (score - par) fell in each bucket. Eagles roll up albatross or better; quadPlus rolls up +4 or worse.
+ */
+export type MyStatsResponseHoleOutcomes = {
+  eagles: number;
+  birdies: number;
+  pars: number;
+  bogeys: number;
+  doubles: number;
+  triples: number;
+  quadPlus: number;
+};
+
+export type MyStatsResponsePlayersPlayedWithItem = {
+  name: string;
+  rounds: number;
+};
+
+/**
+ * Aggregate of every round the user has played plus every trip they've created.
+ */
+export interface MyStatsResponse {
+  /** Trips where the user is the original creator. */
+  tripsCreated: number;
+  /** Distinct rounds where the user (via any linked player) entered at least one hole score. */
+  roundsPlayed: number;
+  /** Total non-null hole scores recorded across all rounds. */
+  holesPlayed: number;
+  /** Gross stroke totals across COMPLETED 18-hole rounds only. */
+  scoring: MyStatsResponseScoring;
+  /** Counts of holes where (score - par) fell in each bucket. Eagles roll up albatross or better; quadPlus rolls up +4 or worse. */
+  holeOutcomes: MyStatsResponseHoleOutcomes;
+  /** Distinct co-players (excluding the user) ranked by number of shared rounds. The same person across trips appears once when their player rows share a userId, otherwise once per name. */
+  playersPlayedWith: MyStatsResponsePlayersPlayedWithItem[];
+}
+
 export interface CreatePlayerBody {
   name: string;
   handicap: number;

@@ -252,6 +252,23 @@ paths:
         "401":
           description: Unauthorized
 
+  /users/me/stats:
+    get:
+      operationId: getMyStats
+      tags: [users]
+      summary: Aggregate golf history for the current user (rounds, hole outcomes, scoring, co-players)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyStatsResponse"
+        "401":
+          description: Unauthorized
+
   /users/me/trips/{tripId}:
     post:
       operationId: saveTrip
@@ -865,6 +882,84 @@ components:
         - trip
         - via
         - players
+
+    MyStatsResponse:
+      type: object
+      description: Aggregate of every round the user has played plus every trip they've created.
+      properties:
+        tripsCreated:
+          type: integer
+          description: Trips where the user is the original creator.
+        roundsPlayed:
+          type: integer
+          description: Distinct rounds where the user (via any linked player) entered at least one hole score.
+        holesPlayed:
+          type: integer
+          description: Total non-null hole scores recorded across all rounds.
+        scoring:
+          type: object
+          description: Gross stroke totals across COMPLETED 18-hole rounds only.
+          properties:
+            bestGross:
+              type: ["integer", "null"]
+            worstGross:
+              type: ["integer", "null"]
+            avgGross:
+              type: ["number", "null"]
+            completedRounds:
+              type: integer
+              description: Number of 18-hole rounds with every hole scored.
+          required:
+            - bestGross
+            - worstGross
+            - avgGross
+            - completedRounds
+        holeOutcomes:
+          type: object
+          description: Counts of holes where (score - par) fell in each bucket. Eagles roll up albatross or better; quadPlus rolls up +4 or worse.
+          properties:
+            eagles:
+              type: integer
+            birdies:
+              type: integer
+            pars:
+              type: integer
+            bogeys:
+              type: integer
+            doubles:
+              type: integer
+            triples:
+              type: integer
+            quadPlus:
+              type: integer
+          required:
+            - eagles
+            - birdies
+            - pars
+            - bogeys
+            - doubles
+            - triples
+            - quadPlus
+        playersPlayedWith:
+          type: array
+          description: Distinct co-players (excluding the user) ranked by number of shared rounds. The same person across trips appears once when their player rows share a userId, otherwise once per name.
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              rounds:
+                type: integer
+            required:
+              - name
+              - rounds
+      required:
+        - tripsCreated
+        - roundsPlayed
+        - holesPlayed
+        - scoring
+        - holeOutcomes
+        - playersPlayedWith
 
     Player:
       type: object
