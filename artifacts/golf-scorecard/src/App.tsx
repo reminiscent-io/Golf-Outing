@@ -15,6 +15,7 @@ import MyTripsPage from "@/pages/my-trips";
 import ProfilePage from "@/pages/profile";
 import { TripAuthGate } from "@/components/trip-auth-gate";
 import { useAuthSession, clearSession, maybeRefreshSession } from "@/lib/auth";
+import { firstName } from "@/lib/format";
 import { SignInModal } from "@/components/sign-in-modal";
 
 const queryClient = new QueryClient({
@@ -62,12 +63,6 @@ function initials(fullName: string): string {
   const first = parts[0]?.charAt(0) ?? "";
   const last = parts.length > 1 ? (parts.at(-1)?.charAt(0) ?? "") : "";
   return (first + last).toUpperCase();
-}
-
-function firstName(fullName: string): string {
-  const trimmed = fullName.trim();
-  const space = trimmed.indexOf(" ");
-  return space === -1 ? trimmed : trimmed.slice(0, space);
 }
 
 function NavBar() {

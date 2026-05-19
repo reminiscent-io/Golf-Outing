@@ -2,14 +2,9 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Trophy, Flag, ArrowRight, ChevronRight, Coins, Swords, Activity } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
+import { firstName } from "@/lib/format";
 import { SignInModal } from "@/components/sign-in-modal";
 import { useListMyTrips, getListMyTripsQueryKey } from "@workspace/api-client-react";
-
-function firstName(fullName: string): string {
-  const trimmed = fullName.trim();
-  const space = trimmed.indexOf(" ");
-  return space === -1 ? trimmed : trimmed.slice(0, space);
-}
 
 const FOREST_DEEP = "hsl(158 65% 9%)";
 const FOREST_BG = "hsl(158 60% 11%)";
