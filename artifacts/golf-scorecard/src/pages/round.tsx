@@ -196,16 +196,16 @@ function ScrambleScorecard(props: {
             ))}
           </colgroup>
           <thead>
-            <tr style={{ background: "hsl(158 65% 9%)", borderBottom: "2px solid hsl(42 52% 59%)" }}>
+            <tr style={{ background: "hsl(42 35% 78%)", borderBottom: "2px solid hsl(42 52% 59%)" }}>
               <th className="px-2 py-2 text-left text-xs font-sans font-semibold uppercase tracking-wider sticky left-0 z-20"
-                style={{ background: "hsl(158 65% 9%)", color: "hsl(42 20% 55%)" }}>Hole</th>
+                style={{ background: "hsl(42 35% 78%)", color: "hsl(38 25% 38%)" }}>Hole</th>
               <th className="px-1 py-2 text-center text-xs font-sans font-semibold uppercase tracking-wider"
-                style={{ color: "hsl(42 20% 55%)" }}>Par</th>
+                style={{ color: "hsl(38 25% 38%)" }}>Par</th>
               {visibleTeams.map(t => (
                 <th key={t.key} className="px-1 py-2 text-center text-xs font-sans font-semibold"
-                  style={{ color: "hsl(42 45% 80%)", ...(t.key === myTeamKey ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
+                  style={{ color: "hsl(38 35% 22%)", ...(t.key === myTeamKey ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.label}</div>
-                  <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ color: "hsl(38 25% 42%)", fontWeight: 400, fontSize: 9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {t.playerNames.join(" / ")}
                   </div>
                 </th>
@@ -216,11 +216,11 @@ function ScrambleScorecard(props: {
             {Array.from({ length: 18 }, (_, holeIdx) => (
               <Fragment key={holeIdx}>
                 {holeIdx === 9 && (
-                  <tr key="out" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
+                  <tr key="out" style={{ background: "hsl(42 30% 85%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
                     <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
-                      style={{ background: "hsl(158 50% 14%)", color: "hsl(42 52% 59%)" }}>OUT</td>
+                      style={{ background: "hsl(42 30% 85%)", color: "hsl(38 55% 28%)" }}>OUT</td>
                     <td className="px-1 py-2 text-center text-xs font-serif font-semibold"
-                      style={{ color: "hsl(42 45% 75%)" }}>
+                      style={{ color: "hsl(38 30% 26%)" }}>
                       {par.slice(0, 9).reduce((a, b) => a + b, 0)}
                     </td>
                     {visibleTeams.map(t => {
@@ -228,7 +228,7 @@ function ScrambleScorecard(props: {
                       const total = filled.length > 0 ? filled.reduce((a, b) => a + b, 0) : null;
                       return (
                         <td key={t.key} className="px-1 py-2 text-center font-serif text-sm font-semibold"
-                          style={{ color: "hsl(42 45% 80%)" }}>
+                          style={{ color: "hsl(38 35% 22%)" }}>
                           {total ?? "—"}
                         </td>
                       );
@@ -238,21 +238,21 @@ function ScrambleScorecard(props: {
                 <tr
                   key={holeIdx}
                   style={{
-                    background: holeIdx % 2 === 0 ? "hsl(158 45% 13%)" : "hsl(158 40% 15%)",
-                    borderBottom: "1px solid hsl(158 40% 18%)",
+                    background: holeIdx % 2 === 0 ? "hsl(44 55% 96%)" : "hsl(42 45% 92%)",
+                    borderBottom: "1px solid hsl(38 25% 80%)",
                   }}
                 >
                   <td className="px-2 py-1 text-left sticky left-0 z-10"
-                    style={{ background: holeIdx % 2 === 0 ? "hsl(158 45% 13%)" : "hsl(158 40% 15%)" }}>
-                    <div className="font-serif text-sm font-semibold leading-tight" style={{ color: "hsl(42 45% 75%)" }}>
+                    style={{ background: holeIdx % 2 === 0 ? "hsl(44 55% 96%)" : "hsl(42 45% 92%)" }}>
+                    <div className="font-serif text-sm font-semibold leading-tight" style={{ color: "hsl(38 30% 26%)" }}>
                       {holeIdx + 1}
                     </div>
-                    <div className="text-[8px] font-sans leading-tight" style={{ color: "hsl(42 15% 50%)" }}>
+                    <div className="text-[8px] font-sans leading-tight" style={{ color: "hsl(38 18% 48%)" }}>
                       {holeHcp[holeIdx]}
                     </div>
                   </td>
                   <td className="px-1 py-1 text-center">
-                    <span className="font-serif text-sm" style={{ color: "hsl(42 35% 65%)" }}>
+                    <span className="font-serif text-sm" style={{ color: "hsl(38 28% 35%)" }}>
                       {par[holeIdx]}
                     </span>
                   </td>
@@ -292,11 +292,11 @@ function ScrambleScorecard(props: {
                   })}
                 </tr>
                 {holeIdx === 17 && (
-                  <tr key="in-total" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
+                  <tr key="in-total" style={{ background: "hsl(42 30% 85%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
                     <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
-                      style={{ background: "hsl(158 50% 14%)", color: "hsl(42 52% 59%)" }}>IN</td>
+                      style={{ background: "hsl(42 30% 85%)", color: "hsl(38 55% 28%)" }}>IN</td>
                     <td className="px-1 py-2 text-center text-xs font-serif font-semibold"
-                      style={{ color: "hsl(42 45% 75%)" }}>
+                      style={{ color: "hsl(38 30% 26%)" }}>
                       {par.slice(9).reduce((a, b) => a + b, 0)}
                     </td>
                     {visibleTeams.map(t => {
@@ -304,7 +304,7 @@ function ScrambleScorecard(props: {
                       const total = filled.length > 0 ? filled.reduce((a, b) => a + b, 0) : null;
                       return (
                         <td key={t.key} className="px-1 py-2 text-center font-serif text-sm font-semibold"
-                          style={{ color: "hsl(42 45% 80%)" }}>
+                          style={{ color: "hsl(38 35% 22%)" }}>
                           {total ?? "—"}
                         </td>
                       );
@@ -314,11 +314,11 @@ function ScrambleScorecard(props: {
               </Fragment>
             ))}
             {/* Total row */}
-            <tr style={{ background: "hsl(158 60% 11%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
+            <tr style={{ background: "hsl(42 40% 72%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
               <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
-                style={{ background: "hsl(158 60% 11%)", color: "hsl(42 52% 59%)" }}>TOT</td>
+                style={{ background: "hsl(42 40% 72%)", color: "hsl(38 55% 28%)" }}>TOT</td>
               <td className="px-1 py-2 text-center font-serif text-sm font-semibold"
-                style={{ color: "hsl(42 45% 75%)" }}>
+                style={{ color: "hsl(38 30% 26%)" }}>
                 {par.reduce((a, b) => a + b, 0)}
               </td>
               {visibleTeams.map(t => {
@@ -326,7 +326,7 @@ function ScrambleScorecard(props: {
                 const total = filled.length > 0 ? filled.reduce((a, b) => a + b, 0) : null;
                 return (
                   <td key={t.key} className="px-1 py-2 text-center font-serif text-base font-semibold"
-                    style={{ color: "hsl(42 52% 59%)" }}>
+                    style={{ color: "hsl(38 55% 28%)" }}>
                     {total ?? "—"}
                   </td>
                 );
@@ -1095,22 +1095,22 @@ export default function RoundPage() {
                   ))}
                 </colgroup>
                 <thead>
-                  <tr style={{ background: "hsl(158 65% 9%)", borderBottom: "2px solid hsl(42 52% 59%)" }}>
+                  <tr style={{ background: "hsl(42 35% 78%)", borderBottom: "2px solid hsl(42 52% 59%)" }}>
                     <th className="px-2 py-2 text-left text-xs font-sans font-semibold uppercase tracking-wider sticky left-0 z-20"
-                      style={{ background: "hsl(158 65% 9%)", color: "hsl(42 20% 55%)" }}>Hole</th>
+                      style={{ background: "hsl(42 35% 78%)", color: "hsl(38 25% 38%)" }}>Hole</th>
                     <th className="px-1 py-2 text-center text-xs font-sans font-semibold uppercase tracking-wider"
-                      style={{ color: "hsl(42 20% 55%)" }}>Par</th>
+                      style={{ color: "hsl(38 25% 38%)" }}>Par</th>
                     {visiblePlayers.map(p => {
                       const ch = courseHcps.get(p.id) ?? 0;
                       const ph = playingHcps.get(p.id) ?? 0;
                       return (
                         <th key={p.id} className="px-1 py-2 text-center text-xs font-sans font-semibold"
-                          style={{ color: "hsl(42 45% 80%)", ...(myPlayerId === p.id ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
+                          style={{ color: "hsl(38 35% 22%)", ...(myPlayerId === p.id ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
                           <div style={{ maxWidth: 46, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
-                          <div style={{ color: "hsl(42 20% 55%)", fontWeight: 400, fontSize: 9 }} title={`Index ${formatHandicap(p.handicap)} · Course HCP ${ch}${ph !== ch ? ` · Playing ${ph}` : ""}`}>
+                          <div style={{ color: "hsl(38 25% 42%)", fontWeight: 400, fontSize: 9 }} title={`Index ${formatHandicap(p.handicap)} · Course HCP ${ch}${ph !== ch ? ` · Playing ${ph}` : ""}`}>
                             {ch}
                             {ph !== ch && (
-                              <span style={{ color: "hsl(42 35% 50%)" }}>/{ph}</span>
+                              <span style={{ color: "hsl(38 25% 42%)" }}>/{ph}</span>
                             )}
                           </div>
                         </th>
@@ -1125,11 +1125,11 @@ export default function RoundPage() {
                     return (
                       <Fragment key={holeIdx}>
                         {holeIdx === 9 && (
-                          <tr key="out" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
+                          <tr key="out" style={{ background: "hsl(42 30% 85%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
                             <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
-                              style={{ background: "hsl(158 50% 14%)", color: "hsl(42 52% 59%)" }}>OUT</td>
+                              style={{ background: "hsl(42 30% 85%)", color: "hsl(38 55% 28%)" }}>OUT</td>
                             <td className="px-1 py-2 text-center text-xs font-serif font-semibold"
-                              style={{ color: "hsl(42 45% 75%)" }}>
+                              style={{ color: "hsl(38 30% 26%)" }}>
                               {par.slice(0, 9).reduce((a, b) => a + b, 0)}
                             </td>
                             {visiblePlayers.map(p => {
@@ -1138,7 +1138,7 @@ export default function RoundPage() {
                               const outTotal = holesIn > 0 ? scores.slice(0, 9).filter((s): s is number => s != null).reduce((a, b) => a + b, 0) : null;
                               return (
                                 <td key={p.id} className="px-1 py-2 text-center font-serif text-sm font-semibold"
-                                  style={{ color: "hsl(42 45% 80%)" }}>
+                                  style={{ color: "hsl(38 35% 22%)" }}>
                                   {outTotal ?? "—"}
                                 </td>
                               );
@@ -1148,21 +1148,21 @@ export default function RoundPage() {
                         <tr
                           key={holeIdx}
                           style={{
-                            background: holeIdx % 2 === 0 ? "hsl(158 45% 13%)" : "hsl(158 40% 15%)",
-                            borderBottom: "1px solid hsl(158 40% 18%)",
+                            background: holeIdx % 2 === 0 ? "hsl(44 55% 96%)" : "hsl(42 45% 92%)",
+                            borderBottom: "1px solid hsl(38 25% 80%)",
                           }}
                         >
                           <td className="px-2 py-1 text-left sticky left-0 z-10"
-                            style={{ background: holeIdx % 2 === 0 ? "hsl(158 45% 13%)" : "hsl(158 40% 15%)" }}>
-                            <div className="font-serif text-sm font-semibold leading-tight" style={{ color: "hsl(42 45% 75%)" }}>
+                            style={{ background: holeIdx % 2 === 0 ? "hsl(44 55% 96%)" : "hsl(42 45% 92%)" }}>
+                            <div className="font-serif text-sm font-semibold leading-tight" style={{ color: "hsl(38 30% 26%)" }}>
                               {holeIdx + 1}
                             </div>
-                            <div className="text-[8px] font-sans leading-tight" style={{ color: "hsl(42 15% 50%)" }}>
+                            <div className="text-[8px] font-sans leading-tight" style={{ color: "hsl(38 18% 48%)" }}>
                               {holeHcp[holeIdx]}
                             </div>
                           </td>
                           <td className="px-1 py-1 text-center">
-                            <span className="font-serif text-sm" style={{ color: "hsl(42 35% 65%)" }}>
+                            <span className="font-serif text-sm" style={{ color: "hsl(38 28% 35%)" }}>
                               {par[holeIdx]}
                             </span>
                           </td>
@@ -1214,11 +1214,11 @@ export default function RoundPage() {
                           })}
                         </tr>
                         {holeIdx === 17 && (
-                          <tr key="in-total" style={{ background: "hsl(158 50% 14%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
+                          <tr key="in-total" style={{ background: "hsl(42 30% 85%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
                             <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
-                              style={{ background: "hsl(158 50% 14%)", color: "hsl(42 52% 59%)" }}>IN</td>
+                              style={{ background: "hsl(42 30% 85%)", color: "hsl(38 55% 28%)" }}>IN</td>
                             <td className="px-1 py-2 text-center text-xs font-serif font-semibold"
-                              style={{ color: "hsl(42 45% 75%)" }}>
+                              style={{ color: "hsl(38 30% 26%)" }}>
                               {par.slice(9).reduce((a, b) => a + b, 0)}
                             </td>
                             {visiblePlayers.map(p => {
@@ -1227,7 +1227,7 @@ export default function RoundPage() {
                               const inTotal = holesIn > 0 ? scores.slice(9).filter((s): s is number => s != null).reduce((a, b) => a + b, 0) : null;
                               return (
                                 <td key={p.id} className="px-1 py-2 text-center font-serif text-sm font-semibold"
-                                  style={{ color: "hsl(42 45% 80%)" }}>
+                                  style={{ color: "hsl(38 35% 22%)" }}>
                                   {inTotal ?? "—"}
                                 </td>
                               );
@@ -1238,11 +1238,11 @@ export default function RoundPage() {
                     );
                   })}
                   {/* Total row */}
-                  <tr style={{ background: "hsl(158 60% 11%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
+                  <tr style={{ background: "hsl(42 40% 72%)", borderTop: "2px solid hsl(42 52% 59%)" }}>
                     <td className="px-2 py-2 text-xs font-sans font-semibold uppercase tracking-widest sticky left-0 z-20"
-                      style={{ background: "hsl(158 60% 11%)", color: "hsl(42 52% 59%)" }}>TOT</td>
+                      style={{ background: "hsl(42 40% 72%)", color: "hsl(38 55% 28%)" }}>TOT</td>
                     <td className="px-1 py-2 text-center font-serif text-sm font-semibold"
-                      style={{ color: "hsl(42 45% 75%)" }}>
+                      style={{ color: "hsl(38 30% 26%)" }}>
                       {par.reduce((a, b) => a + b, 0)}
                     </td>
                     {visiblePlayers.map(p => {
@@ -1251,7 +1251,7 @@ export default function RoundPage() {
                       const total = played > 0 ? scores.filter((s): s is number => s != null).reduce((a, b) => a + b, 0) : null;
                       return (
                         <td key={p.id} className="px-1 py-2 text-center font-serif text-base font-semibold"
-                          style={{ color: "hsl(42 52% 59%)" }}>
+                          style={{ color: "hsl(38 55% 28%)" }}>
                           {total ?? "—"}
                         </td>
                       );

@@ -177,7 +177,7 @@
 .score-par { background-color: hsl(42 20% 84%); color: hsl(38 30% 18%); }
 .score-bogey { background-color: hsl(30 40% 75%); color: hsl(38 30% 18%); }
 .score-double { background-color: hsl(0 45% 45%); color: white; }
-.score-empty { background-color: hsl(158 35% 20%); color: hsl(42 35% 65%); }
+.score-empty { background-color: hsl(42 25% 78%); color: hsl(38 35% 25%); }
 
 @layer utilities {
   .font-serif { font-family: var(--app-font-serif); }
