@@ -82,8 +82,19 @@ export function TripAuthGate({ tripId, children }: Props) {
     );
   }
 
+  // Wait for the players list to resolve before deciding what to show.
+  // The auto-resolve effect needs `players` to know whether a userId link exists;
+  // without this guard, the picker briefly renders with an empty <select>.
+  if (!players) {
+    return (
+      <div className="min-h-dvh bg-background flex items-center justify-center">
+        <div className="text-sm font-sans" style={{ color: "hsl(42 25% 60%)" }}>Loading...</div>
+      </div>
+    );
+  }
+
   // Signed in but no per-trip identity yet — pick or add player.
-  const noPlayers = players !== undefined && players.length === 0;
+  const noPlayers = players.length === 0;
 
   function handleIdentitySubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -166,7 +177,7 @@ export function TripAuthGate({ tripId, children }: Props) {
               style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
             >
               <option value="">— choose —</option>
-              {(players ?? []).map(p => (
+              {players.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
