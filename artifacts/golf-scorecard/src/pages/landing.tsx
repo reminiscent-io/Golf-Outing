@@ -1,8 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Trophy, Flag, ArrowRight, Coins, Swords, Activity } from "lucide-react";
+import { Trophy, Flag, ArrowRight, ChevronRight, Coins, Swords, Activity } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import { SignInModal } from "@/components/sign-in-modal";
+import { useListMyTrips, getListMyTripsQueryKey } from "@workspace/api-client-react";
+
+function firstName(fullName: string): string {
+  const trimmed = fullName.trim();
+  const space = trimmed.indexOf(" ");
+  return space === -1 ? trimmed : trimmed.slice(0, space);
+}
 
 const FOREST_DEEP = "hsl(158 65% 9%)";
 const FOREST_BG = "hsl(158 60% 11%)";
@@ -272,6 +279,13 @@ function HeroScorecard() {
 export default function LandingPage() {
   const [, navigate] = useLocation();
   const session = useAuthSession();
+  const { data: myTrips } = useListMyTrips({
+    query: {
+      queryKey: getListMyTripsQueryKey(),
+      enabled: !!session,
+    },
+  });
+  const mostRecent = (myTrips ?? [])[0] ?? null;
   const [signInOpen, setSignInOpen] = useState(false);
 
   function handlePrimaryCTA() {
@@ -291,6 +305,53 @@ export default function LandingPage() {
         }
         .rise { opacity: 0; animation: society-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
       `}</style>
+
+      {session && mostRecent && (
+        <section
+          style={{
+            background: `linear-gradient(180deg, hsl(158 50% 16%) 0%, ${FOREST_BG} 100%)`,
+          }}
+        >
+          <div className="max-w-lg mx-auto px-6 pt-10 pb-6">
+            <Eyebrow>Welcome back, {firstName(session.user.fullName)}</Eyebrow>
+            <button
+              type="button"
+              onClick={() => navigate(`/trips/${mostRecent.trip.id}`)}
+              className="mt-4 w-full text-left rounded-xl px-5 py-4 transition-transform hover:-translate-y-0.5 active:translate-y-0"
+              style={{
+                background: "hsl(42 45% 91%)",
+                border: "1px solid hsl(38 25% 78%)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div
+                    className="font-sans text-[10px] font-semibold uppercase tracking-widest mb-1"
+                    style={{ color: "hsl(38 20% 38%)" }}
+                  >
+                    Continue trip
+                  </div>
+                  <div
+                    className="font-serif text-lg font-semibold truncate"
+                    style={{ color: "hsl(38 30% 14%)" }}
+                  >
+                    {mostRecent.trip.name}
+                  </div>
+                </div>
+                <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/me/trips")}
+              className="mt-3 font-sans text-xs hover:opacity-80 transition-opacity"
+              style={{ color: BRASS_MUTED, letterSpacing: "0.06em" }}
+            >
+              See all my trips →
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* ============== HERO ============== */}
       <section
