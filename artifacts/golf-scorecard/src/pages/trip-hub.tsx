@@ -10,7 +10,6 @@ import {
   useUpdatePlayer,
   useDeletePlayer,
   useCreateRound,
-  useDeleteRound,
   useListMyTrips,
   useSaveTrip,
   useUnsaveTrip,
@@ -131,7 +130,6 @@ export default function TripHubPage() {
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
   const createRound = useCreateRound();
-  const deleteRound = useDeleteRound();
 
   // Player form state
   const [showAddPlayer, setShowAddPlayer] = useState(false);
@@ -304,16 +302,6 @@ export default function TripHubPage() {
           navigate(`/trips/${tripId}/rounds/${round.id}`);
         },
       }
-    );
-  }
-
-  function handleDeleteRound(roundId: number, e: React.MouseEvent) {
-    e.stopPropagation();
-    if (isObserver) return;
-    if (!confirm("Delete this round?")) return;
-    deleteRound.mutate(
-      { tripId, roundId },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListRoundsQueryKey(tripId) }) }
     );
   }
 
@@ -670,18 +658,7 @@ export default function TripHubPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    {!isObserver && (
-                      <button
-                        onClick={e => handleDeleteRound(round.id, e)}
-                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
-                        style={{ color: "hsl(0 45% 45%)" }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                    <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
-                  </div>
+                  <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
                 </div>
               ))
             ) : (
