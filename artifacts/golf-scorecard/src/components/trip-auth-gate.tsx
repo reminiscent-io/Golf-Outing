@@ -9,6 +9,7 @@ import {
   getListMyTripsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useTripIdentity, setTripIdentity } from "@/lib/trip-identity";
 import { useAuthSession, updateSessionUser } from "@/lib/auth";
 import { SignInModal } from "@/components/sign-in-modal";
@@ -38,6 +39,7 @@ export function TripAuthGate({ tripId, children }: Props) {
   const [showAddSelf, setShowAddSelf] = useState(false);
   const [newName, setNewName] = useState("");
   const [newHcp, setNewHcp] = useState(() => formatHandicap(session?.user.handicap));
+  const [, navigate] = useLocation();
 
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
@@ -66,11 +68,16 @@ export function TripAuthGate({ tripId, children }: Props) {
     return <>{children}</>;
   }
 
-  // If not signed in, force the mandatory sign-in modal first.
+  // If not signed in, force the sign-in modal. Dismissal exits to /.
   if (!session) {
     return (
       <div className="min-h-screen" style={{ background: "hsl(158 65% 9%)" }}>
-        <SignInModal open onSignedIn={() => { /* state will re-render */ }} title="Sign in to join this trip" />
+        <SignInModal
+          open
+          onClose={() => navigate("/")}
+          onSignedIn={() => { /* state will re-render */ }}
+          title="Sign in to join this trip"
+        />
       </div>
     );
   }
