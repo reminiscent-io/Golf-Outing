@@ -321,12 +321,12 @@ export default function TripHubPage() {
       <div className="px-4 pt-8 pb-5" style={{ background: "hsl(158 65% 9%)" }}>
         <div className="max-w-2xl mx-auto">
           <button
-            onClick={() => navigate("/trips")}
+            onClick={() => navigate("/me/trips")}
             className="flex items-center gap-1.5 text-xs font-sans mb-4 transition-opacity hover:opacity-70"
             style={{ color: "hsl(42 35% 65%)" }}
           >
             <ArrowLeft size={14} />
-            All Trips
+            My Trips
           </button>
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl font-serif" style={{ color: "hsl(42 52% 59%)" }}>

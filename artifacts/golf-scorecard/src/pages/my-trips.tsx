@@ -40,7 +40,7 @@ function MyTripsContent({ session }: { session: AuthSession }) {
               </p>
             </div>
             <button
-              onClick={() => navigate("/trips?new=1")}
+              onClick={() => navigate("/trips/new")}
               aria-label="Start a new round"
               className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full font-sans text-xs font-semibold uppercase tracking-wider transition-opacity hover:opacity-90 active:opacity-80"
               style={{
@@ -87,7 +87,7 @@ function MyTripsContent({ session }: { session: AuthSession }) {
               You haven't joined or saved any trips yet. Start one and invite the group.
             </p>
             <button
-              onClick={() => navigate("/trips?new=1")}
+              onClick={() => navigate("/trips/new")}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-sans font-semibold text-sm transition-transform hover:-translate-y-0.5 active:translate-y-0"
               style={{
                 background: BRASS,

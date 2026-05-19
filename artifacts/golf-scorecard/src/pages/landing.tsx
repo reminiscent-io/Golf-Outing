@@ -292,7 +292,7 @@ export default function LandingPage() {
     if (session) {
       navigate("/me/trips");
     } else {
-      navigate("/trips");
+      navigate("/trips/new");
     }
   }
 
