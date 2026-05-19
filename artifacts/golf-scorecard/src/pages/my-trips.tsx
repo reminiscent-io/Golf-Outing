@@ -5,20 +5,36 @@ import { ArrowLeft, Flag, ChevronRight, Plus } from "lucide-react";
 import { RequireSignIn } from "@/components/require-sign-in";
 
 const BRASS = "hsl(42 52% 59%)";
+const BRASS_MUTED = "hsl(42 35% 70%)";
 const BRASS_FAINT = "hsl(42 25% 60%)";
 const CREAM = "hsl(42 45% 91%)";
 const CREAM_BORDER = "hsl(38 25% 78%)";
 const INK = "hsl(38 30% 14%)";
 const INK_SOFT = "hsl(38 20% 38%)";
 const FOREST_ACCENT = "hsl(158 35% 20%)";
+const FOREST_HAIRLINE = "hsl(158 30% 28%)";
 
-function MyTripsContent({ session }: { session: AuthSession }) {
+function MyTripsContent({ session }: Readonly<{ session: AuthSession }>) {
   const [, navigate] = useLocation();
   const { data: items, isLoading } = useListMyTrips();
 
   const myUserId = session.user.id;
-  const rounds = items ?? [];
-  const hasAny = rounds.length > 0;
+  const trips = items ?? [];
+  const hasAny = trips.length > 0;
+
+  // Bucket trips by attachment state so each section can read at a glance
+  // without per-row badges. Owner takes precedence over player; saved-only
+  // falls through to "watching".
+  const made: UserTripAssociation[] = [];
+  const playing: UserTripAssociation[] = [];
+  const watching: UserTripAssociation[] = [];
+  for (const item of trips) {
+    const isOwn = item.trip.createdByUserId === myUserId;
+    const isPlayer = item.via === "player" || item.via === "both";
+    if (isOwn) made.push(item);
+    else if (isPlayer) playing.push(item);
+    else watching.push(item);
+  }
 
   return (
     <div className="min-h-dvh bg-background">
@@ -65,15 +81,43 @@ function MyTripsContent({ session }: { session: AuthSession }) {
             ))}
           </div>
         ) : hasAny ? (
-          <div className="space-y-3">
-            {rounds.map(item => (
-              <TripRow
-                key={item.trip.id}
-                item={item}
-                isOwn={item.trip.createdByUserId === myUserId}
-                onClick={() => navigate(`/trips/${item.trip.id}`)}
-              />
-            ))}
+          <div>
+            {made.length > 0 && (
+              <Section label="Made">
+                {made.map(item => (
+                  <TripRow
+                    key={item.trip.id}
+                    item={item}
+                    variant="primary"
+                    onClick={() => navigate(`/trips/${item.trip.id}`)}
+                  />
+                ))}
+              </Section>
+            )}
+            {playing.length > 0 && (
+              <Section label="Playing">
+                {playing.map(item => (
+                  <TripRow
+                    key={item.trip.id}
+                    item={item}
+                    variant="primary"
+                    onClick={() => navigate(`/trips/${item.trip.id}`)}
+                  />
+                ))}
+              </Section>
+            )}
+            {watching.length > 0 && (
+              <Section label="Watching">
+                {watching.map(item => (
+                  <TripRow
+                    key={item.trip.id}
+                    item={item}
+                    variant="watching"
+                    onClick={() => navigate(`/trips/${item.trip.id}`)}
+                  />
+                ))}
+              </Section>
+            )}
           </div>
         ) : (
           <div className="text-center py-16">
@@ -106,53 +150,78 @@ function MyTripsContent({ session }: { session: AuthSession }) {
   );
 }
 
-function viaLabelFor(item: UserTripAssociation, isOwn: boolean): string {
-  if (isOwn) return "Yours";
-  if (item.via === "saved") return "Watching";
-  if (item.via === "both") return "Player + Saved";
-  return "Player";
+function Section({ label, children }: Readonly<{ label: string; children: React.ReactNode }>) {
+  return (
+    <section className="mt-8 first:mt-0">
+      <div className="flex items-center gap-3 mb-3 px-1">
+        <span
+          className="text-[10px] font-sans font-bold uppercase"
+          style={{ color: BRASS, letterSpacing: "0.32em" }}
+        >
+          {label}
+        </span>
+        <span className="flex-1 border-t border-dashed" style={{ borderColor: FOREST_HAIRLINE }} />
+      </div>
+      <div className="space-y-2.5">{children}</div>
+    </section>
+  );
 }
 
 function TripRow({
   item,
-  isOwn,
+  variant,
   onClick,
 }: Readonly<{
   item: UserTripAssociation;
-  isOwn: boolean;
+  variant: "primary" | "watching";
   onClick: () => void;
 }>) {
-  const isObserverOnly = item.via === "saved";
-  const viaLabel = viaLabelFor(item, isOwn);
-  const badgeMuted = isObserverOnly && !isOwn;
+  const playerNames = item.players.length > 0 ? item.players.map(p => p.name).join(", ") : "";
+
+  if (variant === "watching") {
+    return (
+      <div
+        onClick={onClick}
+        className="rounded-xl px-4 py-3 cursor-pointer flex items-center justify-between gap-3 group transition-opacity hover:opacity-90"
+        style={{ background: FOREST_ACCENT, border: `1px solid ${FOREST_HAIRLINE}` }}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="font-sans font-semibold text-sm truncate" style={{ color: BRASS_MUTED }}>
+            {item.trip.name}
+          </div>
+          {playerNames && (
+            <div className="text-xs mt-0.5 truncate" style={{ color: BRASS_FAINT }}>
+              {playerNames}
+            </div>
+          )}
+        </div>
+        <ChevronRight size={16} style={{ color: "hsl(42 25% 45%)" }} />
+      </div>
+    );
+  }
+
   return (
     <div
       onClick={onClick}
-      className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between group transition-all hover:scale-[1.01]"
+      className="rounded-xl px-5 py-4 cursor-pointer flex items-center justify-between gap-3 group transition-transform hover:scale-[1.005]"
       style={{ background: CREAM, border: `1px solid ${CREAM_BORDER}` }}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className="rounded-lg p-2" style={{ background: FOREST_ACCENT }}>
           <Flag size={16} style={{ color: BRASS }} />
         </div>
-        <div className="min-w-0">
-          <div className="font-sans font-semibold text-sm truncate" style={{ color: INK }}>
+        <div className="min-w-0 flex-1">
+          <div
+            className="font-serif font-medium text-[17px] leading-tight truncate"
+            style={{ color: INK }}
+          >
             {item.trip.name}
           </div>
-          <div className="text-xs mt-0.5 flex items-center gap-2" style={{ color: INK_SOFT }}>
-            <span
-              className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-              style={{
-                background: badgeMuted ? "hsl(42 30% 80%)" : FOREST_ACCENT,
-                color: badgeMuted ? "hsl(38 30% 20%)" : BRASS,
-              }}
-            >
-              {viaLabel}
-            </span>
-            {item.players.length > 0 && (
-              <span className="truncate">as {item.players.map(p => p.name).join(", ")}</span>
-            )}
-          </div>
+          {playerNames && (
+            <div className="text-xs mt-1 truncate" style={{ color: INK_SOFT }}>
+              as {playerNames}
+            </div>
+          )}
         </div>
       </div>
       <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
