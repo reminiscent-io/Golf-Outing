@@ -5,6 +5,7 @@ import { ArrowLeft, User as UserIcon } from "lucide-react";
 import { RequireSignIn } from "@/components/require-sign-in";
 import { useAuthSession, updateSessionUser } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { goBackOr } from "@/lib/back-nav";
 
 function parseHandicapInput(raw: string): number | null {
   const trimmed = raw.trim();
@@ -60,12 +61,12 @@ function ProfileContent() {
       <div className="px-6 pt-10 pb-6" style={{ background: "hsl(158 65% 9%)" }}>
         <div className="max-w-lg mx-auto">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => goBackOr("/", navigate)}
             className="flex items-center gap-1.5 text-xs font-sans mb-4 transition-opacity hover:opacity-70"
             style={{ color: "hsl(42 35% 65%)" }}
           >
             <ArrowLeft size={14} />
-            Home
+            Back
           </button>
           <h1 className="text-3xl font-serif" style={{ color: "hsl(42 52% 59%)" }}>
             Profile

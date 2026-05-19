@@ -9,12 +9,12 @@ export default function PrivacyPage() {
       <div className="px-6 pt-10 pb-6" style={{ background: "hsl(158 65% 9%)" }}>
         <div className="max-w-2xl mx-auto">
           <Link
-            href="/trips"
+            href="/"
             className="inline-flex items-center gap-1 text-xs font-sans mb-4 hover:opacity-80"
             style={{ color: "hsl(42 25% 70%)" }}
           >
             <ChevronLeft size={14} />
-            Back to Trips
+            Back
           </Link>
           <div className="flex items-center gap-3 mb-1">
             <Trophy className="text-primary" size={28} strokeWidth={1.5} />

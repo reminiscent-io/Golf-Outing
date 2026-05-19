@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   useListPlayers,
   useCreatePlayer,
@@ -49,6 +49,17 @@ export function TripAuthGate({ tripId, children }: Props) {
       enabled: !!session,
     },
   });
+
+  // Auto-resolve identity when the signed-in user already has a player row in
+  // this trip. Avoids forcing the "Who are you?" picker on every re-entry.
+  useEffect(() => {
+    if (identity) return;
+    if (!session) return;
+    if (!players) return;
+    const mine = players.find(p => p.userId === session.user.id);
+    if (!mine) return;
+    setTripIdentity(tripId, { kind: "player", playerId: mine.id, playerName: mine.name });
+  }, [identity, session, players, tripId]);
 
   // Identity is set after sign-in (per-trip). Pass-through.
   if (identity) {

@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import TripsPage from "@/pages/trips";
+import NewTripPage from "@/pages/trips-new";
 import TripHubPage from "@/pages/trip-hub";
 import RoundPage from "@/pages/round";
 import PrivacyPage from "@/pages/privacy";
@@ -204,6 +205,7 @@ function Router() {
       <Switch>
         <Route path="/" component={LandingPage} />
         <Route path="/trips" component={TripsPage} />
+        <Route path="/trips/new" component={NewTripPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/me/trips" component={MyTripsPage} />
         <Route path="/profile" component={ProfilePage} />
