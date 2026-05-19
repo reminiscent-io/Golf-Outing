@@ -76,7 +76,7 @@ export default function TripHubPage() {
   const saveTrip = useSaveTrip();
   const unsaveTrip = useUnsaveTrip();
 
-  const tripUrl = `${window.location.origin}${window.location.pathname.split("/trips/")[0] || ""}/trips/${tripId}`;
+  const tripUrl = `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, "")}/trips/${tripId}`;
 
   function handleShare() {
     setShareOpen(true);
