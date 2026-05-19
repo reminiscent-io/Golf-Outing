@@ -36,6 +36,7 @@ import {
 } from "@/lib/course-lookup";
 import { SignedInAs } from "@/components/signed-in-as";
 import { GameInfoButton } from "@/components/game-info-modal";
+import { ShareTripModal } from "@/components/share-trip-modal";
 
 type Tab = "leaderboard" | "rounds" | "players";
 
@@ -59,7 +60,7 @@ export default function TripHubPage() {
   const identity = useTripIdentity(tripId);
   const isObserver = identity?.kind === "observer";
   const [signInOpen, setSignInOpen] = useState(false);
-  const [shareToast, setShareToast] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // My-trips data lets us show the right Save/Unsave state.
   const { data: myTrips } = useListMyTrips({
@@ -75,20 +76,10 @@ export default function TripHubPage() {
   const saveTrip = useSaveTrip();
   const unsaveTrip = useUnsaveTrip();
 
+  const tripUrl = `${window.location.origin}${window.location.pathname.split("/trips/")[0] || ""}/trips/${tripId}`;
+
   function handleShare() {
-    const url = `${window.location.origin}${window.location.pathname.split("/trips/")[0] || ""}/trips/${tripId}`;
-    if (typeof navigator.share === "function") {
-      void navigator.share({ url, text: "Join my golf trip", title: "Golf Outing" }).catch(() => {});
-      return;
-    }
-    try {
-      void navigator.clipboard.writeText(url);
-      setShareToast("Link copied");
-      setTimeout(() => setShareToast(null), 2000);
-    } catch {
-      setShareToast(url);
-      setTimeout(() => setShareToast(null), 4000);
-    }
+    setShareOpen(true);
   }
 
   function handleSaveToggle() {
@@ -376,18 +367,16 @@ export default function TripHubPage() {
           <div className="mt-2">
             <SignedInAs tripId={tripId} />
           </div>
-          {shareToast && (
-            <div
-              className="mt-2 inline-block px-3 py-1 rounded text-xs font-sans"
-              style={{ background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)" }}
-            >
-              {shareToast}
-            </div>
-          )}
           <SignInModal
             open={signInOpen}
             onClose={() => setSignInOpen(false)}
             onSignedIn={() => setSignInOpen(false)}
+          />
+          <ShareTripModal
+            open={shareOpen}
+            onClose={() => setShareOpen(false)}
+            tripName={trip?.name ?? "this trip"}
+            tripUrl={tripUrl}
           />
         </div>
       </div>
