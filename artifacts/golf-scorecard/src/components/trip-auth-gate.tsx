@@ -74,7 +74,7 @@ export function TripAuthGate({ tripId, children }: Props) {
       <div className="min-h-screen" style={{ background: "hsl(158 65% 9%)" }}>
         <SignInModal
           open
-          onClose={() => navigate("/")}
+          onClose={() => navigate("/", { replace: true })}
           onSignedIn={() => { /* state will re-render */ }}
           title="Sign in to join this trip"
         />
