@@ -110,8 +110,13 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
       return;
     }
     setError(null);
+    // Only pass fullName when this phone has no account yet. For existing
+    // accounts the server ignores it, but we shouldn't send it at all.
+    const data = isNewUser
+      ? { phone: normalized, code, fullName: fullName.trim() }
+      : { phone: normalized, code };
     verifyOtp.mutate(
-      { data: { phone: normalized, code, fullName: fullName.trim() || undefined } },
+      { data },
       {
         onSuccess: (resp) => {
           setSession({ token: resp.token, expiresAt: resp.expiresAt, user: resp.user });
@@ -229,7 +234,13 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
             <div className="flex items-center justify-between mt-3">
               <button
                 type="button"
-                onClick={() => { setStep("phone"); setCode(""); setError(null); }}
+                onClick={() => {
+                  setStep("phone");
+                  setCode("");
+                  setFullName("");
+                  setIsNewUser(false);
+                  setError(null);
+                }}
                 className="text-xs font-sans underline"
                 style={{ color: "hsl(38 20% 38%)" }}
               >
