@@ -93,6 +93,31 @@
   --primary: 42 52% 59%;
   --primary-foreground: 38 30% 12%;
 
+  /* Brass shades for ornament hairlines, inset highlights, and metadata on forest.
+     Kept as raw CSS vars (not Tailwind theme tokens) since components reference
+     them inline via hsl(var(...)). Single source of truth, no drift. */
+  --brass-deep: 42 60% 48%;
+  --brass-muted: 42 35% 65%;
+  --brass-faint: 42 25% 60%;
+  /* Darker brass for eyebrows and labels on cream surfaces — passes WCAG AA on cream.
+     The bright --primary brass is for forest-context use only. */
+  --brass-ink: 42 60% 32%;
+
+  /* Printed-paper header band — the cream band behind scorecard column headers. */
+  --paper-band: 42 35% 86%;
+
+  /* Golf score semantics. Backgrounds only; foreground colors stay on the
+     .score-* CSS classes below so the live scorecard grid is untouched. */
+  --score-eagle: 42 60% 55%;
+  --score-birdie: 148 45% 40%;
+  --score-par: 42 20% 84%;
+  --score-bogey: 30 40% 75%;
+  --score-double: 0 45% 45%;
+  --score-empty: 42 25% 78%;
+  /* Worse-than-double tiers used by the profile career card; no live-scorecard equivalent. */
+  --score-triple: 0 50% 38%;
+  --score-quad: 0 55% 32%;
+
   --secondary: 42 30% 86%;
   --secondary-foreground: 38 30% 18%;
 
@@ -172,12 +197,12 @@
 }
 
 /* Score color coding */
-.score-eagle { background-color: hsl(42 60% 55%); color: hsl(38 30% 12%); }
-.score-birdie { background-color: hsl(148 45% 40%); color: white; }
-.score-par { background-color: hsl(42 20% 84%); color: hsl(38 30% 18%); }
-.score-bogey { background-color: hsl(30 40% 75%); color: hsl(38 30% 18%); }
-.score-double { background-color: hsl(0 45% 45%); color: white; }
-.score-empty { background-color: hsl(42 25% 78%); color: hsl(38 35% 25%); }
+.score-eagle { background-color: hsl(var(--score-eagle)); color: hsl(38 30% 12%); }
+.score-birdie { background-color: hsl(var(--score-birdie)); color: white; }
+.score-par { background-color: hsl(var(--score-par)); color: hsl(38 30% 18%); }
+.score-bogey { background-color: hsl(var(--score-bogey)); color: hsl(38 30% 18%); }
+.score-double { background-color: hsl(var(--score-double)); color: white; }
+.score-empty { background-color: hsl(var(--score-empty)); color: hsl(38 35% 25%); }
 
 @layer utilities {
   .font-serif { font-family: var(--app-font-serif); }
