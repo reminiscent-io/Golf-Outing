@@ -23,7 +23,6 @@ Golf Trip Live Scorecard — a full-stack live scoring app (trips, rounds, 18-ho
 | [lib/db](lib/db/) | Drizzle schema + `pg.Pool`. Tables: `trips`, `players`, `rounds`, `scores`, `round_group_assignments`. |
 | [artifacts/api-server](artifacts/api-server/) | Express server, routes in `src/routes/`, scoring algorithms in [src/lib/scoring.ts](artifacts/api-server/src/lib/scoring.ts). |
 | [artifacts/golf-scorecard](artifacts/golf-scorecard/) | Main React app. Routes: `/`, `/trips/:tripId`, `/trips/:tripId/rounds/:roundId`. |
-| [artifacts/mockup-sandbox](artifacts/mockup-sandbox/) | Standalone Vite app for design mockups (served at `/__mockup`). Not used at runtime. |
 | [scripts](scripts/) | One-off tsx scripts (e.g. `test-golf-course-api`). |
 
 Catalog dependencies (`react`, `vite`, `zod`, etc.) are pinned centrally in [pnpm-workspace.yaml](pnpm-workspace.yaml) and referenced as `"catalog:"` in each package.json — bump versions there, not in individual packages. Internal packages are imported as `@workspace/<name>` via `workspace:*`.
@@ -46,7 +45,6 @@ Database (Drizzle uses **push**, not migrations — dev workflow only):
 Running locally:
 - API server: `pnpm --filter @workspace/api-server run dev` — builds with esbuild then `node dist/index.mjs`. Requires `DATABASE_URL` and `PORT`.
 - Scorecard UI: `pnpm --filter @workspace/golf-scorecard run dev` — requires `PORT` (enforced only for `vite serve`, not `vite build`).
-- Mockup sandbox: `pnpm --filter @workspace/mockup-sandbox run dev`.
 
 Per-package typecheck: `pnpm --filter <name> run typecheck`.
 
