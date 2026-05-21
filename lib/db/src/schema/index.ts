@@ -8,3 +8,4 @@ export * from "./users";
 export * from "./user-trip-follows";
 export * from "./user-follows";
 export * from "./round-kudos";
+export * from "./round-comments";
