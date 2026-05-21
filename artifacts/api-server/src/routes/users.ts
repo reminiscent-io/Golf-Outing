@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { ser } from "../lib/serialize";
 import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
+import { summarizeFeedItems, type FeedItem } from "../lib/feed";
 
 const router: IRouter = Router();
 
@@ -66,7 +67,7 @@ router.get("/users/:userId", requireAuth, async (req: AuthedRequest, res): Promi
   const myPlayers = await db.select().from(playersTable).where(eq(playersTable.userId, userId));
   const myPlayerIds = myPlayers.map(p => p.id);
   let stats = { roundsPlayed: 0, bestNet: null as number | null, avgNetLast10: null as number | null, coursesPlayed: 0 };
-  let recentRounds: Awaited<ReturnType<typeof import("../lib/feed").summarizeFeedItems>> = [];
+  let recentRounds: FeedItem[] = [];
 
   if (myPlayerIds.length > 0) {
     const myScoreRows = await db.select().from(scoresTable).where(inArray(scoresTable.playerId, myPlayerIds));
@@ -86,7 +87,6 @@ router.get("/users/:userId", requireAuth, async (req: AuthedRequest, res): Promi
         .where(and(inArray(roundsTable.id, myRoundIds), eq(roundsTable.visibility, "public")))
         .orderBy(desc(sql`coalesce(${roundsTable.completedAt}, ${roundsTable.updatedAt})`))
         .limit(20);
-      const { summarizeFeedItems } = await import("../lib/feed");
       recentRounds = await summarizeFeedItems(recentRows, viewerId);
     }
   }
