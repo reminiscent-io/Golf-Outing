@@ -500,6 +500,44 @@ paths:
                 items:
                   $ref: "#/components/schemas/FollowEntry"
 
+  /rounds/{roundId}/kudos:
+    post:
+      operationId: giveKudos
+      tags: [rounds]
+      summary: Give kudos to a round (idempotent)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Kudosed
+        "401":
+          description: Unauthorized
+        "403":
+          description: Round is private
+        "404":
+          description: Round not found
+    delete:
+      operationId: revokeKudos
+      tags: [rounds]
+      summary: Remove your kudos from a round
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+
   /trips/{tripId}/players:
     get:
       operationId: listPlayers
