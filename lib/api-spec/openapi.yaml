@@ -385,6 +385,121 @@ paths:
         "401":
           description: Unauthorized
 
+  /users/{userId}/follow:
+    post:
+      operationId: followUser
+      tags: [users]
+      summary: Follow a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Followed (idempotent)
+        "400":
+          description: Cannot follow self
+        "401":
+          description: Unauthorized
+        "403":
+          description: Target profile is private
+        "404":
+          description: Not found
+    delete:
+      operationId: unfollowUser
+      tags: [users]
+      summary: Unfollow a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Unfollowed (idempotent)
+        "401":
+          description: Unauthorized
+
+  /users/{userId}/followers:
+    get:
+      operationId: listFollowers
+      tags: [users]
+      summary: Paginated followers of a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+            description: ISO timestamp; return rows older than this.
+      responses:
+        "200":
+          description: Followers page
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FollowEntry"
+
+  /users/{userId}/following:
+    get:
+      operationId: listFollowing
+      tags: [users]
+      summary: Paginated users that this user is following
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Following page
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FollowEntry"
+
   /trips/{tripId}/players:
     get:
       operationId: listPlayers
@@ -992,6 +1107,19 @@ components:
         lastPlayedAt:
           type: ["string", "null"]
       required: [userId, fullName, roundsTogether]
+
+    FollowEntry:
+      type: object
+      properties:
+        userId:
+          type: integer
+        fullName:
+          type: string
+        handicap:
+          type: ["number", "null"]
+        followedAt:
+          type: string
+      required: [userId, fullName, followedAt]
 
     RequestOtpBody:
       type: object
