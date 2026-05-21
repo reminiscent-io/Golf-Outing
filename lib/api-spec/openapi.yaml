@@ -269,6 +269,29 @@ paths:
         "401":
           description: Unauthorized
 
+  /users/me/personal-trip/rounds:
+    post:
+      operationId: createSoloRound
+      tags: [users]
+      summary: Find-or-create the caller's personal trip and create a round inside it
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSoloRoundBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateSoloRoundResponse"
+        "401":
+          description: Unauthorized
+
   /users/me/trips/{tripId}:
     post:
       operationId: saveTrip
@@ -1434,6 +1457,44 @@ components:
         nextBefore:
           type: ["string", "null"]
       required: [items, nextBefore]
+
+    CreateSoloRoundBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        course:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        par:
+          type: array
+          items:
+            type: integer
+        holeHcp:
+          type: array
+          items:
+            type: integer
+        teeBox:
+          type: ["string", "null"]
+        courseRating:
+          type: ["number", "null"]
+        courseSlope:
+          type: ["integer", "null"]
+      required: [name]
+
+    CreateSoloRoundResponse:
+      type: object
+      properties:
+        tripId:
+          type: integer
+        roundId:
+          type: integer
+        playerId:
+          type: integer
+      required: [tripId, roundId, playerId]
 
     RequestOtpBody:
       type: object
