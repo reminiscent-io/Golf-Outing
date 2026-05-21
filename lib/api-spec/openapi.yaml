@@ -799,12 +799,19 @@ components:
         handicap:
           type: ["number", "null"]
           description: User's current handicap index; autofilled when joining new trips.
+        discoverableByPhone:
+          type: boolean
+        profileVisibility:
+          type: string
+          enum: [public, private]
         createdAt:
           type: string
       required:
         - id
         - phone
         - fullName
+        - discoverableByPhone
+        - profileVisibility
         - createdAt
 
     UpdateMeBody:
@@ -814,6 +821,15 @@ components:
           type: ["number", "null"]
           minimum: 0
           maximum: 54
+        discoverableByPhone:
+          type: boolean
+        profileVisibility:
+          type: string
+          enum: [public, private]
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 80
 
     RequestOtpBody:
       type: object
