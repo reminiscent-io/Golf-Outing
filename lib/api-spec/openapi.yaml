@@ -750,6 +750,10 @@ components:
           type: string
         description:
           type: ["string", "null"]
+        kind:
+          type: string
+          enum: [event, personal]
+          description: '`event` = shared trip with friends. `personal` = solo-round bucket, one per user.'
         createdByUserId:
           type: ["integer", "null"]
           description: User who created the trip; null for legacy trips created before attribution.
@@ -760,6 +764,7 @@ components:
       required:
         - id
         - name
+        - kind
         - createdAt
         - updatedAt
 
