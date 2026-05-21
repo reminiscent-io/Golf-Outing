@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, roundsTable, playersTable, userTripFollowsTable } from "@workspace/db";
+import { db, roundsTable, playersTable, userTripFollowsTable, tripsTable } from "@workspace/db";
 import { ser } from "../lib/serialize";
 import {
   CreateRoundBody,
@@ -110,7 +110,7 @@ router.get("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => 
   res.json(GetRoundResponse.parse(ser(round)));
 });
 
-router.patch("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => {
+router.patch("/trips/:tripId/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const params = UpdateRoundParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -121,6 +121,31 @@ router.patch("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> =
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  // Load the trip + round + caller's player to decide what they're allowed to change.
+  const [trip] = await db.select().from(tripsTable).where(eq(tripsTable.id, params.data.tripId));
+  if (!trip) { res.status(404).json({ error: "Trip not found" }); return; }
+  const [round] = await db.select().from(roundsTable)
+    .where(and(eq(roundsTable.id, params.data.roundId), eq(roundsTable.tripId, params.data.tripId)));
+  if (!round) { res.status(404).json({ error: "Round not found" }); return; }
+  const [callerPlayer] = await db.select().from(playersTable)
+    .where(and(eq(playersTable.tripId, params.data.tripId), eq(playersTable.userId, req.user!.id)))
+    .limit(1);
+
+  const isTripCreator = trip.createdByUserId === req.user!.id;
+  const isPlayerInRound = !!callerPlayer;
+
+  // Visibility flips: trip creator only.
+  if (parsed.data.visibility !== undefined && !isTripCreator) {
+    res.status(403).json({ error: "Only the trip creator can change visibility" });
+    return;
+  }
+  // completedAt: any player in the trip can mark complete.
+  if (parsed.data.completedAt !== undefined && !isPlayerInRound && !isTripCreator) {
+    res.status(403).json({ error: "Only players in this round can mark it complete" });
+    return;
+  }
+
   const updateData: Record<string, unknown> = { updatedAt: new Date() };
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
   if (parsed.data.course !== undefined) updateData.course = parsed.data.course;
@@ -132,15 +157,15 @@ router.patch("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> =
   if (parsed.data.teeBox !== undefined) updateData.teeBox = parsed.data.teeBox;
   if (parsed.data.courseRating !== undefined) updateData.courseRating = parsed.data.courseRating;
   if (parsed.data.courseSlope !== undefined) updateData.courseSlope = parsed.data.courseSlope;
+  if (parsed.data.visibility !== undefined) updateData.visibility = parsed.data.visibility;
+  if (parsed.data.completedAt !== undefined) {
+    updateData.completedAt = parsed.data.completedAt == null ? null : new Date(parsed.data.completedAt);
+  }
 
-  const [round] = await db.update(roundsTable).set(updateData)
+  const [updated] = await db.update(roundsTable).set(updateData)
     .where(and(eq(roundsTable.id, params.data.roundId), eq(roundsTable.tripId, params.data.tripId)))
     .returning();
-  if (!round) {
-    res.status(404).json({ error: "Round not found" });
-    return;
-  }
-  res.json(UpdateRoundResponse.parse(ser(round)));
+  res.json(UpdateRoundResponse.parse(ser(updated)));
 });
 
 router.delete("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => {
