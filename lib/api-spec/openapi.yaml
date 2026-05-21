@@ -1041,6 +1041,12 @@ components:
           type: ["number", "null"]
         courseSlope:
           type: ["integer", "null"]
+        visibility:
+          type: string
+          enum: [public, private]
+        completedAt:
+          type: ["string", "null"]
+          description: ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.
         createdAt:
           type: string
         updatedAt:
@@ -1053,6 +1059,7 @@ components:
         - holeHcp
         - gamesConfig
         - handicapMode
+        - visibility
         - createdAt
         - updatedAt
 
@@ -1183,6 +1190,12 @@ components:
           type: ["number", "null"]
         courseSlope:
           type: ["integer", "null"]
+        visibility:
+          type: string
+          enum: [public, private]
+        completedAt:
+          type: ["string", "null"]
+          description: Send a timestamp to mark the round complete; send null to clear.
 
     PlayerScore:
       type: object
