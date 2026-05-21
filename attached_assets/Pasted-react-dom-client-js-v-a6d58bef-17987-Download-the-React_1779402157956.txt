@@ -1,0 +1,103 @@
+react-dom_client.js?v=a6d58bef:17987 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+favicon.svg:1  GET https://0923ab2d-118d-4c18-93ca-847ba2d63d91-00-23dcri625b4l1.kirk.replit.dev/favicon.svg 404 (Not Found)
+custom-fetch.ts:363  POST https://0923ab2d-118d-4c18-93ca-847ba2d63d91-00-23dcri625b4l1.kirk.replit.dev/api/auth/request-otp 500 (Internal Server Error)
+(anonymous) @ custom-fetch.ts:363
+await in (anonymous)
+(anonymous) @ api.ts:556
+(anonymous) @ api.ts:596
+fn @ @tanstack_react-query.js?v=a6d58bef:1989
+run @ @tanstack_react-query.js?v=a6d58bef:798
+start @ @tanstack_react-query.js?v=a6d58bef:840
+execute @ @tanstack_react-query.js?v=a6d58bef:2030
+await in execute
+mutate @ @tanstack_react-query.js?v=a6d58bef:2366
+(anonymous) @ @tanstack_react-query.js?v=a6d58bef:3586
+(anonymous) @ sign-in-modal.tsx:73
+executeDispatch @ react-dom_client.js?v=a6d58bef:11736
+runWithFiberInDEV @ react-dom_client.js?v=a6d58bef:1485
+processDispatchQueue @ react-dom_client.js?v=a6d58bef:11772
+(anonymous) @ react-dom_client.js?v=a6d58bef:12182
+batchedUpdates$1 @ react-dom_client.js?v=a6d58bef:2628
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=a6d58bef:11877
+dispatchEvent @ react-dom_client.js?v=a6d58bef:14792
+dispatchDiscreteEvent @ react-dom_client.js?v=a6d58bef:14773
+<form>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=a6d58bef:250
+(anonymous) @ sign-in-modal.tsx:149
+react-stack-bottom-frame @ react-dom_client.js?v=a6d58bef:17424
+renderWithHooks @ react-dom_client.js?v=a6d58bef:4206
+updateFunctionComponent @ react-dom_client.js?v=a6d58bef:6619
+beginWork @ react-dom_client.js?v=a6d58bef:7654
+runWithFiberInDEV @ react-dom_client.js?v=a6d58bef:1485
+performUnitOfWork @ react-dom_client.js?v=a6d58bef:10868
+workLoopSync @ react-dom_client.js?v=a6d58bef:10728
+renderRootSync @ react-dom_client.js?v=a6d58bef:10711
+performWorkOnRoot @ react-dom_client.js?v=a6d58bef:10330
+performSyncWorkOnRoot @ react-dom_client.js?v=a6d58bef:11635
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=a6d58bef:11536
+processRootScheduleInMicrotask @ react-dom_client.js?v=a6d58bef:11558
+(anonymous) @ react-dom_client.js?v=a6d58bef:11649
+<SignInModal>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=a6d58bef:250
+(anonymous) @ trips-new.tsx:100
+react-stack-bottom-frame @ react-dom_client.js?v=a6d58bef:17424
+renderWithHooks @ react-dom_client.js?v=a6d58bef:4206
+updateFunctionComponent @ react-dom_client.js?v=a6d58bef:6619
+beginWork @ react-dom_client.js?v=a6d58bef:7654
+runWithFiberInDEV @ react-dom_client.js?v=a6d58bef:1485
+performUnitOfWork @ react-dom_client.js?v=a6d58bef:10868
+workLoopSync @ react-dom_client.js?v=a6d58bef:10728
+renderRootSync @ react-dom_client.js?v=a6d58bef:10711
+performWorkOnRoot @ react-dom_client.js?v=a6d58bef:10330
+performSyncWorkOnRoot @ react-dom_client.js?v=a6d58bef:11635
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=a6d58bef:11536
+processRootScheduleInMicrotask @ react-dom_client.js?v=a6d58bef:11558
+(anonymous) @ react-dom_client.js?v=a6d58bef:11649
+<NewTripPage>
+exports.createElement @ chunk-KC53NVYV.js?v=a6d58bef:773
+h_route @ wouter.js?v=a6d58bef:277
+Route @ wouter.js?v=a6d58bef:309
+react-stack-bottom-frame @ react-dom_client.js?v=a6d58bef:17424
+renderWithHooks @ react-dom_client.js?v=a6d58bef:4206
+updateFunctionComponent @ react-dom_client.js?v=a6d58bef:6619
+beginWork @ react-dom_client.js?v=a6d58bef:7654
+runWithFiberInDEV @ react-dom_client.js?v=a6d58bef:1485
+performUnitOfWork @ react-dom_client.js?v=a6d58bef:10868
+workLoopSync @ react-dom_client.js?v=a6d58bef:10728
+renderRootSync @ react-dom_client.js?v=a6d58bef:10711
+performWorkOnRoot @ react-dom_client.js?v=a6d58bef:10330
+performSyncWorkOnRoot @ react-dom_client.js?v=a6d58bef:11635
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=a6d58bef:11536
+processRootScheduleInMicrotask @ react-dom_client.js?v=a6d58bef:11558
+(anonymous) @ react-dom_client.js?v=a6d58bef:11649
+<Route>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=a6d58bef:250
+Router @ App.tsx:229
+react-stack-bottom-frame @ react-dom_client.js?v=a6d58bef:17424
+renderWithHooks @ react-dom_client.js?v=a6d58bef:4206
+updateFunctionComponent @ react-dom_client.js?v=a6d58bef:6619
+beginWork @ react-dom_client.js?v=a6d58bef:7654
+runWithFiberInDEV @ react-dom_client.js?v=a6d58bef:1485
+performUnitOfWork @ react-dom_client.js?v=a6d58bef:10868
+workLoopSync @ react-dom_client.js?v=a6d58bef:10728
+renderRootSync @ react-dom_client.js?v=a6d58bef:10711
+performWorkOnRoot @ react-dom_client.js?v=a6d58bef:10330
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=a6d58bef:11623
+performWorkUntilDeadline @ react-dom_client.js?v=a6d58bef:36
+<Router>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=a6d58bef:250
+App @ App.tsx:253
+react-stack-bottom-frame @ react-dom_client.js?v=a6d58bef:17424
+renderWithHooks @ react-dom_client.js?v=a6d58bef:4206
+updateFunctionComponent @ react-dom_client.js?v=a6d58bef:6619
+beginWork @ react-dom_client.js?v=a6d58bef:7654
+runWithFiberInDEV @ react-dom_client.js?v=a6d58bef:1485
+performUnitOfWork @ react-dom_client.js?v=a6d58bef:10868
+workLoopSync @ react-dom_client.js?v=a6d58bef:10728
+renderRootSync @ react-dom_client.js?v=a6d58bef:10711
+performWorkOnRoot @ react-dom_client.js?v=a6d58bef:10330
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=a6d58bef:11623
+performWorkUntilDeadline @ react-dom_client.js?v=a6d58bef:36
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=a6d58bef:250
+(anonymous) @ main.tsx:5
