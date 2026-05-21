@@ -6,3 +6,4 @@ export * from "./round-group-assignments";
 export * from "./scramble-scores";
 export * from "./users";
 export * from "./user-trip-follows";
+export * from "./user-follows";
