@@ -615,6 +615,63 @@ paths:
         "404":
           description: Not found
 
+  /rounds/{roundId}/social:
+    get:
+      operationId: getRoundSocial
+      tags: [rounds]
+      summary: Aggregate kudos + comments + viewer relation for one round
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Aggregate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundSocial"
+
+  /feed:
+    get:
+      operationId: getFeed
+      tags: [rounds]
+      summary: Paginated feed of public rounds, filtered by tab
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tab
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [buddies, following, all]
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+            description: ISO timestamp; return items with sort-key older than this.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Feed page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedPage"
+
   /trips/{tripId}/players:
     get:
       operationId: listPlayers
@@ -1265,6 +1322,118 @@ components:
         parentCommentId:
           type: ["integer", "null"]
       required: [body]
+
+    RoundSocial:
+      type: object
+      properties:
+        kudos:
+          type: object
+          properties:
+            count:
+              type: integer
+            viewerHasKudosed:
+              type: boolean
+            recentUsers:
+              type: array
+              items:
+                $ref: "#/components/schemas/UserSearchHit"
+          required: [count, viewerHasKudosed, recentUsers]
+        comments:
+          type: object
+          properties:
+            count:
+              type: integer
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/RoundComment"
+          required: [count, items]
+      required: [kudos, comments]
+
+    FeedPlayer:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        userId:
+          type: ["integer", "null"]
+      required: [playerId, playerName]
+
+    FeedItem:
+      type: object
+      properties:
+        roundId:
+          type: integer
+        tripId:
+          type: integer
+        tripKind:
+          type: string
+          enum: [event, personal]
+        name:
+          type: string
+        course:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+        visibility:
+          type: string
+          enum: [public, private]
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedPlayer"
+        summary:
+          $ref: "#/components/schemas/FeedItemSummary"
+        kudosCount:
+          type: integer
+        commentCount:
+          type: integer
+        viewerHasKudosed:
+          type: boolean
+      required:
+        - roundId
+        - tripId
+        - tripKind
+        - name
+        - updatedAt
+        - visibility
+        - players
+        - summary
+        - kudosCount
+        - commentCount
+        - viewerHasKudosed
+
+    FeedItemSummary:
+      type: object
+      properties:
+        leaderName:
+          type: ["string", "null"]
+        leaderNet:
+          type: ["integer", "null"]
+        leaderGross:
+          type: ["integer", "null"]
+        holesPlayed:
+          type: integer
+        totalHoles:
+          type: integer
+      required: [holesPlayed, totalHoles]
+
+    FeedPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedItem"
+        nextBefore:
+          type: ["string", "null"]
+      required: [items, nextBefore]
 
     RequestOtpBody:
       type: object
