@@ -51,6 +51,11 @@ router.get("/users/me/trips", requireAuth, async (req: AuthedRequest, res): Prom
     }
   }
 
+  // Hide personal (solo-round) trips — they live in the feed instead of My Trips.
+  for (const [id, e] of byTripId) {
+    if (e.trip.kind === "personal") byTripId.delete(id);
+  }
+
   const result = Array.from(byTripId.values())
     .sort((a, b) => b.trip.createdAt.getTime() - a.trip.createdAt.getTime())
     .map(e => ({ trip: ser(e.trip), via: e.via, players: ser(e.players) }));
