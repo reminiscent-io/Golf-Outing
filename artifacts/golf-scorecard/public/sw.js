@@ -5,10 +5,10 @@
 //   - Everything else (including API calls): pass through, never cache.
 // Bump CACHE_VERSION when shipping a breaking change to the SW itself.
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const SHELL_CACHE = `shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `assets-${CACHE_VERSION}`;
-const SHELL_URLS = ["./", "./index.html", "./manifest.webmanifest", "./favicon.svg", "./icon.svg"];
+const SHELL_URLS = ["/", "/index.html", "/manifest.webmanifest", "/favicon.svg", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -41,10 +41,10 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((res) => {
           const copy = res.clone();
-          caches.open(SHELL_CACHE).then((cache) => cache.put("./index.html", copy));
+          caches.open(SHELL_CACHE).then((cache) => cache.put("/index.html", copy));
           return res;
         })
-        .catch(() => caches.match("./index.html").then((cached) => cached || Response.error())),
+        .catch(() => caches.match("/index.html").then((cached) => cached || Response.error())),
     );
     return;
   }
