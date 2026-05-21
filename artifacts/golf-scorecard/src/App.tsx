@@ -13,6 +13,8 @@ import RoundPage from "@/pages/round";
 import PrivacyPage from "@/pages/privacy";
 import MyTripsPage from "@/pages/my-trips";
 import ProfilePage from "@/pages/profile";
+import FeedPage from "@/pages/feed";
+import UserProfilePage from "@/pages/user-profile";
 import { TripAuthGate } from "@/components/trip-auth-gate";
 import { useAuthSession, clearSession, maybeRefreshSession } from "@/lib/auth";
 import { firstName } from "@/lib/format";
@@ -193,17 +195,38 @@ function NavBar() {
   );
 }
 
+function HomeOrFeed() {
+  const session = useAuthSession();
+  return session ? <FeedPage /> : <LandingPage />;
+}
+
+function UserProfileOrSelf() {
+  const { userId } = useParams<{ userId: string }>();
+  const session = useAuthSession();
+  const [, navigate] = useLocation();
+  const id = Number(userId);
+  useEffect(() => {
+    if (session?.user.id === id) {
+      navigate("/profile", { replace: true });
+    }
+  }, [session, id, navigate]);
+  if (!id) return <NotFound />;
+  return <UserProfilePage userId={id} />;
+}
+
 function Router() {
   return (
     <>
       <NavBar />
       <Switch>
-        <Route path="/" component={LandingPage} />
+        <Route path="/" component={HomeOrFeed} />
+        <Route path="/landing" component={LandingPage} />
         <Route path="/trips" component={TripsPage} />
         <Route path="/trips/new" component={NewTripPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/me/trips" component={MyTripsPage} />
         <Route path="/profile" component={ProfilePage} />
+        <Route path="/users/:userId" component={UserProfileOrSelf} />
         <Route path="/trips/:tripId" component={GatedTripHub} />
         <Route path="/trips/:tripId/rounds/:roundId" component={GatedRound} />
         <Route component={NotFound} />
