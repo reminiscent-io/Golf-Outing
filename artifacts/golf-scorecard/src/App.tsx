@@ -16,6 +16,7 @@ import ProfilePage from "@/pages/profile";
 import FeedPage from "@/pages/feed";
 import UserProfilePage from "@/pages/user-profile";
 import { TripAuthGate } from "@/components/trip-auth-gate";
+import { UserSearchBar } from "@/components/user-search";
 import { useAuthSession, clearSession, maybeRefreshSession } from "@/lib/auth";
 import { firstName } from "@/lib/format";
 import { SignInModal } from "@/components/sign-in-modal";
@@ -96,6 +97,12 @@ function NavBar() {
             Scorecard
           </span>
         </Link>
+
+        {session && (
+          <div className="flex-1 mx-3 max-w-xs hidden sm:block">
+            <UserSearchBar />
+          </div>
+        )}
 
         {/* Right cluster */}
         <div className="flex items-center gap-1">
