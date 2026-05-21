@@ -27,6 +27,8 @@ export const roundsTable = pgTable("rounds", {
   teeBox: text("tee_box"),
   courseRating: real("course_rating"),
   courseSlope: integer("course_slope"),
+  visibility: text("visibility", { enum: ["public", "private"] }).notNull().default("public"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
