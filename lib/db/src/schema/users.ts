@@ -13,7 +13,8 @@ export const usersTable = pgTable("users", {
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
 }, (t) => [
   // Trigram index for fuzzy name search. The pg_trgm extension is enabled in Task 7.
-  index("users_full_name_trgm_idx").using("gin", t.fullName),
+  // gin_trgm_ops is required: text has no default operator class for GIN.
+  index("users_full_name_trgm_idx").using("gin", t.fullName.op("gin_trgm_ops")),
 ]);
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true });
