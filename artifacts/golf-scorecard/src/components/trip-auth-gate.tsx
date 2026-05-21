@@ -63,6 +63,21 @@ export function TripAuthGate({ tripId, children }: Props) {
     setTripIdentity(tripId, { kind: "player", playerId: mine.id, playerName: mine.name });
   }, [identity, session, players, tripId]);
 
+  // Auto-observer: if we're viewing a public trip but the viewer isn't a player
+  // in it, drop them into read-only mode instead of forcing the "Who are you?" picker.
+  useEffect(() => {
+    if (identity) return;
+    if (!session) return;
+    if (!players) return;
+    const isLinkedPlayer = players.some(p => p.userId === session.user.id);
+    if (isLinkedPlayer) return;
+    // Heuristic: when the URL is a /rounds/:roundId path the viewer is consuming
+    // the scorecard, not opening the trip envelope — observer mode is appropriate.
+    if (/\/rounds\/\d+/.test(globalThis.location.pathname)) {
+      setTripIdentity(tripId, { kind: "observer" });
+    }
+  }, [identity, session, players, tripId]);
+
   // Identity is set after sign-in (per-trip). Pass-through.
   if (identity) {
     return <>{children}</>;
