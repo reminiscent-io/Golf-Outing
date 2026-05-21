@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, tripsTable, userTripFollowsTable } from "@workspace/db";
 import { ser } from "../lib/serialize";
+import { verifySession } from "../lib/jwt";
 import {
   CreateTripBody,
   GetTripParams,
@@ -45,14 +46,19 @@ router.post("/trips", requireAuth, async (req: AuthedRequest, res): Promise<void
 
 router.get("/trips/:tripId", async (req, res): Promise<void> => {
   const params = GetTripParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [trip] = await db.select().from(tripsTable).where(eq(tripsTable.id, params.data.tripId));
-  if (!trip) {
-    res.status(404).json({ error: "Trip not found" });
-    return;
+  if (!trip) { res.status(404).json({ error: "Trip not found" }); return; }
+
+  if (trip.kind === "personal") {
+    // Only the owner can fetch the personal trip envelope.
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith("Bearer ")) { res.status(404).json({ error: "Trip not found" }); return; }
+    const payload = verifySession(auth.slice(7).trim());
+    if (!payload || payload.userId !== trip.createdByUserId) {
+      res.status(404).json({ error: "Trip not found" });
+      return;
+    }
   }
   res.json(GetTripResponse.parse(ser(trip)));
 });
