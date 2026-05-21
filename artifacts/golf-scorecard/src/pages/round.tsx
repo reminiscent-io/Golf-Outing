@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, Fragment } from "react";
-import { useLocation, useParams } from "wouter";
+import { useLocation, useParams, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetRound,
@@ -29,6 +29,7 @@ import {
 } from "@/lib/course-lookup";
 import { SignedInAs } from "@/components/signed-in-as";
 import { RoundGroupsEditor } from "@/components/round-groups-editor";
+import { RoundSocialStrip } from "@/components/round-social-strip";
 import { GameInfoButton, GameInfoModal } from "@/components/game-info-modal";
 import { useTripIdentity } from "@/lib/trip-identity";
 
@@ -1267,6 +1268,7 @@ export default function RoundPage() {
 
       {/* RESULTS TAB */}
       {subTab === "results" && (
+        <>
         <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-5">
           {lbLoading ? (
             <div className="space-y-3">
@@ -1375,7 +1377,14 @@ export default function RoundPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-sans font-semibold w-4 text-center" style={{ color: "hsl(38 20% 45%)" }}>{idx + 1}</span>
                         <div>
-                          <div className="font-sans font-semibold text-sm" style={{ color: "hsl(38 30% 14%)" }}>{e.playerName}</div>
+                          {(() => {
+                            const uid = (players ?? []).find(p => p.id === e.playerId)?.userId;
+                            return uid != null ? (
+                              <Link href={`/users/${uid}`} className="font-sans font-semibold text-sm hover:underline" style={{ color: "hsl(38 30% 14%)" }}>{e.playerName}</Link>
+                            ) : (
+                              <div className="font-sans font-semibold text-sm" style={{ color: "hsl(38 30% 14%)" }}>{e.playerName}</div>
+                            );
+                          })()}
                           <div className="text-[10px]" style={{ color: "hsl(38 20% 42%)" }}>{e.holesPlayed}/18 holes</div>
                         </div>
                       </div>
@@ -1474,6 +1483,11 @@ export default function RoundPage() {
             </div>
           )}
         </div>
+        {/* Social strip — kudos + comments below the leaderboard */}
+        <div className="max-w-2xl mx-auto w-full px-4 pb-6">
+          <RoundSocialStrip roundId={roundId} />
+        </div>
+        </>
       )}
 
       {/* SETUP TAB */}
@@ -1807,6 +1821,49 @@ export default function RoundPage() {
               ))}
             </div>
           </div>
+
+          {/* Visibility toggle */}
+          <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
+            <div className="flex items-start justify-between gap-3 mb-0">
+              <div>
+                <div className="font-sans text-sm font-semibold" style={{ color: "hsl(38 30% 14%)" }}>Public</div>
+                <div className="font-sans text-xs mt-0.5" style={{ color: "hsl(38 20% 45%)" }}>Shows in the feed and on co-players' profiles.</div>
+              </div>
+              <div
+                onClick={() => round && updateRound.mutate({ tripId, roundId: round.id, data: { visibility: (round as { visibility?: string }).visibility === "public" ? "private" : "public" } })}
+                className="rounded-full relative transition-all cursor-pointer flex-shrink-0"
+                style={{
+                  background: (round as { visibility?: string } | undefined)?.visibility === "public" ? "hsl(42 52% 59%)" : "hsl(38 20% 70%)",
+                  width: 40, height: 22,
+                }}
+              >
+                <div
+                  className="absolute top-0.5 rounded-full transition-all"
+                  style={{
+                    width: 18, height: 18,
+                    background: "white",
+                    left: (round as { visibility?: string } | undefined)?.visibility === "public" ? 20 : 2,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Mark-complete button — shown once at least 9 holes scored */}
+          {(() => {
+            const holesScoredAcrossField = scoresMap.size === 0 ? 0 : Math.max(...Array.from(scoresMap.values()).map(h => h.filter((s): s is number => s != null).length));
+            return (round as { completedAt?: string | null } | undefined)?.completedAt == null && holesScoredAcrossField >= 9 ? (
+              <button
+                type="button"
+                onClick={() => round && updateRound.mutate({ tripId, roundId: round.id, data: { completedAt: new Date().toISOString() } })}
+                className="w-full py-3 rounded-xl font-sans font-semibold text-sm transition-all hover:opacity-90"
+                style={{ background: "hsl(148 40% 35%)", color: "white" }}
+              >
+                Mark round complete
+              </button>
+            ) : null;
+          })()}
 
           <button
             onClick={handleSaveSetup}
