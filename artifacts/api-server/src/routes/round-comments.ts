@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, eq, asc } from "drizzle-orm";
-import { db, roundsTable, roundCommentsTable, usersTable } from "@workspace/db";
+import { db, roundsTable, roundCommentsTable, usersTable, playersTable } from "@workspace/db";
 import { ser } from "../lib/serialize";
 import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
 
@@ -9,6 +9,20 @@ const router: IRouter = Router();
 router.get("/rounds/:roundId/comments", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const roundId = Number(req.params.roundId);
   if (!Number.isFinite(roundId)) { res.status(400).json({ error: "Invalid roundId" }); return; }
+
+  // Private rounds: only visible to players in the round's trip. Match the
+  // POST handler's gate so reads and writes share the same access policy.
+  const [round] = await db.select().from(roundsTable).where(eq(roundsTable.id, roundId));
+  if (!round) { res.status(404).json({ error: "Round not found" }); return; }
+  if (round.visibility === "private") {
+    const [callerPlayer] = await db.select().from(playersTable)
+      .where(and(eq(playersTable.tripId, round.tripId), eq(playersTable.userId, req.user!.id)))
+      .limit(1);
+    if (!callerPlayer) {
+      res.status(403).json({ error: "Round is private" });
+      return;
+    }
+  }
 
   const rows = await db
     .select({

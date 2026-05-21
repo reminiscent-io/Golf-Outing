@@ -1,4 +1,4 @@
-import { useGiveKudos, useRevokeKudos, getGetFeedQueryKey, type FeedItem } from "@workspace/api-client-react";
+import { useGiveKudos, useRevokeKudos, type FeedItem } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Heart, MessageCircle, MapPin } from "lucide-react";
@@ -18,7 +18,12 @@ export function FeedCard({ item }: Props) {
     const mutate = (item.viewerHasKudosed ? revoke.mutate : give.mutate);
     mutate(
       { roundId: item.roundId },
-      { onSettled: () => qc.invalidateQueries({ queryKey: getGetFeedQueryKey() }) }
+      {
+        // The Feed page uses `useInfiniteQuery({ queryKey: ["feed", tab] })`,
+        // not Orval's generated key. Match the page's key prefix so all three
+        // tab caches refetch.
+        onSettled: () => qc.invalidateQueries({ queryKey: ["feed"] }),
+      }
     );
   }
 

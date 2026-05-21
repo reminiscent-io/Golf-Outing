@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { useSearchUsers } from "@workspace/api-client-react";
+import { useSearchUsers, getSearchUsersQueryKey } from "@workspace/api-client-react";
 import { Search } from "lucide-react";
 
 const DEBOUNCE_MS = 200;
@@ -21,14 +21,14 @@ export function UserSearchBar() {
     function onDown(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
     }
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
+    globalThis.addEventListener("mousedown", onDown);
+    return () => globalThis.removeEventListener("mousedown", onDown);
   }, []);
 
-  const { data: results } = useSearchUsers(
-    { q: debounced, limit: 20 },
-    { query: { enabled: debounced.length > 0 } }
-  );
+  const params = { q: debounced, limit: 20 };
+  const { data: results } = useSearchUsers(params, {
+    query: { queryKey: getSearchUsersQueryKey(params), enabled: debounced.length > 0 },
+  });
 
   return (
     <div ref={containerRef} className="relative w-full max-w-sm">

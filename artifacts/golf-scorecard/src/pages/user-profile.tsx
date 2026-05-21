@@ -18,7 +18,7 @@ export default function UserProfilePage({ userId }: { userId: number }) {
   const isPrivate = data.profileVisibility === "private" && !data.viewerRelation.isSelf;
 
   function toggleFollow() {
-    const mutate = data.viewerRelation.isFollowing ? unfollow.mutate : follow.mutate;
+    const mutate = data!.viewerRelation.isFollowing ? unfollow.mutate : follow.mutate;
     mutate({ userId }, { onSettled: () => qc.invalidateQueries({ queryKey: getGetUserProfileQueryKey(userId) }) });
   }
 

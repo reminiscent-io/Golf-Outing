@@ -2,21 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Plus } from "lucide-react";
-import { customFetch, getFeed, type FeedPage, type FeedItem } from "@workspace/api-client-react";
+import { getFeed, type FeedPage, type FeedItem, useListMyBuddies, getListMyBuddiesQueryKey } from "@workspace/api-client-react";
 import { FeedCard } from "@/components/feed-card";
 import { useAuthSession } from "@/lib/auth";
-import { useListMyBuddies } from "@workspace/api-client-react";
 import { SoloRoundModal } from "@/components/solo-round-modal";
-
-// customFetch is imported to keep the module reference live (used by getFeed under the hood).
-void customFetch;
 
 type Tab = "buddies" | "following" | "all";
 
 export default function FeedPage() {
   const session = useAuthSession();
   const [, navigate] = useLocation();
-  const { data: buddies } = useListMyBuddies({ query: { enabled: !!session } });
+  const { data: buddies } = useListMyBuddies({ query: { queryKey: getListMyBuddiesQueryKey(), enabled: !!session } });
   const [tab, setTab] = useState<Tab>(() => "all");
   const [soloOpen, setSoloOpen] = useState(false);
 

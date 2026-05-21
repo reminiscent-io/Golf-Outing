@@ -15,6 +15,7 @@ import {
   DeleteRoundParams,
 } from "@workspace/api-zod";
 import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
+import { verifySession } from "../lib/jwt";
 
 const DEFAULT_PAR = Array(18).fill(4);
 const DEFAULT_HCP = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -106,6 +107,19 @@ router.get("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => 
   if (!round) {
     res.status(404).json({ error: "Round not found" });
     return;
+  }
+  // Private rounds: only players in the same trip can fetch the round.
+  // Anonymous and non-player callers see a 404 (not 403) so the route
+  // doesn't leak round existence.
+  if (round.visibility === "private") {
+    const auth = req.headers.authorization;
+    const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : null;
+    const payload = token ? verifySession(token) : null;
+    if (!payload) { res.status(404).json({ error: "Round not found" }); return; }
+    const [callerPlayer] = await db.select().from(playersTable)
+      .where(and(eq(playersTable.tripId, round.tripId), eq(playersTable.userId, payload.userId)))
+      .limit(1);
+    if (!callerPlayer) { res.status(404).json({ error: "Round not found" }); return; }
   }
   res.json(GetRoundResponse.parse(ser(round)));
 });

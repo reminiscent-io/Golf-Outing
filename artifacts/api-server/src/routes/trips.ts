@@ -18,7 +18,12 @@ import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
 const router: IRouter = Router();
 
 router.get("/trips", async (_req, res): Promise<void> => {
-  const trips = await db.select().from(tripsTable).orderBy(tripsTable.createdAt);
+  // Personal (solo-round) trips are per-user buckets; never list them on the
+  // public trips index. They surface only via /users/me/personal-trip/rounds
+  // and the round-level endpoint.
+  const trips = await db.select().from(tripsTable)
+    .where(eq(tripsTable.kind, "event"))
+    .orderBy(tripsTable.createdAt);
   res.json(ListTripsResponse.parse(ser(trips)));
 });
 

@@ -14,100 +14,9 @@ import { summarizeFeedItems, type FeedItem } from "../lib/feed";
 
 const router: IRouter = Router();
 
-router.get("/users/:userId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
-  const userId = Number(req.params.userId);
-  if (!Number.isFinite(userId)) {
-    res.status(400).json({ error: "Invalid userId" });
-    return;
-  }
-  const viewerId = req.user!.id;
-
-  const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!target) {
-    res.status(404).json({ error: "User not found" });
-    return;
-  }
-
-  // Private profiles return a minimal payload.
-  if (target.profileVisibility === "private" && target.id !== viewerId) {
-    res.json({
-      id: target.id,
-      fullName: target.fullName,
-      profileVisibility: "private",
-      createdAt: ser(target.createdAt),
-      followerCount: 0,
-      followingCount: 0,
-      viewerRelation: { isSelf: false, isFollowing: false, isFollowedBy: false },
-    });
-    return;
-  }
-
-  // Follower / following counts.
-  const [{ followerCount }] = await db
-    .select({ followerCount: sql<number>`count(*)::int` })
-    .from(userFollowsTable)
-    .where(eq(userFollowsTable.followedId, userId));
-  const [{ followingCount }] = await db
-    .select({ followingCount: sql<number>`count(*)::int` })
-    .from(userFollowsTable)
-    .where(eq(userFollowsTable.followerId, userId));
-
-  const [followingRow] = await db
-    .select()
-    .from(userFollowsTable)
-    .where(and(eq(userFollowsTable.followerId, viewerId), eq(userFollowsTable.followedId, userId)))
-    .limit(1);
-  const [followedByRow] = await db
-    .select()
-    .from(userFollowsTable)
-    .where(and(eq(userFollowsTable.followerId, userId), eq(userFollowsTable.followedId, viewerId)))
-    .limit(1);
-
-  // Lifetime stats: aggregate over the user's player rows -> scores -> rounds.
-  const myPlayers = await db.select().from(playersTable).where(eq(playersTable.userId, userId));
-  const myPlayerIds = myPlayers.map(p => p.id);
-  let stats = { roundsPlayed: 0, bestNet: null as number | null, avgNetLast10: null as number | null, coursesPlayed: 0 };
-  let recentRounds: FeedItem[] = [];
-
-  if (myPlayerIds.length > 0) {
-    const myScoreRows = await db.select().from(scoresTable).where(inArray(scoresTable.playerId, myPlayerIds));
-    const myRoundIds = Array.from(new Set(myScoreRows.map(s => s.roundId)));
-    if (myRoundIds.length > 0) {
-      const courseRows = await db
-        .select({ course: roundsTable.course })
-        .from(roundsTable)
-        .where(and(inArray(roundsTable.id, myRoundIds), eq(roundsTable.visibility, "public")));
-      const coursesSet = new Set(courseRows.map(r => r.course?.trim().toLowerCase()).filter(Boolean) as string[]);
-      stats.coursesPlayed = coursesSet.size;
-      stats.roundsPlayed = myRoundIds.length;
-
-      const recentRows = await db
-        .select()
-        .from(roundsTable)
-        .where(and(inArray(roundsTable.id, myRoundIds), eq(roundsTable.visibility, "public")))
-        .orderBy(desc(sql`coalesce(${roundsTable.completedAt}, ${roundsTable.updatedAt})`))
-        .limit(20);
-      recentRounds = await summarizeFeedItems(recentRows, viewerId);
-    }
-  }
-
-  res.json({
-    id: target.id,
-    fullName: target.fullName,
-    handicap: target.handicap,
-    profileVisibility: target.profileVisibility,
-    createdAt: ser(target.createdAt),
-    stats,
-    recentRounds,
-    followerCount,
-    followingCount,
-    viewerRelation: {
-      isSelf: viewerId === target.id,
-      isFollowing: !!followingRow,
-      isFollowedBy: !!followedByRow,
-    },
-  });
-});
+// Static paths must come before the `:userId` parameterized route — otherwise
+// Express matches `/users/search` and `/users/me/buddies` as userId="search" /
+// userId="me", failing the numeric check.
 
 router.get("/users/search", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const q = String(req.query.q ?? "").trim();
@@ -204,6 +113,101 @@ router.get("/users/me/buddies", requireAuth, async (req: AuthedRequest, res): Pr
     lastPlayedAt: r.last_played_at,
   }));
   res.json(items);
+});
+
+router.get("/users/:userId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const userId = Number(req.params.userId);
+  if (!Number.isFinite(userId)) {
+    res.status(400).json({ error: "Invalid userId" });
+    return;
+  }
+  const viewerId = req.user!.id;
+
+  const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  // Private profiles return a minimal payload.
+  if (target.profileVisibility === "private" && target.id !== viewerId) {
+    res.json({
+      id: target.id,
+      fullName: target.fullName,
+      profileVisibility: "private",
+      createdAt: ser(target.createdAt),
+      followerCount: 0,
+      followingCount: 0,
+      viewerRelation: { isSelf: false, isFollowing: false, isFollowedBy: false },
+    });
+    return;
+  }
+
+  // Follower / following counts.
+  const [{ followerCount }] = await db
+    .select({ followerCount: sql<number>`count(*)::int` })
+    .from(userFollowsTable)
+    .where(eq(userFollowsTable.followedId, userId));
+  const [{ followingCount }] = await db
+    .select({ followingCount: sql<number>`count(*)::int` })
+    .from(userFollowsTable)
+    .where(eq(userFollowsTable.followerId, userId));
+
+  const [followingRow] = await db
+    .select()
+    .from(userFollowsTable)
+    .where(and(eq(userFollowsTable.followerId, viewerId), eq(userFollowsTable.followedId, userId)))
+    .limit(1);
+  const [followedByRow] = await db
+    .select()
+    .from(userFollowsTable)
+    .where(and(eq(userFollowsTable.followerId, userId), eq(userFollowsTable.followedId, viewerId)))
+    .limit(1);
+
+  // Lifetime stats: aggregate over the user's player rows -> scores -> rounds.
+  const myPlayers = await db.select().from(playersTable).where(eq(playersTable.userId, userId));
+  const myPlayerIds = myPlayers.map(p => p.id);
+  let stats = { roundsPlayed: 0, bestNet: null as number | null, avgNetLast10: null as number | null, coursesPlayed: 0 };
+  let recentRounds: FeedItem[] = [];
+
+  if (myPlayerIds.length > 0) {
+    const myScoreRows = await db.select().from(scoresTable).where(inArray(scoresTable.playerId, myPlayerIds));
+    const myRoundIds = Array.from(new Set(myScoreRows.map(s => s.roundId)));
+    if (myRoundIds.length > 0) {
+      const courseRows = await db
+        .select({ course: roundsTable.course })
+        .from(roundsTable)
+        .where(and(inArray(roundsTable.id, myRoundIds), eq(roundsTable.visibility, "public")));
+      const coursesSet = new Set(courseRows.map(r => r.course?.trim().toLowerCase()).filter(Boolean) as string[]);
+      stats.coursesPlayed = coursesSet.size;
+      stats.roundsPlayed = myRoundIds.length;
+
+      const recentRows = await db
+        .select()
+        .from(roundsTable)
+        .where(and(inArray(roundsTable.id, myRoundIds), eq(roundsTable.visibility, "public")))
+        .orderBy(desc(sql`coalesce(${roundsTable.completedAt}, ${roundsTable.updatedAt})`))
+        .limit(20);
+      recentRounds = await summarizeFeedItems(recentRows, viewerId);
+    }
+  }
+
+  res.json({
+    id: target.id,
+    fullName: target.fullName,
+    handicap: target.handicap,
+    profileVisibility: target.profileVisibility,
+    createdAt: ser(target.createdAt),
+    stats,
+    recentRounds,
+    followerCount,
+    followingCount,
+    viewerRelation: {
+      isSelf: viewerId === target.id,
+      isFollowing: !!followingRow,
+      isFollowedBy: !!followedByRow,
+    },
+  });
 });
 
 export default router;
