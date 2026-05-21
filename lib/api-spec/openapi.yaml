@@ -13,7 +13,7 @@ tags:
   - name: auth
     description: Phone+OTP authentication
   - name: users
-    description: Current user account operations
+    description: User accounts, profiles, search, and follow graph
   - name: trips
     description: Golf trip operations
   - name: players
@@ -304,6 +304,84 @@ paths:
       responses:
         "204":
           description: Removed
+        "401":
+          description: Unauthorized
+
+  /users/{userId}:
+    get:
+      operationId: getUserProfile
+      tags: [users]
+      summary: Public user profile + recent rounds + viewer relationship
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Profile payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+        "404":
+          description: User not found
+
+  /users/search:
+    get:
+      operationId: searchUsers
+      tags: [users]
+      summary: Fuzzy name search; honors privacy and phone-discoverability gates
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Matched users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSearchHit"
+        "401":
+          description: Unauthorized
+
+  /users/me/buddies:
+    get:
+      operationId: listMyBuddies
+      tags: [users]
+      summary: Other users who have shared a round with me, ordered by rounds-together
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Buddy list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Buddy"
         "401":
           description: Unauthorized
 
@@ -830,6 +908,90 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        handicap:
+          type: ["number", "null"]
+        profileVisibility:
+          type: string
+          enum: [public, private]
+        createdAt:
+          type: string
+        stats:
+          $ref: "#/components/schemas/UserProfileStats"
+        recentRounds:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedItem"
+        followerCount:
+          type: integer
+        followingCount:
+          type: integer
+        viewerRelation:
+          type: object
+          properties:
+            isSelf:
+              type: boolean
+            isFollowing:
+              type: boolean
+            isFollowedBy:
+              type: boolean
+          required: [isSelf, isFollowing, isFollowedBy]
+      required:
+        - id
+        - fullName
+        - profileVisibility
+        - createdAt
+        - followerCount
+        - followingCount
+        - viewerRelation
+
+    UserProfileStats:
+      type: object
+      properties:
+        roundsPlayed:
+          type: integer
+        bestNet:
+          type: ["integer", "null"]
+        avgNetLast10:
+          type: ["number", "null"]
+        coursesPlayed:
+          type: integer
+      required:
+        - roundsPlayed
+        - coursesPlayed
+
+    UserSearchHit:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        handicap:
+          type: ["number", "null"]
+      required: [id, fullName]
+
+    Buddy:
+      type: object
+      properties:
+        userId:
+          type: integer
+        fullName:
+          type: string
+        handicap:
+          type: ["number", "null"]
+        roundsTogether:
+          type: integer
+        lastPlayedAt:
+          type: ["string", "null"]
+      required: [userId, fullName, roundsTogether]
 
     RequestOtpBody:
       type: object
