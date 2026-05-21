@@ -538,6 +538,83 @@ paths:
         "204":
           description: Removed
 
+  /rounds/{roundId}/comments:
+    get:
+      operationId: listRoundComments
+      tags: [rounds]
+      summary: List comments on a round (sorted oldest first)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoundComment"
+    post:
+      operationId: createRoundComment
+      tags: [rounds]
+      summary: Post a comment (optionally as a one-level reply)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoundCommentBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundComment"
+        "400":
+          description: Invalid parentCommentId (cross-round or nested reply)
+        "401":
+          description: Unauthorized
+        "403":
+          description: Round is private
+
+  /comments/{commentId}:
+    delete:
+      operationId: deleteRoundComment
+      tags: [rounds]
+      summary: Delete your own comment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Not the author
+        "404":
+          description: Not found
+
   /trips/{tripId}/players:
     get:
       operationId: listPlayers
@@ -1158,6 +1235,36 @@ components:
         followedAt:
           type: string
       required: [userId, fullName, followedAt]
+
+    RoundComment:
+      type: object
+      properties:
+        id:
+          type: integer
+        roundId:
+          type: integer
+        userId:
+          type: integer
+        userFullName:
+          type: string
+        parentCommentId:
+          type: ["integer", "null"]
+        body:
+          type: string
+        createdAt:
+          type: string
+      required: [id, roundId, userId, userFullName, body, createdAt]
+
+    CreateRoundCommentBody:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        parentCommentId:
+          type: ["integer", "null"]
+      required: [body]
 
     RequestOtpBody:
       type: object
