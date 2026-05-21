@@ -6,6 +6,8 @@ export type AuthUser = {
   phone: string;
   fullName: string;
   handicap?: number | null;
+  discoverableByPhone: boolean;
+  profileVisibility: "public" | "private";
   createdAt: string;
 };
 
