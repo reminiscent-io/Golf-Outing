@@ -20,9 +20,9 @@ Golf Trip Live Scorecard — a full-stack live scoring app (trips, rounds, 18-ho
 | [lib/api-spec/openapi.yaml](lib/api-spec/openapi.yaml) | **Source of truth** for the HTTP API. Edit this, then run codegen. |
 | [lib/api-client-react](lib/api-client-react/) | Orval-generated React Query hooks + shared [customFetch](lib/api-client-react/src/custom-fetch.ts) (handles base URL, auth header, JSON/text/blob parsing, `ApiError`). |
 | [lib/api-zod](lib/api-zod/) | Orval-generated Zod v4 validators (coerces query/param/body, `useDates`, `useBigInt`). |
-| [lib/db](lib/db/) | Drizzle schema + `pg.Pool`. Tables: `trips`, `players`, `rounds`, `scores`, `round_group_assignments`. |
+| [lib/db](lib/db/) | Drizzle schema + `pg.Pool`. Tables: `users`, `user_follows`, `user_trip_follows`, `trips`, `players`, `rounds`, `round_group_assignments`, `scores`, `scramble_scores`, `round_kudos`, `round_comments`. |
 | [artifacts/api-server](artifacts/api-server/) | Express server, routes in `src/routes/`, scoring algorithms in [src/lib/scoring.ts](artifacts/api-server/src/lib/scoring.ts). |
-| [artifacts/golf-scorecard](artifacts/golf-scorecard/) | Main React app. Routes: `/`, `/trips/:tripId`, `/trips/:tripId/rounds/:roundId`. |
+| [artifacts/golf-scorecard](artifacts/golf-scorecard/) | Main React app. Routes in [App.tsx](artifacts/golf-scorecard/src/App.tsx): `/` (feed when signed in, landing otherwise), `/landing`, `/me/trips`, `/trips`, `/trips/new`, `/trips/:tripId`, `/trips/:tripId/rounds/:roundId`, `/profile`, `/users/:userId`, `/privacy`. |
 | [scripts](scripts/) | One-off tsx scripts (e.g. `test-golf-course-api`). |
 
 Catalog dependencies (`react`, `vite`, `zod`, etc.) are pinned centrally in [pnpm-workspace.yaml](pnpm-workspace.yaml) and referenced as `"catalog:"` in each package.json — bump versions there, not in individual packages. Internal packages are imported as `@workspace/<name>` via `workspace:*`.
@@ -43,6 +43,7 @@ Database (Drizzle uses **push**, not migrations — dev workflow only):
 - `pnpm --filter @workspace/db run push-force` — same with `--force`.
 
 Running locally:
+- Both servers at once: `pnpm run dev` — runs [scripts/dev-local.sh](scripts/dev-local.sh), which sources `.env` and launches API on `API_PORT` (or `PORT`, default 3000) and UI on `UI_PORT` (default 5173).
 - API server: `pnpm --filter @workspace/api-server run dev` — builds with esbuild then `node dist/index.mjs`. Requires `DATABASE_URL` and `PORT`.
 - Scorecard UI: `pnpm --filter @workspace/golf-scorecard run dev` — requires `PORT` (enforced only for `vite serve`, not `vite build`).
 
@@ -70,6 +71,9 @@ Optional: `BASE_PATH` (Vite base for subpath deploys, defaults `/`), `LOG_LEVEL`
 - **Schema changes are push-based**: there's no `migrations/` directory. Edit `lib/db/src/schema/*.ts`, then `pnpm --filter @workspace/db run push`. The Replit `[postMerge]` hook in [.replit](.replit) runs [scripts/post-merge.sh](scripts/post-merge.sh), which re-runs `db push` automatically after every merge.
 - **Generated code is checked in**: `lib/api-client-react/src/generated/` and `lib/api-zod/src/generated/` are regenerated from OpenAPI; don't hand-edit. If something's wrong, edit the spec or the orval config.
 - **Scoring logic lives server-side** in [scoring.ts](artifacts/api-server/src/lib/scoring.ts) — WHS Course Handicap, Stableford, Skins (with carry), Nassau. Keep it there so leaderboards stay consistent across clients.
+- **Social & visibility model**: `trips.kind` is `event` or `personal`; each user gets at most one personal (solo) trip via a partial unique index on `(created_by_user_id) where kind='personal'`. Rounds have `visibility: public|private` and `completedAt` — both gate feed inclusion. Users have `profileVisibility: public|private` and `discoverableByPhone` — gate the profile page and phone-number search. Round attribution flows through `players.user_id` (per-trip identity) plus `rounds.created_by_user_id` (creator). The feed (`/feed?tab=buddies|following|all`, see [feed.ts](artifacts/api-server/src/routes/feed.ts)) paginates on `coalesce(completedAt, updatedAt)` with a `before` cursor.
+- **Trigram name search**: `users.full_name` has a GIN index using `gin_trgm_ops` (see [users.ts](lib/db/src/schema/users.ts)). The index requires the `pg_trgm` extension — `db push` does **not** create extensions, so run `CREATE EXTENSION IF NOT EXISTS pg_trgm;` against `DATABASE_URL` once per database before pushing.
+- **Auth middleware**: routes requiring a signed-in user import `requireAuth` from [require-auth.ts](artifacts/api-server/src/middlewares/require-auth.ts) (sets `req.user.id`); routes that branch on optional auth use `optional-auth.ts`.
 
 ## Replit notes
 

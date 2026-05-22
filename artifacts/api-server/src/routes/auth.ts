@@ -148,9 +148,23 @@ router.patch("/auth/me", requireAuth, async (req: AuthedRequest, res): Promise<v
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const patch: { handicap?: number | null } = {};
+  const patch: {
+    handicap?: number | null;
+    discoverableByPhone?: boolean;
+    profileVisibility?: "public" | "private";
+    fullName?: string;
+  } = {};
   if (parsed.data.handicap !== undefined) {
     patch.handicap = parsed.data.handicap;
+  }
+  if (parsed.data.discoverableByPhone !== undefined) {
+    patch.discoverableByPhone = parsed.data.discoverableByPhone;
+  }
+  if (parsed.data.profileVisibility !== undefined) {
+    patch.profileVisibility = parsed.data.profileVisibility;
+  }
+  if (parsed.data.fullName !== undefined) {
+    patch.fullName = parsed.data.fullName;
   }
   if (Object.keys(patch).length === 0) {
     const [current] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));

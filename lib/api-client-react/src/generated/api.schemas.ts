@@ -9,11 +9,23 @@ export interface HealthStatus {
   status: string;
 }
 
+/**
+ * `event` = shared trip with friends. `personal` = solo-round bucket, one per user.
+ */
+export type TripKind = (typeof TripKind)[keyof typeof TripKind];
+
+export const TripKind = {
+  event: "event",
+  personal: "personal",
+} as const;
+
 export interface Trip {
   id: number;
   name: string;
   /** @nullable */
   description?: string | null;
+  /** `event` = shared trip with friends. `personal` = solo-round bucket, one per user. */
+  kind: TripKind;
   /**
    * User who created the trip; null for legacy trips created before attribution.
    * @nullable
@@ -35,6 +47,14 @@ export interface UpdateTripBody {
   description?: string | null;
 }
 
+export type UserProfileVisibility =
+  (typeof UserProfileVisibility)[keyof typeof UserProfileVisibility];
+
+export const UserProfileVisibility = {
+  public: "public",
+  private: "private",
+} as const;
+
 export interface User {
   id: number;
   /** E.164-formatted phone number */
@@ -45,8 +65,18 @@ export interface User {
    * @nullable
    */
   handicap?: number | null;
+  discoverableByPhone: boolean;
+  profileVisibility: UserProfileVisibility;
   createdAt: string;
 }
+
+export type UpdateMeBodyProfileVisibility =
+  (typeof UpdateMeBodyProfileVisibility)[keyof typeof UpdateMeBodyProfileVisibility];
+
+export const UpdateMeBodyProfileVisibility = {
+  public: "public",
+  private: "private",
+} as const;
 
 export interface UpdateMeBody {
   /**
@@ -55,6 +85,198 @@ export interface UpdateMeBody {
    * @nullable
    */
   handicap?: number | null;
+  discoverableByPhone?: boolean;
+  profileVisibility?: UpdateMeBodyProfileVisibility;
+  /**
+   * @minLength 1
+   * @maxLength 80
+   */
+  fullName?: string;
+}
+
+export type UserProfileProfileVisibility =
+  (typeof UserProfileProfileVisibility)[keyof typeof UserProfileProfileVisibility];
+
+export const UserProfileProfileVisibility = {
+  public: "public",
+  private: "private",
+} as const;
+
+export type UserProfileViewerRelation = {
+  isSelf: boolean;
+  isFollowing: boolean;
+  isFollowedBy: boolean;
+};
+
+export interface UserProfileStats {
+  roundsPlayed: number;
+  /** @nullable */
+  bestNet?: number | null;
+  /** @nullable */
+  avgNetLast10?: number | null;
+  coursesPlayed: number;
+}
+
+export type FeedItemTripKind =
+  (typeof FeedItemTripKind)[keyof typeof FeedItemTripKind];
+
+export const FeedItemTripKind = {
+  event: "event",
+  personal: "personal",
+} as const;
+
+export type FeedItemVisibility =
+  (typeof FeedItemVisibility)[keyof typeof FeedItemVisibility];
+
+export const FeedItemVisibility = {
+  public: "public",
+  private: "private",
+} as const;
+
+export interface FeedPlayer {
+  playerId: number;
+  playerName: string;
+  /** @nullable */
+  userId?: number | null;
+}
+
+export interface FeedItemSummary {
+  /** @nullable */
+  leaderName?: string | null;
+  /** @nullable */
+  leaderNet?: number | null;
+  /** @nullable */
+  leaderGross?: number | null;
+  holesPlayed: number;
+  totalHoles: number;
+}
+
+export interface FeedItem {
+  roundId: number;
+  tripId: number;
+  tripKind: FeedItemTripKind;
+  name: string;
+  /** @nullable */
+  course?: string | null;
+  /** @nullable */
+  date?: string | null;
+  /** @nullable */
+  completedAt?: string | null;
+  updatedAt: string;
+  visibility: FeedItemVisibility;
+  players: FeedPlayer[];
+  summary: FeedItemSummary;
+  kudosCount: number;
+  commentCount: number;
+  viewerHasKudosed: boolean;
+}
+
+export interface UserProfile {
+  id: number;
+  fullName: string;
+  /** @nullable */
+  handicap?: number | null;
+  profileVisibility: UserProfileProfileVisibility;
+  createdAt: string;
+  stats?: UserProfileStats;
+  recentRounds?: FeedItem[];
+  followerCount: number;
+  followingCount: number;
+  viewerRelation: UserProfileViewerRelation;
+}
+
+export interface UserSearchHit {
+  id: number;
+  fullName: string;
+  /** @nullable */
+  handicap?: number | null;
+}
+
+export interface Buddy {
+  userId: number;
+  fullName: string;
+  /** @nullable */
+  handicap?: number | null;
+  roundsTogether: number;
+  /** @nullable */
+  lastPlayedAt?: string | null;
+}
+
+export interface FollowEntry {
+  userId: number;
+  fullName: string;
+  /** @nullable */
+  handicap?: number | null;
+  followedAt: string;
+}
+
+export interface RoundComment {
+  id: number;
+  roundId: number;
+  userId: number;
+  userFullName: string;
+  /** @nullable */
+  parentCommentId?: number | null;
+  body: string;
+  createdAt: string;
+}
+
+export interface CreateRoundCommentBody {
+  /**
+   * @minLength 1
+   * @maxLength 1000
+   */
+  body: string;
+  /** @nullable */
+  parentCommentId?: number | null;
+}
+
+export type RoundSocialKudos = {
+  count: number;
+  viewerHasKudosed: boolean;
+  recentUsers: UserSearchHit[];
+};
+
+export type RoundSocialComments = {
+  count: number;
+  items: RoundComment[];
+};
+
+export interface RoundSocial {
+  kudos: RoundSocialKudos;
+  comments: RoundSocialComments;
+}
+
+export interface FeedPage {
+  items: FeedItem[];
+  /** @nullable */
+  nextBefore: string | null;
+}
+
+export interface CreateSoloRoundBody {
+  /**
+   * @minLength 1
+   * @maxLength 120
+   */
+  name: string;
+  /** @nullable */
+  course?: string | null;
+  /** @nullable */
+  date?: string | null;
+  par?: number[];
+  holeHcp?: number[];
+  /** @nullable */
+  teeBox?: string | null;
+  /** @nullable */
+  courseRating?: number | null;
+  /** @nullable */
+  courseSlope?: number | null;
+}
+
+export interface CreateSoloRoundResponse {
+  tripId: number;
+  roundId: number;
+  playerId: number;
 }
 
 export interface RequestOtpBody {
@@ -187,6 +409,14 @@ export const RoundHandicapMode = {
   gross: "gross",
 } as const;
 
+export type RoundVisibility =
+  (typeof RoundVisibility)[keyof typeof RoundVisibility];
+
+export const RoundVisibility = {
+  public: "public",
+  private: "private",
+} as const;
+
 export interface Team {
   id: string;
   name: string;
@@ -256,6 +486,12 @@ export interface Round {
   courseRating?: number | null;
   /** @nullable */
   courseSlope?: number | null;
+  visibility: RoundVisibility;
+  /**
+   * ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.
+   * @nullable
+   */
+  completedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -294,6 +530,14 @@ export const UpdateRoundBodyHandicapMode = {
   gross: "gross",
 } as const;
 
+export type UpdateRoundBodyVisibility =
+  (typeof UpdateRoundBodyVisibility)[keyof typeof UpdateRoundBodyVisibility];
+
+export const UpdateRoundBodyVisibility = {
+  public: "public",
+  private: "private",
+} as const;
+
 export interface UpdateRoundBody {
   name?: string;
   /** @nullable */
@@ -310,6 +554,12 @@ export interface UpdateRoundBody {
   courseRating?: number | null;
   /** @nullable */
   courseSlope?: number | null;
+  visibility?: UpdateRoundBodyVisibility;
+  /**
+   * Send a timestamp to mark the round complete; send null to clear.
+   * @nullable
+   */
+  completedAt?: string | null;
 }
 
 export interface PlayerScore {
@@ -548,3 +798,57 @@ export interface UpsertScrambleScoreBody {
    */
   score?: number | null;
 }
+
+export type SearchUsersParams = {
+  /**
+   * @minLength 1
+   */
+  q: string;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  limit?: number;
+};
+
+export type ListFollowersParams = {
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  limit?: number;
+  /**
+   * ISO timestamp; return rows older than this.
+   */
+  before?: string;
+};
+
+export type ListFollowingParams = {
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  limit?: number;
+  before?: string;
+};
+
+export type GetFeedParams = {
+  tab: GetFeedTab;
+  /**
+   * ISO timestamp; return items with sort-key older than this.
+   */
+  before?: string;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  limit?: number;
+};
+
+export type GetFeedTab = (typeof GetFeedTab)[keyof typeof GetFeedTab];
+
+export const GetFeedTab = {
+  buddies: "buddies",
+  following: "following",
+  all: "all",
+} as const;

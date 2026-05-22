@@ -21,6 +21,11 @@ export const ListTripsResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
+  kind: zod
+    .enum(["event", "personal"])
+    .describe(
+      "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
+    ),
   createdByUserId: zod
     .number()
     .nullish()
@@ -51,6 +56,11 @@ export const GetTripResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
+  kind: zod
+    .enum(["event", "personal"])
+    .describe(
+      "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
+    ),
   createdByUserId: zod
     .number()
     .nullish()
@@ -77,6 +87,11 @@ export const UpdateTripResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
+  kind: zod
+    .enum(["event", "personal"])
+    .describe(
+      "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
+    ),
   createdByUserId: zod
     .number()
     .nullish()
@@ -143,6 +158,8 @@ export const VerifyOtpResponse = zod.object({
       .describe(
         "User's current handicap index; autofilled when joining new trips.",
       ),
+    discoverableByPhone: zod.boolean(),
+    profileVisibility: zod.enum(["public", "private"]),
     createdAt: zod.string(),
   }),
 });
@@ -160,6 +177,8 @@ export const GetMeResponse = zod.object({
     .describe(
       "User's current handicap index; autofilled when joining new trips.",
     ),
+  discoverableByPhone: zod.boolean(),
+  profileVisibility: zod.enum(["public", "private"]),
   createdAt: zod.string(),
 });
 
@@ -169,12 +188,17 @@ export const GetMeResponse = zod.object({
 export const updateMeBodyHandicapMin = 0;
 export const updateMeBodyHandicapMax = 54;
 
+export const updateMeBodyFullNameMax = 80;
+
 export const UpdateMeBody = zod.object({
   handicap: zod
     .number()
     .min(updateMeBodyHandicapMin)
     .max(updateMeBodyHandicapMax)
     .nullish(),
+  discoverableByPhone: zod.boolean().optional(),
+  profileVisibility: zod.enum(["public", "private"]).optional(),
+  fullName: zod.string().min(1).max(updateMeBodyFullNameMax).optional(),
 });
 
 export const UpdateMeResponse = zod.object({
@@ -187,6 +211,8 @@ export const UpdateMeResponse = zod.object({
     .describe(
       "User's current handicap index; autofilled when joining new trips.",
     ),
+  discoverableByPhone: zod.boolean(),
+  profileVisibility: zod.enum(["public", "private"]),
   createdAt: zod.string(),
 });
 
@@ -206,6 +232,8 @@ export const RefreshSessionResponse = zod.object({
       .describe(
         "User's current handicap index; autofilled when joining new trips.",
       ),
+    discoverableByPhone: zod.boolean(),
+    profileVisibility: zod.enum(["public", "private"]),
     createdAt: zod.string(),
   }),
 });
@@ -218,6 +246,11 @@ export const ListMyTripsResponseItem = zod.object({
     id: zod.number(),
     name: zod.string(),
     description: zod.string().nullish(),
+    kind: zod
+      .enum(["event", "personal"])
+      .describe(
+        "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
+      ),
     createdByUserId: zod
       .number()
       .nullish()
@@ -296,6 +329,22 @@ export const GetMyStatsResponse = zod
   );
 
 /**
+ * @summary Find-or-create the caller's personal trip and create a round inside it
+ */
+export const createSoloRoundBodyNameMax = 120;
+
+export const CreateSoloRoundBody = zod.object({
+  name: zod.string().min(1).max(createSoloRoundBodyNameMax),
+  course: zod.string().nullish(),
+  date: zod.string().nullish(),
+  par: zod.array(zod.number()).optional(),
+  holeHcp: zod.array(zod.number()).optional(),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
+});
+
+/**
  * @summary Save (follow) a trip to the current user's account
  */
 export const SaveTripParams = zod.object({
@@ -307,6 +356,311 @@ export const SaveTripParams = zod.object({
  */
 export const UnsaveTripParams = zod.object({
   tripId: zod.coerce.number(),
+});
+
+/**
+ * @summary Public user profile + recent rounds + viewer relationship
+ */
+export const GetUserProfileParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetUserProfileResponse = zod.object({
+  id: zod.number(),
+  fullName: zod.string(),
+  handicap: zod.number().nullish(),
+  profileVisibility: zod.enum(["public", "private"]),
+  createdAt: zod.string(),
+  stats: zod
+    .object({
+      roundsPlayed: zod.number(),
+      bestNet: zod.number().nullish(),
+      avgNetLast10: zod.number().nullish(),
+      coursesPlayed: zod.number(),
+    })
+    .optional(),
+  recentRounds: zod
+    .array(
+      zod.object({
+        roundId: zod.number(),
+        tripId: zod.number(),
+        tripKind: zod.enum(["event", "personal"]),
+        name: zod.string(),
+        course: zod.string().nullish(),
+        date: zod.string().nullish(),
+        completedAt: zod.string().nullish(),
+        updatedAt: zod.string(),
+        visibility: zod.enum(["public", "private"]),
+        players: zod.array(
+          zod.object({
+            playerId: zod.number(),
+            playerName: zod.string(),
+            userId: zod.number().nullish(),
+          }),
+        ),
+        summary: zod.object({
+          leaderName: zod.string().nullish(),
+          leaderNet: zod.number().nullish(),
+          leaderGross: zod.number().nullish(),
+          holesPlayed: zod.number(),
+          totalHoles: zod.number(),
+        }),
+        kudosCount: zod.number(),
+        commentCount: zod.number(),
+        viewerHasKudosed: zod.boolean(),
+      }),
+    )
+    .optional(),
+  followerCount: zod.number(),
+  followingCount: zod.number(),
+  viewerRelation: zod.object({
+    isSelf: zod.boolean(),
+    isFollowing: zod.boolean(),
+    isFollowedBy: zod.boolean(),
+  }),
+});
+
+/**
+ * @summary Fuzzy name search; honors privacy and phone-discoverability gates
+ */
+
+export const searchUsersQueryLimitDefault = 20;
+export const searchUsersQueryLimitMax = 50;
+
+export const SearchUsersQueryParams = zod.object({
+  q: zod.coerce.string().min(1),
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(searchUsersQueryLimitMax)
+    .default(searchUsersQueryLimitDefault),
+});
+
+export const SearchUsersResponseItem = zod.object({
+  id: zod.number(),
+  fullName: zod.string(),
+  handicap: zod.number().nullish(),
+});
+export const SearchUsersResponse = zod.array(SearchUsersResponseItem);
+
+/**
+ * @summary Other users who have shared a round with me, ordered by rounds-together
+ */
+export const ListMyBuddiesResponseItem = zod.object({
+  userId: zod.number(),
+  fullName: zod.string(),
+  handicap: zod.number().nullish(),
+  roundsTogether: zod.number(),
+  lastPlayedAt: zod.string().nullish(),
+});
+export const ListMyBuddiesResponse = zod.array(ListMyBuddiesResponseItem);
+
+/**
+ * @summary Follow a user
+ */
+export const FollowUserParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary Unfollow a user
+ */
+export const UnfollowUserParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary Paginated followers of a user
+ */
+export const ListFollowersParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const listFollowersQueryLimitDefault = 50;
+export const listFollowersQueryLimitMax = 100;
+
+export const ListFollowersQueryParams = zod.object({
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(listFollowersQueryLimitMax)
+    .default(listFollowersQueryLimitDefault),
+  before: zod.coerce.string().optional(),
+});
+
+export const ListFollowersResponseItem = zod.object({
+  userId: zod.number(),
+  fullName: zod.string(),
+  handicap: zod.number().nullish(),
+  followedAt: zod.string(),
+});
+export const ListFollowersResponse = zod.array(ListFollowersResponseItem);
+
+/**
+ * @summary Paginated users that this user is following
+ */
+export const ListFollowingParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const listFollowingQueryLimitDefault = 50;
+export const listFollowingQueryLimitMax = 100;
+
+export const ListFollowingQueryParams = zod.object({
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(listFollowingQueryLimitMax)
+    .default(listFollowingQueryLimitDefault),
+  before: zod.coerce.string().optional(),
+});
+
+export const ListFollowingResponseItem = zod.object({
+  userId: zod.number(),
+  fullName: zod.string(),
+  handicap: zod.number().nullish(),
+  followedAt: zod.string(),
+});
+export const ListFollowingResponse = zod.array(ListFollowingResponseItem);
+
+/**
+ * @summary Give kudos to a round (idempotent)
+ */
+export const GiveKudosParams = zod.object({
+  roundId: zod.coerce.number(),
+});
+
+/**
+ * @summary Remove your kudos from a round
+ */
+export const RevokeKudosParams = zod.object({
+  roundId: zod.coerce.number(),
+});
+
+/**
+ * @summary List comments on a round (sorted oldest first)
+ */
+export const ListRoundCommentsParams = zod.object({
+  roundId: zod.coerce.number(),
+});
+
+export const ListRoundCommentsResponseItem = zod.object({
+  id: zod.number(),
+  roundId: zod.number(),
+  userId: zod.number(),
+  userFullName: zod.string(),
+  parentCommentId: zod.number().nullish(),
+  body: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListRoundCommentsResponse = zod.array(
+  ListRoundCommentsResponseItem,
+);
+
+/**
+ * @summary Post a comment (optionally as a one-level reply)
+ */
+export const CreateRoundCommentParams = zod.object({
+  roundId: zod.coerce.number(),
+});
+
+export const createRoundCommentBodyBodyMax = 1000;
+
+export const CreateRoundCommentBody = zod.object({
+  body: zod.string().min(1).max(createRoundCommentBodyBodyMax),
+  parentCommentId: zod.number().nullish(),
+});
+
+/**
+ * @summary Delete your own comment
+ */
+export const DeleteRoundCommentParams = zod.object({
+  commentId: zod.coerce.number(),
+});
+
+/**
+ * @summary Aggregate kudos + comments + viewer relation for one round
+ */
+export const GetRoundSocialParams = zod.object({
+  roundId: zod.coerce.number(),
+});
+
+export const GetRoundSocialResponse = zod.object({
+  kudos: zod.object({
+    count: zod.number(),
+    viewerHasKudosed: zod.boolean(),
+    recentUsers: zod.array(
+      zod.object({
+        id: zod.number(),
+        fullName: zod.string(),
+        handicap: zod.number().nullish(),
+      }),
+    ),
+  }),
+  comments: zod.object({
+    count: zod.number(),
+    items: zod.array(
+      zod.object({
+        id: zod.number(),
+        roundId: zod.number(),
+        userId: zod.number(),
+        userFullName: zod.string(),
+        parentCommentId: zod.number().nullish(),
+        body: zod.string(),
+        createdAt: zod.string(),
+      }),
+    ),
+  }),
+});
+
+/**
+ * @summary Paginated feed of public rounds, filtered by tab
+ */
+export const getFeedQueryLimitDefault = 20;
+export const getFeedQueryLimitMax = 50;
+
+export const GetFeedQueryParams = zod.object({
+  tab: zod.enum(["buddies", "following", "all"]),
+  before: zod.coerce.string().optional(),
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(getFeedQueryLimitMax)
+    .default(getFeedQueryLimitDefault),
+});
+
+export const GetFeedResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      roundId: zod.number(),
+      tripId: zod.number(),
+      tripKind: zod.enum(["event", "personal"]),
+      name: zod.string(),
+      course: zod.string().nullish(),
+      date: zod.string().nullish(),
+      completedAt: zod.string().nullish(),
+      updatedAt: zod.string(),
+      visibility: zod.enum(["public", "private"]),
+      players: zod.array(
+        zod.object({
+          playerId: zod.number(),
+          playerName: zod.string(),
+          userId: zod.number().nullish(),
+        }),
+      ),
+      summary: zod.object({
+        leaderName: zod.string().nullish(),
+        leaderNet: zod.number().nullish(),
+        leaderGross: zod.number().nullish(),
+        holesPlayed: zod.number(),
+        totalHoles: zod.number(),
+      }),
+      kudosCount: zod.number(),
+      commentCount: zod.number(),
+      viewerHasKudosed: zod.boolean(),
+    }),
+  ),
+  nextBefore: zod.string().nullable(),
 });
 
 /**
@@ -439,6 +793,13 @@ export const ListRoundsResponseItem = zod.object({
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
+  visibility: zod.enum(["public", "private"]),
+  completedAt: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -577,6 +938,13 @@ export const GetRoundResponse = zod.object({
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
+  visibility: zod.enum(["public", "private"]),
+  completedAt: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -643,6 +1011,13 @@ export const UpdateRoundBody = zod.object({
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
+  visibility: zod.enum(["public", "private"]).optional(),
+  completedAt: zod
+    .string()
+    .nullish()
+    .describe(
+      "Send a timestamp to mark the round complete; send null to clear.",
+    ),
 });
 
 export const UpdateRoundResponse = zod.object({
@@ -707,6 +1082,13 @@ export const UpdateRoundResponse = zod.object({
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
+  visibility: zod.enum(["public", "private"]),
+  completedAt: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });

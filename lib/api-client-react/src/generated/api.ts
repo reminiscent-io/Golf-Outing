@@ -18,20 +18,32 @@ import type {
 
 import type {
   AuthSession,
+  Buddy,
   CreatePlayerBody,
   CreateRoundBody,
+  CreateRoundCommentBody,
+  CreateSoloRoundBody,
+  CreateSoloRoundResponse,
   CreateTripBody,
+  FeedPage,
+  FollowEntry,
+  GetFeedParams,
   HealthStatus,
+  ListFollowersParams,
+  ListFollowingParams,
   MyStatsResponse,
   Player,
   PlayerScore,
   RequestOtpBody,
   RequestOtpResponse,
   Round,
+  RoundComment,
   RoundGroupAssignments,
   RoundLeaderboard,
+  RoundSocial,
   ScrambleScores,
   ScrambleTeamScore,
+  SearchUsersParams,
   Trip,
   TripLeaderboard,
   UpdateMeBody,
@@ -41,6 +53,8 @@ import type {
   UpsertScoreBody,
   UpsertScrambleScoreBody,
   User,
+  UserProfile,
+  UserSearchHit,
   UserTripAssociation,
   VerifyOtpBody,
 } from "./api.schemas";
@@ -1081,6 +1095,92 @@ export function useGetMyStats<
 }
 
 /**
+ * @summary Find-or-create the caller's personal trip and create a round inside it
+ */
+export const getCreateSoloRoundUrl = () => {
+  return `/api/users/me/personal-trip/rounds`;
+};
+
+export const createSoloRound = async (
+  createSoloRoundBody: CreateSoloRoundBody,
+  options?: RequestInit,
+): Promise<CreateSoloRoundResponse> => {
+  return customFetch<CreateSoloRoundResponse>(getCreateSoloRoundUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createSoloRoundBody),
+  });
+};
+
+export const getCreateSoloRoundMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSoloRound>>,
+    TError,
+    { data: BodyType<CreateSoloRoundBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSoloRound>>,
+  TError,
+  { data: BodyType<CreateSoloRoundBody> },
+  TContext
+> => {
+  const mutationKey = ["createSoloRound"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSoloRound>>,
+    { data: BodyType<CreateSoloRoundBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSoloRound(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSoloRoundMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSoloRound>>
+>;
+export type CreateSoloRoundMutationBody = BodyType<CreateSoloRoundBody>;
+export type CreateSoloRoundMutationError = ErrorType<void>;
+
+/**
+ * @summary Find-or-create the caller's personal trip and create a round inside it
+ */
+export const useCreateSoloRound = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSoloRound>>,
+    TError,
+    { data: BodyType<CreateSoloRoundBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSoloRound>>,
+  TError,
+  { data: BodyType<CreateSoloRoundBody> },
+  TContext
+> => {
+  return useMutation(getCreateSoloRoundMutationOptions(options));
+};
+
+/**
  * @summary Save (follow) a trip to the current user's account
  */
 export const getSaveTripUrl = (tripId: number) => {
@@ -1247,6 +1347,1254 @@ export const useUnsaveTrip = <
 > => {
   return useMutation(getUnsaveTripMutationOptions(options));
 };
+
+/**
+ * @summary Public user profile + recent rounds + viewer relationship
+ */
+export const getGetUserProfileUrl = (userId: number) => {
+  return `/api/users/${userId}`;
+};
+
+export const getUserProfile = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<UserProfile> => {
+  return customFetch<UserProfile>(getGetUserProfileUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetUserProfileQueryKey = (userId: number) => {
+  return [`/api/users/${userId}`] as const;
+};
+
+export const getGetUserProfileQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserProfile>>,
+  TError = ErrorType<void>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUserProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetUserProfileQueryKey(userId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserProfile>>> = ({
+    signal,
+  }) => getUserProfile(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUserProfile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetUserProfileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserProfile>>
+>;
+export type GetUserProfileQueryError = ErrorType<void>;
+
+/**
+ * @summary Public user profile + recent rounds + viewer relationship
+ */
+
+export function useGetUserProfile<
+  TData = Awaited<ReturnType<typeof getUserProfile>>,
+  TError = ErrorType<void>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUserProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUserProfileQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Fuzzy name search; honors privacy and phone-discoverability gates
+ */
+export const getSearchUsersUrl = (params: SearchUsersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/users/search?${stringifiedParams}`
+    : `/api/users/search`;
+};
+
+export const searchUsers = async (
+  params: SearchUsersParams,
+  options?: RequestInit,
+): Promise<UserSearchHit[]> => {
+  return customFetch<UserSearchHit[]>(getSearchUsersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSearchUsersQueryKey = (params?: SearchUsersParams) => {
+  return [`/api/users/search`, ...(params ? [params] : [])] as const;
+};
+
+export const getSearchUsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof searchUsers>>,
+  TError = ErrorType<void>,
+>(
+  params: SearchUsersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchUsers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSearchUsersQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof searchUsers>>> = ({
+    signal,
+  }) => searchUsers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof searchUsers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type SearchUsersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof searchUsers>>
+>;
+export type SearchUsersQueryError = ErrorType<void>;
+
+/**
+ * @summary Fuzzy name search; honors privacy and phone-discoverability gates
+ */
+
+export function useSearchUsers<
+  TData = Awaited<ReturnType<typeof searchUsers>>,
+  TError = ErrorType<void>,
+>(
+  params: SearchUsersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchUsers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getSearchUsersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Other users who have shared a round with me, ordered by rounds-together
+ */
+export const getListMyBuddiesUrl = () => {
+  return `/api/users/me/buddies`;
+};
+
+export const listMyBuddies = async (
+  options?: RequestInit,
+): Promise<Buddy[]> => {
+  return customFetch<Buddy[]>(getListMyBuddiesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMyBuddiesQueryKey = () => {
+  return [`/api/users/me/buddies`] as const;
+};
+
+export const getListMyBuddiesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyBuddies>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyBuddies>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMyBuddiesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyBuddies>>> = ({
+    signal,
+  }) => listMyBuddies({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyBuddies>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMyBuddiesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyBuddies>>
+>;
+export type ListMyBuddiesQueryError = ErrorType<void>;
+
+/**
+ * @summary Other users who have shared a round with me, ordered by rounds-together
+ */
+
+export function useListMyBuddies<
+  TData = Awaited<ReturnType<typeof listMyBuddies>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyBuddies>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMyBuddiesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Follow a user
+ */
+export const getFollowUserUrl = (userId: number) => {
+  return `/api/users/${userId}/follow`;
+};
+
+export const followUser = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getFollowUserUrl(userId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getFollowUserMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof followUser>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof followUser>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  const mutationKey = ["followUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof followUser>>,
+    { userId: number }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return followUser(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FollowUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof followUser>>
+>;
+
+export type FollowUserMutationError = ErrorType<void>;
+
+/**
+ * @summary Follow a user
+ */
+export const useFollowUser = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof followUser>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof followUser>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  return useMutation(getFollowUserMutationOptions(options));
+};
+
+/**
+ * @summary Unfollow a user
+ */
+export const getUnfollowUserUrl = (userId: number) => {
+  return `/api/users/${userId}/follow`;
+};
+
+export const unfollowUser = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getUnfollowUserUrl(userId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getUnfollowUserMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unfollowUser>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unfollowUser>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  const mutationKey = ["unfollowUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unfollowUser>>,
+    { userId: number }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return unfollowUser(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnfollowUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unfollowUser>>
+>;
+
+export type UnfollowUserMutationError = ErrorType<void>;
+
+/**
+ * @summary Unfollow a user
+ */
+export const useUnfollowUser = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unfollowUser>>,
+    TError,
+    { userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unfollowUser>>,
+  TError,
+  { userId: number },
+  TContext
+> => {
+  return useMutation(getUnfollowUserMutationOptions(options));
+};
+
+/**
+ * @summary Paginated followers of a user
+ */
+export const getListFollowersUrl = (
+  userId: number,
+  params?: ListFollowersParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/users/${userId}/followers?${stringifiedParams}`
+    : `/api/users/${userId}/followers`;
+};
+
+export const listFollowers = async (
+  userId: number,
+  params?: ListFollowersParams,
+  options?: RequestInit,
+): Promise<FollowEntry[]> => {
+  return customFetch<FollowEntry[]>(getListFollowersUrl(userId, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListFollowersQueryKey = (
+  userId: number,
+  params?: ListFollowersParams,
+) => {
+  return [
+    `/api/users/${userId}/followers`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListFollowersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFollowers>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  params?: ListFollowersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFollowers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListFollowersQueryKey(userId, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listFollowers>>> = ({
+    signal,
+  }) => listFollowers(userId, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFollowers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListFollowersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFollowers>>
+>;
+export type ListFollowersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Paginated followers of a user
+ */
+
+export function useListFollowers<
+  TData = Awaited<ReturnType<typeof listFollowers>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  params?: ListFollowersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFollowers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListFollowersQueryOptions(userId, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Paginated users that this user is following
+ */
+export const getListFollowingUrl = (
+  userId: number,
+  params?: ListFollowingParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/users/${userId}/following?${stringifiedParams}`
+    : `/api/users/${userId}/following`;
+};
+
+export const listFollowing = async (
+  userId: number,
+  params?: ListFollowingParams,
+  options?: RequestInit,
+): Promise<FollowEntry[]> => {
+  return customFetch<FollowEntry[]>(getListFollowingUrl(userId, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListFollowingQueryKey = (
+  userId: number,
+  params?: ListFollowingParams,
+) => {
+  return [
+    `/api/users/${userId}/following`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListFollowingQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFollowing>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  params?: ListFollowingParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFollowing>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListFollowingQueryKey(userId, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listFollowing>>> = ({
+    signal,
+  }) => listFollowing(userId, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFollowing>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListFollowingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFollowing>>
+>;
+export type ListFollowingQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Paginated users that this user is following
+ */
+
+export function useListFollowing<
+  TData = Awaited<ReturnType<typeof listFollowing>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  params?: ListFollowingParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFollowing>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListFollowingQueryOptions(userId, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Give kudos to a round (idempotent)
+ */
+export const getGiveKudosUrl = (roundId: number) => {
+  return `/api/rounds/${roundId}/kudos`;
+};
+
+export const giveKudos = async (
+  roundId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getGiveKudosUrl(roundId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getGiveKudosMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof giveKudos>>,
+    TError,
+    { roundId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof giveKudos>>,
+  TError,
+  { roundId: number },
+  TContext
+> => {
+  const mutationKey = ["giveKudos"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof giveKudos>>,
+    { roundId: number }
+  > = (props) => {
+    const { roundId } = props ?? {};
+
+    return giveKudos(roundId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GiveKudosMutationResult = NonNullable<
+  Awaited<ReturnType<typeof giveKudos>>
+>;
+
+export type GiveKudosMutationError = ErrorType<void>;
+
+/**
+ * @summary Give kudos to a round (idempotent)
+ */
+export const useGiveKudos = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof giveKudos>>,
+    TError,
+    { roundId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof giveKudos>>,
+  TError,
+  { roundId: number },
+  TContext
+> => {
+  return useMutation(getGiveKudosMutationOptions(options));
+};
+
+/**
+ * @summary Remove your kudos from a round
+ */
+export const getRevokeKudosUrl = (roundId: number) => {
+  return `/api/rounds/${roundId}/kudos`;
+};
+
+export const revokeKudos = async (
+  roundId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRevokeKudosUrl(roundId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getRevokeKudosMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeKudos>>,
+    TError,
+    { roundId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revokeKudos>>,
+  TError,
+  { roundId: number },
+  TContext
+> => {
+  const mutationKey = ["revokeKudos"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revokeKudos>>,
+    { roundId: number }
+  > = (props) => {
+    const { roundId } = props ?? {};
+
+    return revokeKudos(roundId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RevokeKudosMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revokeKudos>>
+>;
+
+export type RevokeKudosMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove your kudos from a round
+ */
+export const useRevokeKudos = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeKudos>>,
+    TError,
+    { roundId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof revokeKudos>>,
+  TError,
+  { roundId: number },
+  TContext
+> => {
+  return useMutation(getRevokeKudosMutationOptions(options));
+};
+
+/**
+ * @summary List comments on a round (sorted oldest first)
+ */
+export const getListRoundCommentsUrl = (roundId: number) => {
+  return `/api/rounds/${roundId}/comments`;
+};
+
+export const listRoundComments = async (
+  roundId: number,
+  options?: RequestInit,
+): Promise<RoundComment[]> => {
+  return customFetch<RoundComment[]>(getListRoundCommentsUrl(roundId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListRoundCommentsQueryKey = (roundId: number) => {
+  return [`/api/rounds/${roundId}/comments`] as const;
+};
+
+export const getListRoundCommentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRoundComments>>,
+  TError = ErrorType<unknown>,
+>(
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRoundComments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListRoundCommentsQueryKey(roundId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listRoundComments>>
+  > = ({ signal }) => listRoundComments(roundId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!roundId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRoundComments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRoundCommentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRoundComments>>
+>;
+export type ListRoundCommentsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List comments on a round (sorted oldest first)
+ */
+
+export function useListRoundComments<
+  TData = Awaited<ReturnType<typeof listRoundComments>>,
+  TError = ErrorType<unknown>,
+>(
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRoundComments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRoundCommentsQueryOptions(roundId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Post a comment (optionally as a one-level reply)
+ */
+export const getCreateRoundCommentUrl = (roundId: number) => {
+  return `/api/rounds/${roundId}/comments`;
+};
+
+export const createRoundComment = async (
+  roundId: number,
+  createRoundCommentBody: CreateRoundCommentBody,
+  options?: RequestInit,
+): Promise<RoundComment> => {
+  return customFetch<RoundComment>(getCreateRoundCommentUrl(roundId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createRoundCommentBody),
+  });
+};
+
+export const getCreateRoundCommentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRoundComment>>,
+    TError,
+    { roundId: number; data: BodyType<CreateRoundCommentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRoundComment>>,
+  TError,
+  { roundId: number; data: BodyType<CreateRoundCommentBody> },
+  TContext
+> => {
+  const mutationKey = ["createRoundComment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRoundComment>>,
+    { roundId: number; data: BodyType<CreateRoundCommentBody> }
+  > = (props) => {
+    const { roundId, data } = props ?? {};
+
+    return createRoundComment(roundId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRoundCommentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createRoundComment>>
+>;
+export type CreateRoundCommentMutationBody = BodyType<CreateRoundCommentBody>;
+export type CreateRoundCommentMutationError = ErrorType<void>;
+
+/**
+ * @summary Post a comment (optionally as a one-level reply)
+ */
+export const useCreateRoundComment = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRoundComment>>,
+    TError,
+    { roundId: number; data: BodyType<CreateRoundCommentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createRoundComment>>,
+  TError,
+  { roundId: number; data: BodyType<CreateRoundCommentBody> },
+  TContext
+> => {
+  return useMutation(getCreateRoundCommentMutationOptions(options));
+};
+
+/**
+ * @summary Delete your own comment
+ */
+export const getDeleteRoundCommentUrl = (commentId: number) => {
+  return `/api/comments/${commentId}`;
+};
+
+export const deleteRoundComment = async (
+  commentId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteRoundCommentUrl(commentId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteRoundCommentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRoundComment>>,
+    TError,
+    { commentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRoundComment>>,
+  TError,
+  { commentId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteRoundComment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteRoundComment>>,
+    { commentId: number }
+  > = (props) => {
+    const { commentId } = props ?? {};
+
+    return deleteRoundComment(commentId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRoundCommentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteRoundComment>>
+>;
+
+export type DeleteRoundCommentMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete your own comment
+ */
+export const useDeleteRoundComment = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRoundComment>>,
+    TError,
+    { commentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteRoundComment>>,
+  TError,
+  { commentId: number },
+  TContext
+> => {
+  return useMutation(getDeleteRoundCommentMutationOptions(options));
+};
+
+/**
+ * @summary Aggregate kudos + comments + viewer relation for one round
+ */
+export const getGetRoundSocialUrl = (roundId: number) => {
+  return `/api/rounds/${roundId}/social`;
+};
+
+export const getRoundSocial = async (
+  roundId: number,
+  options?: RequestInit,
+): Promise<RoundSocial> => {
+  return customFetch<RoundSocial>(getGetRoundSocialUrl(roundId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRoundSocialQueryKey = (roundId: number) => {
+  return [`/api/rounds/${roundId}/social`] as const;
+};
+
+export const getGetRoundSocialQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRoundSocial>>,
+  TError = ErrorType<unknown>,
+>(
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRoundSocial>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRoundSocialQueryKey(roundId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRoundSocial>>> = ({
+    signal,
+  }) => getRoundSocial(roundId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!roundId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRoundSocial>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRoundSocialQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRoundSocial>>
+>;
+export type GetRoundSocialQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Aggregate kudos + comments + viewer relation for one round
+ */
+
+export function useGetRoundSocial<
+  TData = Awaited<ReturnType<typeof getRoundSocial>>,
+  TError = ErrorType<unknown>,
+>(
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRoundSocial>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRoundSocialQueryOptions(roundId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Paginated feed of public rounds, filtered by tab
+ */
+export const getGetFeedUrl = (params: GetFeedParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/feed?${stringifiedParams}`
+    : `/api/feed`;
+};
+
+export const getFeed = async (
+  params: GetFeedParams,
+  options?: RequestInit,
+): Promise<FeedPage> => {
+  return customFetch<FeedPage>(getGetFeedUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetFeedQueryKey = (params?: GetFeedParams) => {
+  return [`/api/feed`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetFeedQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFeed>>,
+  TError = ErrorType<unknown>,
+>(
+  params: GetFeedParams,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getFeed>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetFeedQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFeed>>> = ({
+    signal,
+  }) => getFeed(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFeed>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetFeedQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFeed>>
+>;
+export type GetFeedQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Paginated feed of public rounds, filtered by tab
+ */
+
+export function useGetFeed<
+  TData = Awaited<ReturnType<typeof getFeed>>,
+  TError = ErrorType<unknown>,
+>(
+  params: GetFeedParams,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getFeed>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetFeedQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List players in a trip

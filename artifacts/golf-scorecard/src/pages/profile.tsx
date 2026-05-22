@@ -98,6 +98,7 @@ function ProfileContent() {
           saving={updateMe.isPending}
         />
         <StatsSection />
+        <SettingsSection />
       </main>
     </div>
   );
@@ -421,6 +422,79 @@ function fmt(n: number | null): string {
 function fmtAvg(n: number | null): string {
   if (n == null) return "—";
   return n.toFixed(1);
+}
+
+function SettingsSection() {
+  const session = useAuthSession();
+  const updateMe = useUpdateMe();
+  const { toast } = useToast();
+  const [discoverable, setDiscoverable] = useState(!!session?.user.discoverableByPhone);
+  const [profileVisibility, setProfileVisibility] = useState<"public" | "private">(session?.user.profileVisibility ?? "public");
+
+  useEffect(() => {
+    if (session) {
+      setDiscoverable(!!session.user.discoverableByPhone);
+      setProfileVisibility(session.user.profileVisibility);
+    }
+  }, [session]);
+
+  function persist(patch: { discoverableByPhone?: boolean; profileVisibility?: "public" | "private" }) {
+    updateMe.mutate(
+      { data: patch },
+      {
+        onSuccess: (u) => {
+          updateSessionUser({ discoverableByPhone: u.discoverableByPhone, profileVisibility: u.profileVisibility });
+          toast({ description: "Settings saved", duration: 1500 });
+        },
+        onError: () => toast({ description: "Could not save", variant: "destructive" }),
+      }
+    );
+  }
+
+  if (!session) return null;
+  return (
+    <section className="bg-card border border-card-border rounded-2xl px-6 py-6">
+      <h2 className="font-serif text-lg font-semibold text-card-foreground">Privacy</h2>
+      <p className="font-sans text-xs text-muted-foreground mt-1 mb-4">
+        Both default to safe values. Flip them deliberately if you want broader reach.
+      </p>
+      <div className="space-y-4">
+        <ToggleRow
+          label="Public profile"
+          description="Off hides you from search and the All feed. People who already follow you keep access."
+          checked={profileVisibility === "public"}
+          onChange={(v) => { const next = v ? "public" : "private"; setProfileVisibility(next); persist({ profileVisibility: next }); }}
+        />
+        <ToggleRow
+          label="Discoverable by phone"
+          description="Off (default) blocks reverse phone lookup. On lets people who know your phone number find your profile."
+          checked={discoverable}
+          onChange={(v) => { setDiscoverable(v); persist({ discoverableByPhone: v }); }}
+        />
+      </div>
+    </section>
+  );
+}
+
+function ToggleRow({ label, description, checked, onChange }: Readonly<{ label: string; description: string; checked: boolean; onChange: (v: boolean) => void }>) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="font-sans text-sm font-semibold text-card-foreground">{label}</div>
+        <div className="font-sans text-xs text-muted-foreground mt-0.5">{description}</div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className="relative h-6 w-11 rounded-full shrink-0 transition-colors"
+        style={{ background: checked ? "hsl(var(--primary))" : "hsl(var(--muted))" }}
+      >
+        <span className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all" style={{ left: checked ? "1.5rem" : "0.125rem" }} />
+      </button>
+    </div>
+  );
 }
 
 export default function ProfilePage() {

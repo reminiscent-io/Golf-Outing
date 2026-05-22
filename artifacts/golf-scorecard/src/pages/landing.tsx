@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Trophy, Flag, ArrowRight, ChevronRight, Coins, Swords, Activity } from "lucide-react";
+import { Trophy, Flag, ArrowRight, ChevronRight, Coins, Activity, Heart, MessageCircle, MapPin } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import { firstName } from "@/lib/format";
 import { SignInModal } from "@/components/sign-in-modal";
@@ -271,6 +271,131 @@ function HeroScorecard() {
   );
 }
 
+function HeroFeedCard() {
+  const players = ["Kev", "Mike", "Sam", "Dave"];
+  return (
+    <div
+      className="relative mx-auto w-full max-w-[420px]"
+      style={{ transform: "rotate(1.2deg)" }}
+    >
+      {/* Brass kudos stamp */}
+      <div
+        className="absolute -top-3 -left-3 z-10 flex items-center justify-center rounded-full"
+        style={{
+          width: 64,
+          height: 64,
+          background: `radial-gradient(circle at 30% 30%, ${BRASS} 0%, ${BRASS_DEEP} 70%)`,
+          boxShadow: `0 6px 18px -6px hsla(42, 60%, 50%, 0.6), inset 0 -2px 4px hsla(0,0%,0%,0.2)`,
+          color: INK,
+        }}
+      >
+        <div className="text-center leading-none">
+          <Heart size={14} fill={INK} strokeWidth={0} className="mx-auto mb-0.5" />
+          <div className="font-serif text-base font-bold tabular-nums">12</div>
+        </div>
+      </div>
+
+      <div
+        className="rounded-[14px] overflow-hidden"
+        style={{
+          background: CREAM,
+          border: `1px solid hsl(38 25% 78%)`,
+          boxShadow:
+            "0 1px 0 rgba(255,255,255,0.6) inset, 0 2px 0 rgba(0,0,0,0.05), 0 30px 60px -20px rgba(0,0,0,0.6), 0 12px 24px -12px rgba(0,0,0,0.5)",
+        }}
+      >
+        {/* Header: status + course */}
+        <div
+          className="px-5 py-3.5"
+          style={{ borderBottom: `1px dashed hsl(38 25% 70%)`, background: "hsl(42 40% 88%)" }}
+        >
+          <div
+            className="font-sans text-[9px] font-bold mb-1.5"
+            style={{ color: INK_SOFT, letterSpacing: "0.28em" }}
+          >
+            FINAL · SOLO ROUND
+          </div>
+          <div className="font-serif text-lg font-semibold leading-tight" style={{ color: INK }}>
+            Saturday at Oakwood
+          </div>
+          <div
+            className="flex items-center gap-1 mt-1.5 font-sans text-[11px]"
+            style={{ color: INK_SOFT }}
+          >
+            <MapPin size={11} strokeWidth={1.8} aria-hidden />
+            Oakwood G.C. · Black tees
+          </div>
+        </div>
+
+        {/* Player chips */}
+        <div className="px-5 pt-3.5 pb-2.5">
+          <div className="flex flex-wrap gap-x-2.5 gap-y-1">
+            {players.map((p, i) => (
+              <span
+                key={p}
+                className="font-sans text-[12px]"
+                style={{
+                  color: i === 0 ? INK : INK_SOFT,
+                  fontWeight: i === 0 ? 600 : 400,
+                  textDecoration: i === 0 ? "underline" : "none",
+                  textDecorationColor: BRASS_DEEP,
+                  textUnderlineOffset: 3,
+                  textDecorationThickness: 1,
+                }}
+              >
+                {p}
+              </span>
+            ))}
+          </div>
+
+          {/* Leader line */}
+          <div
+            className="mt-3 flex items-baseline gap-2 font-sans text-[13px]"
+            style={{ color: INK }}
+          >
+            <Trophy size={12} style={{ color: BRASS_DEEP }} strokeWidth={2} aria-hidden />
+            <span style={{ fontWeight: 600 }}>Kev</span>
+            <span style={{ color: INK_SOFT }}>· net 68 · gross 78</span>
+          </div>
+        </div>
+
+        {/* Footer: kudos + comments */}
+        <div
+          className="px-5 py-3 flex items-center gap-5"
+          style={{ background: "hsl(42 40% 88%)", borderTop: `1px solid hsl(38 25% 76%)` }}
+        >
+          <div className="flex items-center gap-1.5" style={{ color: BRASS_DEEP }}>
+            <Heart size={13} fill="currentColor" strokeWidth={0} aria-hidden />
+            <span className="font-sans text-[12px] font-semibold tabular-nums">12</span>
+          </div>
+          <div className="flex items-center gap-1.5" style={{ color: INK_SOFT }}>
+            <MessageCircle size={13} strokeWidth={1.8} aria-hidden />
+            <span className="font-sans text-[12px] font-semibold tabular-nums">4</span>
+          </div>
+          <div
+            className="ml-auto font-sans text-[10px] italic"
+            style={{ color: INK_SOFT, letterSpacing: "0.04em" }}
+          >
+            "first 70s of the year"
+          </div>
+        </div>
+      </div>
+
+      {/* Whisper of a second card behind, opposite offset to hero */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 rounded-[14px]"
+        style={{
+          transform: "translate(-8px, 10px) rotate(-2.6deg)",
+          background: "hsl(42 35% 84%)",
+          border: `1px solid hsl(38 25% 72%)`,
+          opacity: 0.5,
+        }}
+      />
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const [, navigate] = useLocation();
   const session = useAuthSession();
@@ -374,7 +499,7 @@ export default function LandingPage() {
 
         <div className="relative max-w-lg mx-auto px-6 pt-10 pb-14">
           <div className="rise" style={{ animationDelay: "60ms" }}>
-            <Eyebrow>Track your game · Track your progress</Eyebrow>
+            <Eyebrow>Live scores · Friends watching</Eyebrow>
           </div>
 
           <h1
@@ -388,7 +513,7 @@ export default function LandingPage() {
           >
             Live scoring{" "}
             <span style={{ color: BRASS, fontStyle: "italic", fontWeight: 500 }}>
-              for your golf trip
+              for the rounds that travel.
             </span>
           </h1>
 
@@ -396,8 +521,10 @@ export default function LandingPage() {
             className="font-sans text-[15px] mt-5 max-w-md rise"
             style={{ color: BRASS_MUTED, lineHeight: 1.55, animationDelay: "300ms" }}
           >
-            Stableford. Skins. Nassau. Net Stroke. Everyone in the group sees the leaderboard
-            update as fast as you tap a score. Built for solo-play or group outings     </p>
+            Stableford, Skins, Nassau, Net Stroke. Everyone in the group sees the leaderboard
+            update as fast as you tap a score. Solo loops or four-man trips, your buddies can
+            follow along, drop kudos, and trade jabs in the comments.
+          </p>
 
           <div
             className="mt-8 flex flex-col items-start gap-3 rise"
@@ -447,7 +574,7 @@ export default function LandingPage() {
             className="font-serif mt-3 mb-10 leading-[1.05]"
             style={{ color: CREAM_FG, fontSize: "clamp(1.85rem, 7vw, 2.5rem)", fontWeight: 500 }}
           >
-            Four formats. <span style={{ color: BRASS, fontStyle: "italic" }}>One scorecard.</span>
+            Four formats. <span style={{ color: BRASS, fontStyle: "italic" }}>One leaderboard.</span>
           </h2>
 
           <div className="space-y-4">
@@ -471,10 +598,48 @@ export default function LandingPage() {
             />
             <FeatureRow
               numeral="iv"
-              title="Built for the trip"
-              body="Multiple players, multiple rounds, group chat-friendly links. Designed for the four guys you actually play with."
-              icon={<Swords size={14} strokeWidth={2} style={{ color: BRASS }} />}
+              title="The round travels"
+              body="Follow your regulars, drop kudos when they card a 78, jab in the comments when they don't. Solo rounds and group trips both land on the feed."
+              icon={<Heart size={14} strokeWidth={2} style={{ color: BRASS }} />}
             />
+          </div>
+        </div>
+      </section>
+
+      {/* ============== AFTER THE ROUND (SOCIAL) ============== */}
+      <section
+        className="relative overflow-hidden"
+        style={{
+          background: `radial-gradient(ellipse 100% 60% at 50% 100%, hsl(158 55% 14%) 0%, ${FOREST_DEEP} 70%)`,
+        }}
+      >
+        <div className="max-w-lg mx-auto px-6 pt-16 pb-20">
+          <Ornament className="mb-5" />
+          <Eyebrow>After the round</Eyebrow>
+          <h2
+            className="font-serif mt-3 mb-3 leading-[1.05]"
+            style={{ color: CREAM_FG, fontSize: "clamp(1.85rem, 7vw, 2.5rem)", fontWeight: 500 }}
+          >
+            The card closes. <span style={{ color: BRASS, fontStyle: "italic" }}>The story doesn't.</span>
+          </h2>
+          <p
+            className="font-sans text-[14px] mt-3 mb-12 max-w-md"
+            style={{ color: BRASS_MUTED, lineHeight: 1.6 }}
+          >
+            Your buddies see the round land on their feed. Kudos when you stripe it,
+            comments when you don't, a profile that quietly tracks the year.
+          </p>
+
+          <HeroFeedCard />
+
+          <div className="mt-8 flex items-center justify-center gap-2">
+            <Heart size={11} style={{ color: BRASS_FAINT }} strokeWidth={1.6} />
+            <span
+              className="font-sans text-[10px]"
+              style={{ color: BRASS_FAINT, letterSpacing: "0.22em", textTransform: "uppercase" }}
+            >
+              Twelve kudos · just now
+            </span>
           </div>
         </div>
       </section>
@@ -497,9 +662,9 @@ export default function LandingPage() {
               className="absolute left-[15px] top-2 bottom-2 w-px"
               style={{ background: `linear-gradient(to bottom, ${BRASS_DEEP}, transparent)` }}
             />
-            <Step n={1} title="Create the trip" body="Name it. The Family Cup. Bachelor 8. Whatever." />
+            <Step n={1} title="Create the trip — or a solo round" body="Name it. The Family Cup. Bachelor 8. Or just Saturday at Oakwood." />
             <Step n={2} title="Add players & handicap indices" body="One per friend. We'll do the Course Handicap math each round." />
-            <Step n={3} title="Tap pars and scores in the 18-hole grid" body="Everyone watching the leaderboard sees it the moment you do." />
+            <Step n={3} title="Tap scores. Watch it travel." body="Live to the group. Final to your feed. Kudos and comments handle themselves." />
           </ol>
         </div>
       </section>
@@ -556,7 +721,7 @@ export default function LandingPage() {
               className="font-serif text-sm"
               style={{ color: BRASS_MUTED, letterSpacing: "0.04em" }}
             >
-              Golf Trip Scorecard
+              Golf Trip Leaderboard
             </span>
           </div>
           <Link

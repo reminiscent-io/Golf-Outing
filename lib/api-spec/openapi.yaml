@@ -13,7 +13,7 @@ tags:
   - name: auth
     description: Phone+OTP authentication
   - name: users
-    description: Current user account operations
+    description: User accounts, profiles, search, and follow graph
   - name: trips
     description: Golf trip operations
   - name: players
@@ -269,6 +269,29 @@ paths:
         "401":
           description: Unauthorized
 
+  /users/me/personal-trip/rounds:
+    post:
+      operationId: createSoloRound
+      tags: [users]
+      summary: Find-or-create the caller's personal trip and create a round inside it
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSoloRoundBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateSoloRoundResponse"
+        "401":
+          description: Unauthorized
+
   /users/me/trips/{tripId}:
     post:
       operationId: saveTrip
@@ -306,6 +329,371 @@ paths:
           description: Removed
         "401":
           description: Unauthorized
+
+  /users/{userId}:
+    get:
+      operationId: getUserProfile
+      tags: [users]
+      summary: Public user profile + recent rounds + viewer relationship
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Profile payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+        "404":
+          description: User not found
+
+  /users/search:
+    get:
+      operationId: searchUsers
+      tags: [users]
+      summary: Fuzzy name search; honors privacy and phone-discoverability gates
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Matched users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSearchHit"
+        "401":
+          description: Unauthorized
+
+  /users/me/buddies:
+    get:
+      operationId: listMyBuddies
+      tags: [users]
+      summary: Other users who have shared a round with me, ordered by rounds-together
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Buddy list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Buddy"
+        "401":
+          description: Unauthorized
+
+  /users/{userId}/follow:
+    post:
+      operationId: followUser
+      tags: [users]
+      summary: Follow a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Followed (idempotent)
+        "400":
+          description: Cannot follow self
+        "401":
+          description: Unauthorized
+        "403":
+          description: Target profile is private
+        "404":
+          description: Not found
+    delete:
+      operationId: unfollowUser
+      tags: [users]
+      summary: Unfollow a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Unfollowed (idempotent)
+        "401":
+          description: Unauthorized
+
+  /users/{userId}/followers:
+    get:
+      operationId: listFollowers
+      tags: [users]
+      summary: Paginated followers of a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+            description: ISO timestamp; return rows older than this.
+      responses:
+        "200":
+          description: Followers page
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FollowEntry"
+
+  /users/{userId}/following:
+    get:
+      operationId: listFollowing
+      tags: [users]
+      summary: Paginated users that this user is following
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Following page
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FollowEntry"
+
+  /rounds/{roundId}/kudos:
+    post:
+      operationId: giveKudos
+      tags: [rounds]
+      summary: Give kudos to a round (idempotent)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Kudosed
+        "401":
+          description: Unauthorized
+        "403":
+          description: Round is private
+        "404":
+          description: Round not found
+    delete:
+      operationId: revokeKudos
+      tags: [rounds]
+      summary: Remove your kudos from a round
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+
+  /rounds/{roundId}/comments:
+    get:
+      operationId: listRoundComments
+      tags: [rounds]
+      summary: List comments on a round (sorted oldest first)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoundComment"
+    post:
+      operationId: createRoundComment
+      tags: [rounds]
+      summary: Post a comment (optionally as a one-level reply)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoundCommentBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundComment"
+        "400":
+          description: Invalid parentCommentId (cross-round or nested reply)
+        "401":
+          description: Unauthorized
+        "403":
+          description: Round is private
+
+  /comments/{commentId}:
+    delete:
+      operationId: deleteRoundComment
+      tags: [rounds]
+      summary: Delete your own comment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Not the author
+        "404":
+          description: Not found
+
+  /rounds/{roundId}/social:
+    get:
+      operationId: getRoundSocial
+      tags: [rounds]
+      summary: Aggregate kudos + comments + viewer relation for one round
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Aggregate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundSocial"
+
+  /feed:
+    get:
+      operationId: getFeed
+      tags: [rounds]
+      summary: Paginated feed of public rounds, filtered by tab
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tab
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [buddies, following, all]
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+            description: ISO timestamp; return items with sort-key older than this.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Feed page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedPage"
 
   /trips/{tripId}/players:
     get:
@@ -750,6 +1138,10 @@ components:
           type: string
         description:
           type: ["string", "null"]
+        kind:
+          type: string
+          enum: [event, personal]
+          description: '`event` = shared trip with friends. `personal` = solo-round bucket, one per user.'
         createdByUserId:
           type: ["integer", "null"]
           description: User who created the trip; null for legacy trips created before attribution.
@@ -760,6 +1152,7 @@ components:
       required:
         - id
         - name
+        - kind
         - createdAt
         - updatedAt
 
@@ -794,12 +1187,19 @@ components:
         handicap:
           type: ["number", "null"]
           description: User's current handicap index; autofilled when joining new trips.
+        discoverableByPhone:
+          type: boolean
+        profileVisibility:
+          type: string
+          enum: [public, private]
         createdAt:
           type: string
       required:
         - id
         - phone
         - fullName
+        - discoverableByPhone
+        - profileVisibility
         - createdAt
 
     UpdateMeBody:
@@ -809,6 +1209,292 @@ components:
           type: ["number", "null"]
           minimum: 0
           maximum: 54
+        discoverableByPhone:
+          type: boolean
+        profileVisibility:
+          type: string
+          enum: [public, private]
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 80
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        handicap:
+          type: ["number", "null"]
+        profileVisibility:
+          type: string
+          enum: [public, private]
+        createdAt:
+          type: string
+        stats:
+          $ref: "#/components/schemas/UserProfileStats"
+        recentRounds:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedItem"
+        followerCount:
+          type: integer
+        followingCount:
+          type: integer
+        viewerRelation:
+          type: object
+          properties:
+            isSelf:
+              type: boolean
+            isFollowing:
+              type: boolean
+            isFollowedBy:
+              type: boolean
+          required: [isSelf, isFollowing, isFollowedBy]
+      required:
+        - id
+        - fullName
+        - profileVisibility
+        - createdAt
+        - followerCount
+        - followingCount
+        - viewerRelation
+
+    UserProfileStats:
+      type: object
+      properties:
+        roundsPlayed:
+          type: integer
+        bestNet:
+          type: ["integer", "null"]
+        avgNetLast10:
+          type: ["number", "null"]
+        coursesPlayed:
+          type: integer
+      required:
+        - roundsPlayed
+        - coursesPlayed
+
+    UserSearchHit:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        handicap:
+          type: ["number", "null"]
+      required: [id, fullName]
+
+    Buddy:
+      type: object
+      properties:
+        userId:
+          type: integer
+        fullName:
+          type: string
+        handicap:
+          type: ["number", "null"]
+        roundsTogether:
+          type: integer
+        lastPlayedAt:
+          type: ["string", "null"]
+      required: [userId, fullName, roundsTogether]
+
+    FollowEntry:
+      type: object
+      properties:
+        userId:
+          type: integer
+        fullName:
+          type: string
+        handicap:
+          type: ["number", "null"]
+        followedAt:
+          type: string
+      required: [userId, fullName, followedAt]
+
+    RoundComment:
+      type: object
+      properties:
+        id:
+          type: integer
+        roundId:
+          type: integer
+        userId:
+          type: integer
+        userFullName:
+          type: string
+        parentCommentId:
+          type: ["integer", "null"]
+        body:
+          type: string
+        createdAt:
+          type: string
+      required: [id, roundId, userId, userFullName, body, createdAt]
+
+    CreateRoundCommentBody:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        parentCommentId:
+          type: ["integer", "null"]
+      required: [body]
+
+    RoundSocial:
+      type: object
+      properties:
+        kudos:
+          type: object
+          properties:
+            count:
+              type: integer
+            viewerHasKudosed:
+              type: boolean
+            recentUsers:
+              type: array
+              items:
+                $ref: "#/components/schemas/UserSearchHit"
+          required: [count, viewerHasKudosed, recentUsers]
+        comments:
+          type: object
+          properties:
+            count:
+              type: integer
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/RoundComment"
+          required: [count, items]
+      required: [kudos, comments]
+
+    FeedPlayer:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        userId:
+          type: ["integer", "null"]
+      required: [playerId, playerName]
+
+    FeedItem:
+      type: object
+      properties:
+        roundId:
+          type: integer
+        tripId:
+          type: integer
+        tripKind:
+          type: string
+          enum: [event, personal]
+        name:
+          type: string
+        course:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+        visibility:
+          type: string
+          enum: [public, private]
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedPlayer"
+        summary:
+          $ref: "#/components/schemas/FeedItemSummary"
+        kudosCount:
+          type: integer
+        commentCount:
+          type: integer
+        viewerHasKudosed:
+          type: boolean
+      required:
+        - roundId
+        - tripId
+        - tripKind
+        - name
+        - updatedAt
+        - visibility
+        - players
+        - summary
+        - kudosCount
+        - commentCount
+        - viewerHasKudosed
+
+    FeedItemSummary:
+      type: object
+      properties:
+        leaderName:
+          type: ["string", "null"]
+        leaderNet:
+          type: ["integer", "null"]
+        leaderGross:
+          type: ["integer", "null"]
+        holesPlayed:
+          type: integer
+        totalHoles:
+          type: integer
+      required: [holesPlayed, totalHoles]
+
+    FeedPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedItem"
+        nextBefore:
+          type: ["string", "null"]
+      required: [items, nextBefore]
+
+    CreateSoloRoundBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        course:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        par:
+          type: array
+          items:
+            type: integer
+        holeHcp:
+          type: array
+          items:
+            type: integer
+        teeBox:
+          type: ["string", "null"]
+        courseRating:
+          type: ["number", "null"]
+        courseSlope:
+          type: ["integer", "null"]
+      required: [name]
+
+    CreateSoloRoundResponse:
+      type: object
+      properties:
+        tripId:
+          type: integer
+        roundId:
+          type: integer
+        playerId:
+          type: integer
+      required: [tripId, roundId, playerId]
 
     RequestOtpBody:
       type: object
@@ -1044,6 +1730,12 @@ components:
           type: ["number", "null"]
         courseSlope:
           type: ["integer", "null"]
+        visibility:
+          type: string
+          enum: [public, private]
+        completedAt:
+          type: ["string", "null"]
+          description: ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.
         createdAt:
           type: string
         updatedAt:
@@ -1056,6 +1748,7 @@ components:
         - holeHcp
         - gamesConfig
         - handicapMode
+        - visibility
         - createdAt
         - updatedAt
 
@@ -1186,6 +1879,12 @@ components:
           type: ["number", "null"]
         courseSlope:
           type: ["integer", "null"]
+        visibility:
+          type: string
+          enum: [public, private]
+        completedAt:
+          type: ["string", "null"]
+          description: Send a timestamp to mark the round complete; send null to clear.
 
     PlayerScore:
       type: object

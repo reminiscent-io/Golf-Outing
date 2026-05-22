@@ -470,3 +470,60 @@ export function computeScramble(
 
   return { type, teams: results };
 }
+
+export type SummarizeInputs = {
+  roundId: number;
+  par: number[];
+  holeHcp: number[];
+  handicapMode: HandicapMode;
+  course: CourseInputs;
+  players: { id: number; name: string; handicap: number }[];
+  scores: Map<number, (number | null)[]>;
+  assignments: { playerId: number; groupNumber: number }[];
+};
+
+export type RoundSummary = {
+  leaderName: string | null;
+  leaderNet: number | null;
+  leaderGross: number | null;
+  holesPlayed: number;
+  totalHoles: number;
+};
+
+// Compact "feed-card" view of a round: who's leading by net, plus how
+// many holes have been entered. Reuses computePlayerStats so the scoring
+// math stays in one place.
+export function summarizeRound(inputs: SummarizeInputs): RoundSummary {
+  const { par, holeHcp, handicapMode, course, players, scores, assignments } = inputs;
+  const playerMinHcp = buildPlayerMinHcp(players, assignments);
+
+  let bestNet: number | null = null;
+  let bestGross: number | null = null;
+  let leaderId: number | null = null;
+  let leaderName: string | null = null;
+  let holesPlayed = 0;
+
+  for (const p of players) {
+    const holes = scores.get(p.id) ?? Array(18).fill(null);
+    const stats = computePlayerStats(p, holes, par, holeHcp, playerMinHcp.get(p.id) ?? 0, handicapMode, course);
+    holesPlayed = Math.max(holesPlayed, stats.holesPlayed);
+
+    // Rank by netTotal when the player has completed; otherwise skip for the leader pick.
+    const candidate = stats.netTotal;
+    if (candidate == null) continue;
+    if (bestNet == null || candidate < bestNet || (candidate === bestNet && (leaderId == null || p.id < leaderId))) {
+      bestNet = candidate;
+      bestGross = stats.grossTotal;
+      leaderId = p.id;
+      leaderName = stats.playerName;
+    }
+  }
+
+  return {
+    leaderName,
+    leaderNet: bestNet,
+    leaderGross: bestGross,
+    holesPlayed,
+    totalHoles: 18,
+  };
+}

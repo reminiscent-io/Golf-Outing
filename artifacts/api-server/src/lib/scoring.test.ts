@@ -5,6 +5,8 @@ import {
   computePlayerStats,
   computeSkins,
   computeTeamNassau,
+  summarizeRound,
+  type SummarizeInputs,
   type TeamNassauSlot,
 } from "./scoring";
 
@@ -227,5 +229,57 @@ describe("computeSkins with per-player min handicap", () => {
     ]);
     const { perHole } = computeSkins(players, scores, holeHcp, minByPlayer, "net", {});
     assert.equal(perHole[0].tied, true);
+  });
+});
+
+describe("summarizeRound", () => {
+  function baseInputs(): SummarizeInputs {
+    return {
+      roundId: 1,
+      par: Array(18).fill(4),
+      holeHcp: Array.from({ length: 18 }, (_, i) => i + 1),
+      handicapMode: "net",
+      course: { slope: null, rating: null, totalPar: 72 },
+      players: [
+        { id: 10, name: "Alice", handicap: 0 },
+        { id: 11, name: "Bob",   handicap: 18 },
+      ],
+      scores: new Map([
+        [10, holes([4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4])], // 72 gross
+        [11, holes([5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5])], // 90 gross
+      ]),
+      assignments: [],
+    };
+  }
+
+  it("returns the lowest net score holder as the leader", () => {
+    const out = summarizeRound(baseInputs());
+    // Alice gross 72, net 72. Bob gross 90, net 72 (18 strokes). Tie — leader is alphabetical-deterministic, lowest playerId.
+    assert.equal(out.holesPlayed, 18);
+    assert.equal(out.totalHoles, 18);
+    assert.equal(out.leaderNet, 72);
+    assert.equal(out.leaderGross, 72);
+    assert.ok(out.leaderName === "Alice" || out.leaderName === "Bob");
+  });
+
+  it("counts holes by max holes-played across all players in the round", () => {
+    const inputs = baseInputs();
+    inputs.scores = new Map([
+      [10, holes([4,4,4,4,4,4,4,4,4,4,4,4])],     // 12 holes
+      [11, holes([5,5,5,5,5,5,5,5])],             // 8 holes
+    ]);
+    const out = summarizeRound(inputs);
+    assert.equal(out.holesPlayed, 12);
+    assert.equal(out.totalHoles, 18);
+  });
+
+  it("returns nulls and zero leaders for an empty round", () => {
+    const inputs = baseInputs();
+    inputs.scores = new Map();
+    const out = summarizeRound(inputs);
+    assert.equal(out.holesPlayed, 0);
+    assert.equal(out.leaderName, null);
+    assert.equal(out.leaderNet, null);
+    assert.equal(out.leaderGross, null);
   });
 });
