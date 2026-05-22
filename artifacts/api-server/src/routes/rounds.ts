@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, roundsTable, playersTable, userTripFollowsTable, tripsTable } from "@workspace/db";
+import { db, roundsTable, playersTable, tripsTable, userTripFollowsTable } from "@workspace/db";
 import { ser } from "../lib/serialize";
 import {
   CreateRoundBody,
@@ -83,6 +83,7 @@ router.post("/trips/:tripId/rounds", requireAuth, async (req: AuthedRequest, res
 
   const [round] = await db.insert(roundsTable).values({
     tripId: params.data.tripId,
+    createdByUserId: req.user.id,
     name: parsed.data.name,
     course: parsed.data.course ?? null,
     date: parsed.data.date ?? null,
@@ -182,10 +183,34 @@ router.patch("/trips/:tripId/rounds/:roundId", requireAuth, async (req: AuthedRe
   res.json(UpdateRoundResponse.parse(ser(updated)));
 });
 
-router.delete("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => {
+router.delete("/trips/:tripId/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const params = DeleteRoundParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [round] = await db
+    .select({ createdByUserId: roundsTable.createdByUserId })
+    .from(roundsTable)
+    .where(and(eq(roundsTable.id, params.data.roundId), eq(roundsTable.tripId, params.data.tripId)))
+    .limit(1);
+  if (!round) {
+    res.status(404).json({ error: "Round not found" });
+    return;
+  }
+  const [trip] = await db
+    .select({ createdByUserId: tripsTable.createdByUserId })
+    .from(tripsTable)
+    .where(eq(tripsTable.id, params.data.tripId))
+    .limit(1);
+  const isRoundCreator = round.createdByUserId === req.user.id;
+  const isTripCreator = trip?.createdByUserId === req.user.id;
+  if (!isRoundCreator && !isTripCreator) {
+    res.status(403).json({ error: "Only the round creator or trip creator can delete this round" });
     return;
   }
   await db.delete(roundsTable).where(and(eq(roundsTable.id, params.data.roundId), eq(roundsTable.tripId, params.data.tripId)));

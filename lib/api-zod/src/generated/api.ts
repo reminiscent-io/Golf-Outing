@@ -734,6 +734,12 @@ export const ListRoundsParams = zod.object({
 export const ListRoundsResponseItem = zod.object({
   id: zod.number(),
   tripId: zod.number(),
+  createdByUserId: zod
+    .number()
+    .nullish()
+    .describe(
+      "User who created the round; null for legacy rounds created before attribution.",
+    ),
   name: zod.string(),
   course: zod.string().nullish(),
   date: zod.string().nullish(),
@@ -873,6 +879,12 @@ export const GetRoundParams = zod.object({
 export const GetRoundResponse = zod.object({
   id: zod.number(),
   tripId: zod.number(),
+  createdByUserId: zod
+    .number()
+    .nullish()
+    .describe(
+      "User who created the round; null for legacy rounds created before attribution.",
+    ),
   name: zod.string(),
   course: zod.string().nullish(),
   date: zod.string().nullish(),
@@ -1011,6 +1023,12 @@ export const UpdateRoundBody = zod.object({
 export const UpdateRoundResponse = zod.object({
   id: zod.number(),
   tripId: zod.number(),
+  createdByUserId: zod
+    .number()
+    .nullish()
+    .describe(
+      "User who created the round; null for legacy rounds created before attribution.",
+    ),
   name: zod.string(),
   course: zod.string().nullish(),
   date: zod.string().nullish(),

@@ -1699,6 +1699,9 @@ components:
           type: integer
         tripId:
           type: integer
+        createdByUserId:
+          type: ["integer", "null"]
+          description: User who created the round; null for legacy rounds created before attribution.
         name:
           type: string
         course:
