@@ -33,7 +33,7 @@ export default function PrivacyPage() {
         >
           <section className="space-y-2">
             <p>
-              Golf Trip Live Scorecard ("the app", "we", "us") is owned and operated by
+              Golf Trip Live Leaderboard ("the app", "we", "us") is owned and operated by
               Reminiscent Technologies LLC. This page explains what information we collect,
               how we use it, and the terms you agree to when you use the app.
             </p>

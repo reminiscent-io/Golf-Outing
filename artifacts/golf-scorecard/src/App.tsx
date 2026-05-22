@@ -85,7 +85,7 @@ function NavBar() {
         {/* Brand — anchored home */}
         <Link
           href="/"
-          aria-label="Scorecard, home"
+          aria-label="Leaderboard, home"
           className="group inline-flex h-10 items-center gap-2 -ml-1 px-2 rounded-md hover-elevate active-elevate transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(42_52%_59%)]"
           style={{ color: BRASS }}
         >
@@ -94,7 +94,7 @@ function NavBar() {
             className="font-serif italic text-[15px] leading-none"
             style={{ letterSpacing: "0.005em" }}
           >
-            Scorecard
+            Leaderboard
           </span>
         </Link>
 
