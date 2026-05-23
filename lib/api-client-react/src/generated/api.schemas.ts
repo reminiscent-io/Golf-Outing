@@ -47,6 +47,17 @@ export interface UpdateTripBody {
   description?: string | null;
 }
 
+/**
+ * What populated handicap last. Currently always 'manual'.
+ */
+export type UserHandicapSource =
+  (typeof UserHandicapSource)[keyof typeof UserHandicapSource];
+
+export const UserHandicapSource = {
+  manual: "manual",
+  ghin: "ghin",
+} as const;
+
 export type UserProfileVisibility =
   (typeof UserProfileVisibility)[keyof typeof UserProfileVisibility];
 
@@ -65,6 +76,18 @@ export interface User {
    * @nullable
    */
   handicap?: number | null;
+  /**
+   * User's GHIN registry number (digits only).
+   * @nullable
+   */
+  ghinNumber?: string | null;
+  /** What populated handicap last. Currently always 'manual'. */
+  handicapSource: UserHandicapSource;
+  /**
+   * When handicap was last fetched from GHIN. Currently always null.
+   * @nullable
+   */
+  handicapSyncedAt?: string | null;
   discoverableByPhone: boolean;
   profileVisibility: UserProfileVisibility;
   createdAt: string;
@@ -85,6 +108,14 @@ export interface UpdateMeBody {
    * @nullable
    */
   handicap?: number | null;
+  /**
+   * Digits only. Send null to clear.
+   * @minLength 5
+   * @maxLength 12
+   * @nullable
+   * @pattern ^[0-9]+$
+   */
+  ghinNumber?: string | null;
   discoverableByPhone?: boolean;
   profileVisibility?: UpdateMeBodyProfileVisibility;
   /**
@@ -92,6 +123,21 @@ export interface UpdateMeBody {
    * @maxLength 80
    */
   fullName?: string;
+}
+
+export type HandicapHistoryEntrySource =
+  (typeof HandicapHistoryEntrySource)[keyof typeof HandicapHistoryEntrySource];
+
+export const HandicapHistoryEntrySource = {
+  manual: "manual",
+  ghin: "ghin",
+  initial: "initial",
+} as const;
+
+export interface HandicapHistoryEntry {
+  handicap: number;
+  source: HandicapHistoryEntrySource;
+  recordedAt: string;
 }
 
 export type UserProfileProfileVisibility =
@@ -301,6 +347,14 @@ export interface VerifyOtpBody {
   code: string;
   /** Required when verifying for a phone number that has no user yet. */
   fullName?: string;
+  /**
+   * Optional. Only honored when this phone is a new user.
+   * @minLength 5
+   * @maxLength 12
+   * @nullable
+   * @pattern ^[0-9]+$
+   */
+  ghinNumber?: string | null;
 }
 
 export interface AuthSession {

@@ -6,6 +6,9 @@ export type AuthUser = {
   phone: string;
   fullName: string;
   handicap?: number | null;
+  ghinNumber?: string | null;
+  handicapSource: "manual" | "ghin";
+  handicapSyncedAt?: string | null;
   discoverableByPhone: boolean;
   profileVisibility: "public" | "private";
   createdAt: string;

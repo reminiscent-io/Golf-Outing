@@ -7,10 +7,12 @@
     "hello": "tsx ./src/hello.ts",
     "test-golf-course-api": "tsx ./src/test-golf-course-api.ts",
     "migrate-add-slot-index": "tsx ./src/migrate-add-slot-index.ts",
+    "backfill-handicap-history": "tsx ./src/backfill-handicap-history.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@workspace/db": "workspace:*"
+    "@workspace/db": "workspace:*",
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

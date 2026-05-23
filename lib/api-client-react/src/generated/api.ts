@@ -28,6 +28,7 @@ import type {
   FeedPage,
   FollowEntry,
   GetFeedParams,
+  HandicapHistoryEntry,
   HealthStatus,
   ListFollowersParams,
   ListFollowingParams,
@@ -943,6 +944,81 @@ export const useRefreshSession = <
 > => {
   return useMutation(getRefreshSessionMutationOptions(options));
 };
+
+/**
+ * @summary Full handicap-change history for the current user, newest first
+ */
+export const getGetMyHandicapHistoryUrl = () => {
+  return `/api/auth/me/handicap-history`;
+};
+
+export const getMyHandicapHistory = async (
+  options?: RequestInit,
+): Promise<HandicapHistoryEntry[]> => {
+  return customFetch<HandicapHistoryEntry[]>(getGetMyHandicapHistoryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyHandicapHistoryQueryKey = () => {
+  return [`/api/auth/me/handicap-history`] as const;
+};
+
+export const getGetMyHandicapHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyHandicapHistory>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyHandicapHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyHandicapHistoryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyHandicapHistory>>
+  > = ({ signal }) => getMyHandicapHistory({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyHandicapHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyHandicapHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyHandicapHistory>>
+>;
+export type GetMyHandicapHistoryQueryError = ErrorType<void>;
+
+/**
+ * @summary Full handicap-change history for the current user, newest first
+ */
+
+export function useGetMyHandicapHistory<
+  TData = Awaited<ReturnType<typeof getMyHandicapHistory>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyHandicapHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyHandicapHistoryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List trips associated with the current user (via player link or saved)

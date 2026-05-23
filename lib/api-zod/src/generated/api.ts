@@ -134,6 +134,11 @@ export const RequestOtpResponse = zod.object({
 export const verifyOtpBodyCodeMin = 6;
 export const verifyOtpBodyCodeMax = 6;
 
+export const verifyOtpBodyGhinNumberMin = 5;
+export const verifyOtpBodyGhinNumberMax = 12;
+
+export const verifyOtpBodyGhinNumberRegExp = new RegExp("^[0-9]+$");
+
 export const VerifyOtpBody = zod.object({
   phone: zod.string(),
   code: zod.string().min(verifyOtpBodyCodeMin).max(verifyOtpBodyCodeMax),
@@ -143,6 +148,13 @@ export const VerifyOtpBody = zod.object({
     .describe(
       "Required when verifying for a phone number that has no user yet.",
     ),
+  ghinNumber: zod
+    .string()
+    .min(verifyOtpBodyGhinNumberMin)
+    .max(verifyOtpBodyGhinNumberMax)
+    .regex(verifyOtpBodyGhinNumberRegExp)
+    .nullish()
+    .describe("Optional. Only honored when this phone is a new user."),
 });
 
 export const VerifyOtpResponse = zod.object({
@@ -157,6 +169,19 @@ export const VerifyOtpResponse = zod.object({
       .nullish()
       .describe(
         "User's current handicap index; autofilled when joining new trips.",
+      ),
+    ghinNumber: zod
+      .string()
+      .nullish()
+      .describe("User's GHIN registry number (digits only)."),
+    handicapSource: zod
+      .enum(["manual", "ghin"])
+      .describe("What populated handicap last. Currently always 'manual'."),
+    handicapSyncedAt: zod.coerce
+      .date()
+      .nullish()
+      .describe(
+        "When handicap was last fetched from GHIN. Currently always null.",
       ),
     discoverableByPhone: zod.boolean(),
     profileVisibility: zod.enum(["public", "private"]),
@@ -177,6 +202,19 @@ export const GetMeResponse = zod.object({
     .describe(
       "User's current handicap index; autofilled when joining new trips.",
     ),
+  ghinNumber: zod
+    .string()
+    .nullish()
+    .describe("User's GHIN registry number (digits only)."),
+  handicapSource: zod
+    .enum(["manual", "ghin"])
+    .describe("What populated handicap last. Currently always 'manual'."),
+  handicapSyncedAt: zod.coerce
+    .date()
+    .nullish()
+    .describe(
+      "When handicap was last fetched from GHIN. Currently always null.",
+    ),
   discoverableByPhone: zod.boolean(),
   profileVisibility: zod.enum(["public", "private"]),
   createdAt: zod.string(),
@@ -188,6 +226,10 @@ export const GetMeResponse = zod.object({
 export const updateMeBodyHandicapMin = 0;
 export const updateMeBodyHandicapMax = 54;
 
+export const updateMeBodyGhinNumberMin = 5;
+export const updateMeBodyGhinNumberMax = 12;
+
+export const updateMeBodyGhinNumberRegExp = new RegExp("^[0-9]+$");
 export const updateMeBodyFullNameMax = 80;
 
 export const UpdateMeBody = zod.object({
@@ -196,6 +238,13 @@ export const UpdateMeBody = zod.object({
     .min(updateMeBodyHandicapMin)
     .max(updateMeBodyHandicapMax)
     .nullish(),
+  ghinNumber: zod
+    .string()
+    .min(updateMeBodyGhinNumberMin)
+    .max(updateMeBodyGhinNumberMax)
+    .regex(updateMeBodyGhinNumberRegExp)
+    .nullish()
+    .describe("Digits only. Send null to clear."),
   discoverableByPhone: zod.boolean().optional(),
   profileVisibility: zod.enum(["public", "private"]).optional(),
   fullName: zod.string().min(1).max(updateMeBodyFullNameMax).optional(),
@@ -210,6 +259,19 @@ export const UpdateMeResponse = zod.object({
     .nullish()
     .describe(
       "User's current handicap index; autofilled when joining new trips.",
+    ),
+  ghinNumber: zod
+    .string()
+    .nullish()
+    .describe("User's GHIN registry number (digits only)."),
+  handicapSource: zod
+    .enum(["manual", "ghin"])
+    .describe("What populated handicap last. Currently always 'manual'."),
+  handicapSyncedAt: zod.coerce
+    .date()
+    .nullish()
+    .describe(
+      "When handicap was last fetched from GHIN. Currently always null.",
     ),
   discoverableByPhone: zod.boolean(),
   profileVisibility: zod.enum(["public", "private"]),
@@ -232,11 +294,36 @@ export const RefreshSessionResponse = zod.object({
       .describe(
         "User's current handicap index; autofilled when joining new trips.",
       ),
+    ghinNumber: zod
+      .string()
+      .nullish()
+      .describe("User's GHIN registry number (digits only)."),
+    handicapSource: zod
+      .enum(["manual", "ghin"])
+      .describe("What populated handicap last. Currently always 'manual'."),
+    handicapSyncedAt: zod.coerce
+      .date()
+      .nullish()
+      .describe(
+        "When handicap was last fetched from GHIN. Currently always null.",
+      ),
     discoverableByPhone: zod.boolean(),
     profileVisibility: zod.enum(["public", "private"]),
     createdAt: zod.string(),
   }),
 });
+
+/**
+ * @summary Full handicap-change history for the current user, newest first
+ */
+export const GetMyHandicapHistoryResponseItem = zod.object({
+  handicap: zod.number(),
+  source: zod.enum(["manual", "ghin", "initial"]),
+  recordedAt: zod.coerce.date(),
+});
+export const GetMyHandicapHistoryResponse = zod.array(
+  GetMyHandicapHistoryResponseItem,
+);
 
 /**
  * @summary List trips associated with the current user (via player link or saved)

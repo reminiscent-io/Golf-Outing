@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { db, usersTable, userHandicapHistoryTable } from "@workspace/db";
 import {
   RequestOtpBody,
   VerifyOtpBody,
@@ -12,6 +12,8 @@ import { startVerification, checkVerification } from "../lib/twilio";
 import { normalizePhone } from "../lib/otp";
 import { signSession } from "../lib/jwt";
 import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
+
+const GHIN_RE = /^[0-9]{5,12}$/;
 
 const router: IRouter = Router();
 
@@ -109,9 +111,20 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
       res.status(400).json({ error: "fullName is required for new users" });
       return;
     }
+    let ghinNumber: string | null = null;
+    if (parsed.data.ghinNumber != null) {
+      const trimmed = String(parsed.data.ghinNumber).trim();
+      if (trimmed !== "") {
+        if (!GHIN_RE.test(trimmed)) {
+          res.status(400).json({ error: "GHIN number must be 5-12 digits" });
+          return;
+        }
+        ghinNumber = trimmed;
+      }
+    }
     const [created] = await db
       .insert(usersTable)
-      .values({ phone, fullName, lastLoginAt: new Date() })
+      .values({ phone, fullName, ghinNumber, lastLoginAt: new Date() })
       .returning();
     user = created;
   } else {
@@ -150,12 +163,28 @@ router.patch("/auth/me", requireAuth, async (req: AuthedRequest, res): Promise<v
   }
   const patch: {
     handicap?: number | null;
+    ghinNumber?: string | null;
     discoverableByPhone?: boolean;
     profileVisibility?: "public" | "private";
     fullName?: string;
   } = {};
   if (parsed.data.handicap !== undefined) {
     patch.handicap = parsed.data.handicap;
+  }
+  if (parsed.data.ghinNumber !== undefined) {
+    if (parsed.data.ghinNumber === null) {
+      patch.ghinNumber = null;
+    } else {
+      const trimmed = String(parsed.data.ghinNumber).trim();
+      if (trimmed === "") {
+        patch.ghinNumber = null;
+      } else if (!GHIN_RE.test(trimmed)) {
+        res.status(400).json({ error: "GHIN number must be 5-12 digits" });
+        return;
+      } else {
+        patch.ghinNumber = trimmed;
+      }
+    }
   }
   if (parsed.data.discoverableByPhone !== undefined) {
     patch.discoverableByPhone = parsed.data.discoverableByPhone;
@@ -175,16 +204,63 @@ router.patch("/auth/me", requireAuth, async (req: AuthedRequest, res): Promise<v
     res.json(ser(current));
     return;
   }
-  const [updated] = await db
-    .update(usersTable)
-    .set(patch)
-    .where(eq(usersTable.id, req.user.id))
-    .returning();
+
+  const userId = req.user.id;
+  const updated = await db.transaction(async (tx) => {
+    let priorHandicap: number | null = null;
+    if (patch.handicap !== undefined) {
+      const [current] = await tx
+        .select({ handicap: usersTable.handicap })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId));
+      priorHandicap = current?.handicap ?? null;
+    }
+
+    const [row] = await tx
+      .update(usersTable)
+      .set(patch)
+      .where(eq(usersTable.id, userId))
+      .returning();
+    if (!row) return null;
+
+    // Log handicap changes (only when set to a number that differs from prior).
+    if (
+      patch.handicap !== undefined &&
+      patch.handicap !== null &&
+      patch.handicap !== priorHandicap
+    ) {
+      await tx.insert(userHandicapHistoryTable).values({
+        userId,
+        handicap: patch.handicap,
+        source: "manual",
+      });
+    }
+
+    return row;
+  });
+
   if (!updated) {
     res.status(401).json({ error: "User not found" });
     return;
   }
   res.json(ser(updated));
+});
+
+router.get("/auth/me/handicap-history", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const rows = await db
+    .select({
+      handicap: userHandicapHistoryTable.handicap,
+      source: userHandicapHistoryTable.source,
+      recordedAt: userHandicapHistoryTable.recordedAt,
+    })
+    .from(userHandicapHistoryTable)
+    .where(eq(userHandicapHistoryTable.userId, req.user.id))
+    .orderBy(desc(userHandicapHistoryTable.recordedAt));
+  res.json(ser(rows));
 });
 
 router.post("/auth/refresh", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
