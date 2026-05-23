@@ -37,7 +37,7 @@ export function TripAuthGate({ tripId, children }: Props) {
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | "">("");
   const [showAddSelf, setShowAddSelf] = useState(false);
-  const [newName, setNewName] = useState("");
+  const [newName, setNewName] = useState(() => session?.user.fullName ?? "");
   const [newHcp, setNewHcp] = useState(() => formatHandicap(session?.user.handicap));
   const [, navigate] = useLocation();
 
@@ -62,6 +62,15 @@ export function TripAuthGate({ tripId, children }: Props) {
     if (!mine) return;
     setTripIdentity(tripId, { kind: "player", playerId: mine.id, playerName: mine.name });
   }, [identity, session, players, tripId]);
+
+  // Prefill the "add me" form when session resolves after mount (e.g. user
+  // signed in via the modal). Only fills when fields are still empty so we
+  // don't clobber edits.
+  useEffect(() => {
+    if (!session) return;
+    setNewName(prev => prev === "" ? session.user.fullName : prev);
+    setNewHcp(prev => prev === "" ? formatHandicap(session.user.handicap) : prev);
+  }, [session]);
 
   // Auto-observer: if we're viewing a public trip but the viewer isn't a player
   // in it, drop them into read-only mode instead of forcing the "Who are you?" picker.
