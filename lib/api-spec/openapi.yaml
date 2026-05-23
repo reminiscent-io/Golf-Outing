@@ -233,6 +233,25 @@ paths:
         "401":
           description: Unauthorized
 
+  /auth/me/handicap-history:
+    get:
+      operationId: getMyHandicapHistory
+      tags: [auth]
+      summary: Full handicap-change history for the current user, newest first
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Handicap history rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HandicapHistoryEntry"
+        "401":
+          description: Unauthorized
+
   /users/me/trips:
     get:
       operationId: listMyTrips
@@ -1187,6 +1206,17 @@ components:
         handicap:
           type: ["number", "null"]
           description: User's current handicap index; autofilled when joining new trips.
+        ghinNumber:
+          type: ["string", "null"]
+          description: User's GHIN registry number (digits only).
+        handicapSource:
+          type: string
+          enum: [manual, ghin]
+          description: What populated handicap last. Currently always 'manual'.
+        handicapSyncedAt:
+          type: ["string", "null"]
+          format: date-time
+          description: When handicap was last fetched from GHIN. Currently always null.
         discoverableByPhone:
           type: boolean
         profileVisibility:
@@ -1198,6 +1228,7 @@ components:
         - id
         - phone
         - fullName
+        - handicapSource
         - discoverableByPhone
         - profileVisibility
         - createdAt
@@ -1209,6 +1240,12 @@ components:
           type: ["number", "null"]
           minimum: 0
           maximum: 54
+        ghinNumber:
+          type: ["string", "null"]
+          pattern: "^[0-9]+$"
+          minLength: 5
+          maxLength: 12
+          description: Digits only. Send null to clear.
         discoverableByPhone:
           type: boolean
         profileVisibility:
@@ -1218,6 +1255,22 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+
+    HandicapHistoryEntry:
+      type: object
+      properties:
+        handicap:
+          type: number
+        source:
+          type: string
+          enum: [manual, ghin, initial]
+        recordedAt:
+          type: string
+          format: date-time
+      required:
+        - handicap
+        - source
+        - recordedAt
 
     UserProfile:
       type: object
@@ -1534,6 +1587,12 @@ components:
         fullName:
           type: string
           description: Required when verifying for a phone number that has no user yet.
+        ghinNumber:
+          type: ["string", "null"]
+          pattern: "^[0-9]+$"
+          minLength: 5
+          maxLength: 12
+          description: Optional. Only honored when this phone is a new user.
       required:
         - phone
         - code

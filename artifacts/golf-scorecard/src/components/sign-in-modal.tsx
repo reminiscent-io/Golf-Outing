@@ -22,6 +22,7 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [phone, setPhone] = useState("");
   const [fullName, setFullName] = useState("");
+  const [ghinNumber, setGhinNumber] = useState("");
   const [isNewUser, setIsNewUser] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
       setStep("phone");
       setPhone("");
       setFullName("");
+      setGhinNumber("");
       setIsNewUser(false);
       setCode("");
       setError(null);
@@ -113,7 +115,12 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
     // Only pass fullName when this phone has no account yet. For existing
     // accounts the server ignores it, but we shouldn't send it at all.
     const data = isNewUser
-      ? { phone: normalized, code, fullName: fullName.trim() }
+      ? {
+          phone: normalized,
+          code,
+          fullName: fullName.trim(),
+          ...(ghinNumber.trim() ? { ghinNumber: ghinNumber.trim() } : {}),
+        }
       : { phone: normalized, code };
     verifyOtp.mutate(
       { data },
@@ -215,6 +222,18 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
                   onChange={e => setFullName(e.target.value)}
                   placeholder="Jane Smith"
                   autoComplete="name"
+                  className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
+                  style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                />
+                <label className="block text-xs font-sans font-semibold uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>
+                  GHIN Number (optional)
+                </label>
+                <input
+                  value={ghinNumber}
+                  onChange={e => setGhinNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                  placeholder="e.g. 1234567"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="w-full px-3 py-2.5 rounded-lg text-sm font-sans outline-none mb-3"
                   style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
                 />

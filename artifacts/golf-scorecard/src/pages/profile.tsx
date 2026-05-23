@@ -36,10 +36,15 @@ function ProfileContent() {
   const updateMe = useUpdateMe();
 
   const [hcp, setHcp] = useState<string>(() => formatHandicap(session?.user.handicap));
+  const [ghin, setGhin] = useState<string>(() => session?.user.ghinNumber ?? "");
 
   useEffect(() => {
     setHcp(formatHandicap(session?.user.handicap));
   }, [session?.user.handicap]);
+
+  useEffect(() => {
+    setGhin(session?.user.ghinNumber ?? "");
+  }, [session?.user.ghinNumber]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,15 +54,20 @@ function ProfileContent() {
       toast({ description: "Handicap must be between 0 and 54", variant: "destructive" });
       return;
     }
+    const trimmedGhin = ghin.trim();
+    if (trimmedGhin !== "" && !/^\d{5,12}$/.test(trimmedGhin)) {
+      toast({ description: "GHIN number must be 5-12 digits", variant: "destructive" });
+      return;
+    }
     updateMe.mutate(
-      { data: { handicap: next } },
+      { data: { handicap: next, ghinNumber: trimmedGhin === "" ? null : trimmedGhin } },
       {
         onSuccess: (user) => {
-          updateSessionUser({ handicap: user.handicap });
-          toast({ description: "Handicap saved", duration: 2000 });
+          updateSessionUser({ handicap: user.handicap, ghinNumber: user.ghinNumber });
+          toast({ description: "Saved", duration: 2000 });
         },
         onError: () => {
-          toast({ description: "Could not save handicap", variant: "destructive" });
+          toast({ description: "Could not save profile", variant: "destructive" });
         },
       }
     );
@@ -94,6 +104,8 @@ function ProfileContent() {
           phone={session.user.phone}
           hcp={hcp}
           setHcp={setHcp}
+          ghin={ghin}
+          setGhin={setGhin}
           onSubmit={handleSubmit}
           saving={updateMe.isPending}
         />
@@ -109,11 +121,13 @@ type IdentitySectionProps = Readonly<{
   phone: string;
   hcp: string;
   setHcp: (v: string) => void;
+  ghin: string;
+  setGhin: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   saving: boolean;
 }>;
 
-function IdentitySection({ fullName, phone, hcp, setHcp, onSubmit, saving }: IdentitySectionProps) {
+function IdentitySection({ fullName, phone, hcp, setHcp, ghin, setGhin, onSubmit, saving }: IdentitySectionProps) {
   return (
     <section
       aria-labelledby="profile-identity-heading"
@@ -173,6 +187,35 @@ function IdentitySection({ fullName, phone, hcp, setHcp, onSubmit, saving }: Ide
           className="text-xs font-sans mt-1.5 mb-5 text-muted-foreground"
         >
           Decimals OK. Leave empty to clear.
+        </p>
+
+        <label
+          htmlFor="profile-ghin"
+          className="block text-[10px] font-sans font-semibold uppercase tracking-[0.32em] mb-2"
+          style={BRASS_INK_STYLE}
+        >
+          GHIN Number
+        </label>
+        <input
+          id="profile-ghin"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="e.g. 1234567"
+          value={ghin}
+          onChange={e => setGhin(e.target.value.replace(/\D/g, "").slice(0, 12))}
+          aria-describedby="profile-ghin-help"
+          className={`w-full px-3 py-3 rounded-lg text-sm font-sans bg-popover text-card-foreground transition-shadow ${FOCUS_RING_ON_CREAM}`}
+          style={{
+            outline: "none",
+            border: "1.5px solid hsl(var(--input))",
+          }}
+        />
+        <p
+          id="profile-ghin-help"
+          className="text-xs font-sans mt-1.5 mb-5 text-muted-foreground"
+        >
+          Used to look up your handicap automatically (coming soon).
         </p>
 
         <button
