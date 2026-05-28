@@ -1114,6 +1114,54 @@ paths:
         "404":
           description: Round not found or not part of the trip
 
+  /trips/{tripId}/rounds/{roundId}/groups/{groupNumber}/completion:
+    put:
+      operationId: putRoundGroupCompletion
+      tags: [groups]
+      summary: Mark a single foursome's round complete (or reopen it)
+      description: >-
+        Marks one group's round complete without affecting other groups sharing
+        the same scorecard. The round-level `completedAt` is only set once every
+        assigned group is complete, and is cleared again if any group reopens.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: groupNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutRoundGroupCompletionBody"
+      responses:
+        "200":
+          description: Updated assignments and completions for the round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundGroupAssignments"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Only players in this round can mark a group complete
+        "404":
+          description: Round not found or the group has no players assigned
+
   /trips/{tripId}/leaderboard:
     get:
       operationId: getTripLeaderboard
@@ -2164,6 +2212,22 @@ components:
         - groupNumber
         - slotIndex
 
+    RoundGroupCompletion:
+      type: object
+      properties:
+        groupNumber:
+          type: integer
+          minimum: 1
+        completedAt:
+          type: string
+          description: ISO timestamp the group marked their round complete.
+        completedByUserId:
+          type: ["integer", "null"]
+          description: User who marked the group complete; null if that user was since removed.
+      required:
+        - groupNumber
+        - completedAt
+
     RoundGroupAssignments:
       type: object
       properties:
@@ -2171,8 +2235,25 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RoundGroupAssignment"
+        completions:
+          type: array
+          description: >-
+            Per-group completion status. Present on read responses; ignored on
+            the PUT-assignments request body. A round rolls up to a final
+            `completedAt` only once every assigned group appears here.
+          items:
+            $ref: "#/components/schemas/RoundGroupCompletion"
       required:
         - assignments
+
+    PutRoundGroupCompletionBody:
+      type: object
+      properties:
+        completed:
+          type: boolean
+          description: true marks the group's round complete; false reopens it.
+      required:
+        - completed
 
     ScrambleTeamScore:
       type: object

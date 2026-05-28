@@ -219,6 +219,8 @@
      so their content clears the status bar. No-op in normal browser tabs. */
   @media (display-mode: standalone), (display-mode: fullscreen) {
     .sticky-safe-top { padding-top: max(env(safe-area-inset-top), 0px); }
+    /* For sticky bars pinned to bottom:0 — pad their bottom by the home indicator. */
+    .sticky-safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
   }
 
   input[type="search"]::-webkit-search-cancel-button {
