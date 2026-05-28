@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCreateSoloRound } from "@workspace/api-client-react";
 import { X } from "lucide-react";
+import { CourseSearchField } from "@/components/course-search-field";
 
 type Props = {
   open: boolean;
@@ -11,16 +12,43 @@ type Props = {
 export function SoloRoundModal({ open, onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [course, setCourse] = useState("");
+  // Resolved from the course lookup; submitted so net scoring works out of the box.
+  const [teeBox, setTeeBox] = useState<string | null>(null);
+  const [courseRating, setCourseRating] = useState<number | null>(null);
+  const [courseSlope, setCourseSlope] = useState<number | null>(null);
+  const [par, setPar] = useState<number[] | null>(null);
+  const [holeHcp, setHoleHcp] = useState<number[] | null>(null);
   const create = useCreateSoloRound();
 
   if (!open) return null;
 
+  function reset() {
+    setName("");
+    setCourse("");
+    setTeeBox(null);
+    setCourseRating(null);
+    setCourseSlope(null);
+    setPar(null);
+    setHoleHcp(null);
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const n = name.trim() || (course.trim() || "New round");
+    const c = course.trim();
+    const n = name.trim() || (c || "New round");
     create.mutate(
-      { data: { name: n, course: course.trim() || null } },
-      { onSuccess: (resp) => { onCreated(resp); onClose(); setName(""); setCourse(""); } }
+      {
+        data: {
+          name: n,
+          course: c || null,
+          teeBox,
+          courseRating,
+          courseSlope,
+          ...(par ? { par } : {}),
+          ...(holeHcp ? { holeHcp } : {}),
+        },
+      },
+      { onSuccess: (resp) => { onCreated(resp); onClose(); reset(); } }
     );
   }
 
@@ -32,8 +60,31 @@ export function SoloRoundModal({ open, onClose, onCreated }: Props) {
           <button type="button" onClick={onClose} aria-label="Close" className="p-1"><X size={18} /></button>
         </div>
         <label className="block text-[10px] font-sans font-semibold uppercase tracking-[0.32em] text-muted-foreground mb-2">Course</label>
+        <div className="mb-3">
+          <CourseSearchField
+            autoFocus
+            placeholder="Search for a club or course…"
+            onCourseSelected={(detail) => setCourse(detail.clubName)}
+            onTeeApplied={(tee, detail) => {
+              setCourse(detail.clubName);
+              setTeeBox(tee.name);
+              setCourseRating(tee.rating);
+              setCourseSlope(tee.slope);
+              setPar(tee.par);
+              setHoleHcp(tee.holeHcp);
+            }}
+            onCleared={() => {
+              setCourse("");
+              setTeeBox(null);
+              setCourseRating(null);
+              setCourseSlope(null);
+              setPar(null);
+              setHoleHcp(null);
+            }}
+          />
+        </div>
+        <label className="block text-[10px] font-sans font-semibold uppercase tracking-[0.32em] text-muted-foreground mb-2">Course name</label>
         <input
-          autoFocus
           value={course}
           onChange={e => setCourse(e.target.value)}
           placeholder="e.g. Bethpage Black"
@@ -44,7 +95,7 @@ export function SoloRoundModal({ open, onClose, onCreated }: Props) {
         <input
           value={name}
           onChange={e => setName(e.target.value)}
-          placeholder="Defaults to the course name"
+          placeholder={course.trim() ? `Defaults to "${course.trim()}"` : "Defaults to the course name"}
           className="w-full px-3 py-2.5 rounded-lg bg-popover text-card-foreground text-sm font-sans mb-5"
           style={{ border: "1.5px solid hsl(var(--input))" }}
         />
