@@ -25,6 +25,7 @@ import {
   getGetScrambleScoresQueryKey,
 } from "@workspace/api-client-react";
 import { ArrowLeft, Settings, Trophy, Grid3X3, Info, Trash2 } from "lucide-react";
+import confetti from "canvas-confetti";
 import { CourseSearchField } from "@/components/course-search-field";
 import type { CourseTee } from "@/lib/course-lookup";
 import { SignedInAs } from "@/components/signed-in-as";
@@ -96,6 +97,26 @@ function scoreLabel(gross: number | null, par: number, playingHcp: number, holeH
   if (diff === 1) return "Bogey";
   if (diff === 2) return "Double";
   return `+${diff}`;
+}
+
+// Celebratory confetti burst fired when a player records a gross birdie
+// (a score at least one stroke under the hole's par — birdie, eagle, etc.).
+// Honors prefers-reduced-motion via canvas-confetti's built-in flag.
+function fireBirdieConfetti() {
+  const colors = ["#16a34a", "#22c55e", "#86efac", "#fde047", "#ffffff"];
+  const defaults = {
+    colors,
+    spread: 75,
+    startVelocity: 38,
+    ticks: 220,
+    gravity: 0.9,
+    decay: 0.92,
+    zIndex: 9999,
+    disableForReducedMotion: true,
+  };
+  confetti({ ...defaults, particleCount: 90, origin: { x: 0.5, y: 0.65 } });
+  confetti({ ...defaults, particleCount: 45, scalar: 1.2, origin: { x: 0.2, y: 0.8 } });
+  confetti({ ...defaults, particleCount: 45, scalar: 1.2, origin: { x: 0.8, y: 0.8 } });
 }
 
 type ScrambleTeam = {
@@ -670,6 +691,12 @@ export default function RoundPage() {
       if (!andAdvance) setEditingCell(null);
       return;
     }
+    // Celebrate a gross birdie (at least one under par) — but only when the
+    // score actually changed, so re-saving the same value doesn't re-fire.
+    const prevScore = getScore(playerId, holeIdx);
+    const holePar = par[holeIdx];
+    const isGrossBirdie =
+      score != null && score !== prevScore && holePar != null && score <= holePar - 1;
     upsertScore.mutate(
       { tripId, roundId, data: { playerId, hole: holeIdx + 1, score } },
       {
@@ -677,6 +704,7 @@ export default function RoundPage() {
           queryClient.invalidateQueries({ queryKey: getGetScoresQueryKey(tripId, roundId) });
           queryClient.invalidateQueries({ queryKey: getGetRoundLeaderboardQueryKey(tripId, roundId) });
           queryClient.invalidateQueries({ queryKey: getGetTripLeaderboardQueryKey(tripId) });
+          if (isGrossBirdie) fireBirdieConfetti();
         },
       }
     );
