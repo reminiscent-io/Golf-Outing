@@ -802,8 +802,27 @@ export interface RoundGroupAssignment {
   slotIndex: number;
 }
 
+export interface RoundGroupCompletion {
+  /** @minimum 1 */
+  groupNumber: number;
+  /** ISO timestamp the group marked their round complete. */
+  completedAt: string;
+  /**
+   * User who marked the group complete; null if that user was since removed.
+   * @nullable
+   */
+  completedByUserId?: number | null;
+}
+
 export interface RoundGroupAssignments {
   assignments: RoundGroupAssignment[];
+  /** Per-group completion status. Present on read responses; ignored on the PUT-assignments request body. A round rolls up to a final `completedAt` only once every assigned group appears here. */
+  completions?: RoundGroupCompletion[];
+}
+
+export interface PutRoundGroupCompletionBody {
+  /** true marks the group's round complete; false reopens it. */
+  completed: boolean;
 }
 
 /**

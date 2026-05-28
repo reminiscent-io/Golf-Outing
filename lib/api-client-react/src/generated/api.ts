@@ -35,6 +35,7 @@ import type {
   MyStatsResponse,
   Player,
   PlayerScore,
+  PutRoundGroupCompletionBody,
   RequestOtpBody,
   RequestOtpResponse,
   Round,
@@ -4115,6 +4116,135 @@ export const usePutRoundGroups = <
   TContext
 > => {
   return useMutation(getPutRoundGroupsMutationOptions(options));
+};
+
+/**
+ * Marks one group's round complete without affecting other groups sharing the same scorecard. The round-level `completedAt` is only set once every assigned group is complete, and is cleared again if any group reopens.
+ * @summary Mark a single foursome's round complete (or reopen it)
+ */
+export const getPutRoundGroupCompletionUrl = (
+  tripId: number,
+  roundId: number,
+  groupNumber: number,
+) => {
+  return `/api/trips/${tripId}/rounds/${roundId}/groups/${groupNumber}/completion`;
+};
+
+export const putRoundGroupCompletion = async (
+  tripId: number,
+  roundId: number,
+  groupNumber: number,
+  putRoundGroupCompletionBody: PutRoundGroupCompletionBody,
+  options?: RequestInit,
+): Promise<RoundGroupAssignments> => {
+  return customFetch<RoundGroupAssignments>(
+    getPutRoundGroupCompletionUrl(tripId, roundId, groupNumber),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(putRoundGroupCompletionBody),
+    },
+  );
+};
+
+export const getPutRoundGroupCompletionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putRoundGroupCompletion>>,
+    TError,
+    {
+      tripId: number;
+      roundId: number;
+      groupNumber: number;
+      data: BodyType<PutRoundGroupCompletionBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putRoundGroupCompletion>>,
+  TError,
+  {
+    tripId: number;
+    roundId: number;
+    groupNumber: number;
+    data: BodyType<PutRoundGroupCompletionBody>;
+  },
+  TContext
+> => {
+  const mutationKey = ["putRoundGroupCompletion"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putRoundGroupCompletion>>,
+    {
+      tripId: number;
+      roundId: number;
+      groupNumber: number;
+      data: BodyType<PutRoundGroupCompletionBody>;
+    }
+  > = (props) => {
+    const { tripId, roundId, groupNumber, data } = props ?? {};
+
+    return putRoundGroupCompletion(
+      tripId,
+      roundId,
+      groupNumber,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutRoundGroupCompletionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putRoundGroupCompletion>>
+>;
+export type PutRoundGroupCompletionMutationBody =
+  BodyType<PutRoundGroupCompletionBody>;
+export type PutRoundGroupCompletionMutationError = ErrorType<void>;
+
+/**
+ * @summary Mark a single foursome's round complete (or reopen it)
+ */
+export const usePutRoundGroupCompletion = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putRoundGroupCompletion>>,
+    TError,
+    {
+      tripId: number;
+      roundId: number;
+      groupNumber: number;
+      data: BodyType<PutRoundGroupCompletionBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof putRoundGroupCompletion>>,
+  TError,
+  {
+    tripId: number;
+    roundId: number;
+    groupNumber: number;
+    data: BodyType<PutRoundGroupCompletionBody>;
+  },
+  TContext
+> => {
+  return useMutation(getPutRoundGroupCompletionMutationOptions(options));
 };
 
 /**

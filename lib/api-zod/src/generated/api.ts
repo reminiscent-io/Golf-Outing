@@ -1393,6 +1393,25 @@ export const ListRoundGroupsResponse = zod.object({
         .max(listRoundGroupsResponseAssignmentsItemSlotIndexMax),
     }),
   ),
+  completions: zod
+    .array(
+      zod.object({
+        groupNumber: zod.number().min(1),
+        completedAt: zod
+          .string()
+          .describe("ISO timestamp the group marked their round complete."),
+        completedByUserId: zod
+          .number()
+          .nullish()
+          .describe(
+            "User who marked the group complete; null if that user was since removed.",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Per-group completion status. Present on read responses; ignored on the PUT-assignments request body. A round rolls up to a final `completedAt` only once every assigned group appears here.",
+    ),
 });
 
 /**
@@ -1416,6 +1435,25 @@ export const PutRoundGroupsBody = zod.object({
         .max(putRoundGroupsBodyAssignmentsItemSlotIndexMax),
     }),
   ),
+  completions: zod
+    .array(
+      zod.object({
+        groupNumber: zod.number().min(1),
+        completedAt: zod
+          .string()
+          .describe("ISO timestamp the group marked their round complete."),
+        completedByUserId: zod
+          .number()
+          .nullish()
+          .describe(
+            "User who marked the group complete; null if that user was since removed.",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Per-group completion status. Present on read responses; ignored on the PUT-assignments request body. A round rolls up to a final `completedAt` only once every assigned group appears here.",
+    ),
 });
 
 export const putRoundGroupsResponseAssignmentsItemSlotIndexMax = 4;
@@ -1431,6 +1469,76 @@ export const PutRoundGroupsResponse = zod.object({
         .max(putRoundGroupsResponseAssignmentsItemSlotIndexMax),
     }),
   ),
+  completions: zod
+    .array(
+      zod.object({
+        groupNumber: zod.number().min(1),
+        completedAt: zod
+          .string()
+          .describe("ISO timestamp the group marked their round complete."),
+        completedByUserId: zod
+          .number()
+          .nullish()
+          .describe(
+            "User who marked the group complete; null if that user was since removed.",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Per-group completion status. Present on read responses; ignored on the PUT-assignments request body. A round rolls up to a final `completedAt` only once every assigned group appears here.",
+    ),
+});
+
+/**
+ * Marks one group's round complete without affecting other groups sharing the same scorecard. The round-level `completedAt` is only set once every assigned group is complete, and is cleared again if any group reopens.
+ * @summary Mark a single foursome's round complete (or reopen it)
+ */
+
+export const PutRoundGroupCompletionParams = zod.object({
+  tripId: zod.coerce.number(),
+  roundId: zod.coerce.number(),
+  groupNumber: zod.coerce.number().min(1),
+});
+
+export const PutRoundGroupCompletionBody = zod.object({
+  completed: zod
+    .boolean()
+    .describe("true marks the group's round complete; false reopens it."),
+});
+
+export const putRoundGroupCompletionResponseAssignmentsItemSlotIndexMax = 4;
+
+export const PutRoundGroupCompletionResponse = zod.object({
+  assignments: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      groupNumber: zod.number().min(1),
+      slotIndex: zod
+        .number()
+        .min(1)
+        .max(putRoundGroupCompletionResponseAssignmentsItemSlotIndexMax),
+    }),
+  ),
+  completions: zod
+    .array(
+      zod.object({
+        groupNumber: zod.number().min(1),
+        completedAt: zod
+          .string()
+          .describe("ISO timestamp the group marked their round complete."),
+        completedByUserId: zod
+          .number()
+          .nullish()
+          .describe(
+            "User who marked the group complete; null if that user was since removed.",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Per-group completion status. Present on read responses; ignored on the PUT-assignments request body. A round rolls up to a final `completedAt` only once every assigned group appears here.",
+    ),
 });
 
 /**

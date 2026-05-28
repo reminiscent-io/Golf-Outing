@@ -3,6 +3,7 @@ export * from "./players";
 export * from "./rounds";
 export * from "./scores";
 export * from "./round-group-assignments";
+export * from "./round-group-completions";
 export * from "./scramble-scores";
 export * from "./users";
 export * from "./user-handicap-history";
