@@ -372,6 +372,14 @@ export const UserTripAssociationVia = {
   both: "both",
 } as const;
 
+/**
+ * First and last round date (YYYY-MM-DD) recorded against the trip; null when no round has a date set.
+ */
+export type UserTripAssociationDateRange = null | {
+  start: string;
+  end: string;
+};
+
 export interface Player {
   id: number;
   tripId: number;
@@ -386,6 +394,8 @@ export interface UserTripAssociation {
   trip: Trip;
   via: UserTripAssociationVia;
   players: Player[];
+  /** First and last round date (YYYY-MM-DD) recorded against the trip; null when no round has a date set. */
+  dateRange: UserTripAssociationDateRange;
 }
 
 /**

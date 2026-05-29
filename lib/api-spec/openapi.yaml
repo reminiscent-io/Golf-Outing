@@ -1623,10 +1623,24 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Player"
+        dateRange:
+          description: First and last round date (YYYY-MM-DD) recorded against the trip; null when no round has a date set.
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                start:
+                  type: string
+                end:
+                  type: string
+              required:
+                - start
+                - end
       required:
         - trip
         - via
         - players
+        - dateRange
 
     MyStatsResponse:
       type: object

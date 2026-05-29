@@ -358,6 +358,17 @@ export const ListMyTripsResponseItem = zod.object({
       createdAt: zod.string(),
     }),
   ),
+  dateRange: zod
+    .union([
+      zod.null(),
+      zod.object({
+        start: zod.string(),
+        end: zod.string(),
+      }),
+    ])
+    .describe(
+      "First and last round date (YYYY-MM-DD) recorded against the trip; null when no round has a date set.",
+    ),
 });
 export const ListMyTripsResponse = zod.array(ListMyTripsResponseItem);
 
