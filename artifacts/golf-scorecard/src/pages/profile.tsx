@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useUpdateMe, useGetMyStats, type MyStatsResponse } from "@workspace/api-client-react";
 import { ArrowLeft, User as UserIcon, Trophy } from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { RequireSignIn } from "@/components/require-sign-in";
 import { useAuthSession, updateSessionUser } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -292,6 +301,7 @@ function StatsSkeleton() {
 
 function StatsBody({ stats }: Readonly<{ stats: MyStatsResponse }>) {
   const { tripsCreated, roundsPlayed, holesPlayed, scoring, holeOutcomes, playersPlayedWith } = stats;
+  const roundHistory = stats.roundHistory ?? [];
   const noHistory = roundsPlayed === 0 && tripsCreated === 0;
 
   if (noHistory) {
@@ -332,6 +342,12 @@ function StatsBody({ stats }: Readonly<{ stats: MyStatsResponse }>) {
       <CardSection eyebrow="Hole Results · vs Par">
         <OutcomesScorecard outcomes={holeOutcomes} total={holesPlayed} />
       </CardSection>
+
+      {roundHistory.length > 0 && (
+        <CardSection eyebrow="Scores Over Time">
+          <ScoreHistoryChart rounds={roundHistory} />
+        </CardSection>
+      )}
 
       <CardSection eyebrow="Played With" last>
         {playersPlayedWith.length === 0 ? (
@@ -453,9 +469,206 @@ function OutcomesScorecard({ outcomes, total }: Readonly<{ outcomes: Outcomes; t
             </td>
           ))}
         </tr>
+        <tr style={{ borderTop: "1px solid hsl(var(--card-border))" }}>
+          {cells.map(c => (
+            <td
+              key={c.key}
+              className="text-center py-1.5 font-sans text-[10px] font-semibold tabular-nums"
+              style={{
+                background: "hsl(var(--paper-band))",
+                color: "hsl(var(--muted-foreground))",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {formatPct(c.count, total)}
+            </td>
+          ))}
+        </tr>
       </tbody>
     </table>
   );
+}
+
+function formatPct(count: number, total: number): string {
+  if (total <= 0) return "—";
+  const pct = (count / total) * 100;
+  if (pct === 0) return "0%";
+  if (pct < 1) return "<1%";
+  return `${Math.round(pct)}%`;
+}
+
+type RoundHistory = MyStatsResponse["roundHistory"];
+type RoundHistoryEntry = RoundHistory[number];
+
+type ChartPoint = {
+  idx: number;
+  gross: number;
+  handicap: number;
+  label: string;
+  name: string;
+  course: string | null;
+  par: number;
+};
+
+function ScoreHistoryChart({ rounds }: Readonly<{ rounds: RoundHistory }>) {
+  const points: ChartPoint[] = rounds.map((r, idx) => ({
+    idx,
+    gross: r.gross,
+    handicap: round1(r.handicap),
+    label: shortDate(r.date ?? r.playedAt),
+    name: r.name,
+    course: r.course,
+    par: r.par,
+  }));
+
+  const grosses = points.map(p => p.gross);
+  const minGross = Math.min(...grosses);
+  const maxGross = Math.max(...grosses);
+  const grossPad = Math.max(2, Math.round((maxGross - minGross) * 0.15));
+  const grossDomain: [number, number] = [
+    Math.max(0, minGross - grossPad),
+    maxGross + grossPad,
+  ];
+
+  const hcps = points.map(p => p.handicap);
+  const minHcp = Math.min(...hcps);
+  const maxHcp = Math.max(...hcps);
+  const hcpPad = Math.max(1, Math.round((maxHcp - minHcp) * 0.25));
+  const hcpDomain: [number, number] = [
+    Math.max(0, minHcp - hcpPad),
+    maxHcp + hcpPad,
+  ];
+
+  return (
+    <div>
+      <div
+        className="font-sans text-[11px] mb-2 flex gap-4"
+        style={{ color: "hsl(var(--muted-foreground))" }}
+      >
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block w-3 h-[2px] rounded-full"
+            style={{ background: "hsl(var(--score-birdie))" }}
+          />
+          Gross
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block w-3 h-[2px] rounded-full"
+            style={{ background: "hsl(var(--primary))" }}
+          />
+          Handicap
+        </span>
+      </div>
+      <div style={{ width: "100%", height: 220 }}>
+        <ResponsiveContainer>
+          <LineChart data={points} margin={{ top: 8, right: 8, bottom: 4, left: -8 }}>
+            <CartesianGrid stroke="hsl(var(--card-border))" strokeDasharray="2 4" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              tickLine={false}
+              axisLine={{ stroke: "hsl(var(--card-border))" }}
+              interval="preserveStartEnd"
+              minTickGap={16}
+            />
+            <YAxis
+              yAxisId="gross"
+              orientation="left"
+              domain={grossDomain}
+              allowDecimals={false}
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              tickLine={false}
+              axisLine={{ stroke: "hsl(var(--card-border))" }}
+              width={32}
+            />
+            <YAxis
+              yAxisId="hcp"
+              orientation="right"
+              domain={hcpDomain}
+              allowDecimals={false}
+              tick={{ fontSize: 10, fill: "hsl(var(--brass-ink))" }}
+              tickLine={false}
+              axisLine={{ stroke: "hsl(var(--card-border))" }}
+              width={28}
+            />
+            <Tooltip content={<ChartTooltip />} />
+            <Line
+              yAxisId="gross"
+              type="monotone"
+              dataKey="gross"
+              stroke="hsl(var(--score-birdie))"
+              strokeWidth={2}
+              dot={{ r: 3, fill: "hsl(var(--score-birdie))", strokeWidth: 0 }}
+              activeDot={{ r: 5, fill: "hsl(var(--score-birdie))", stroke: "hsl(var(--card))", strokeWidth: 2 }}
+              isAnimationActive={false}
+            />
+            <Line
+              yAxisId="hcp"
+              type="monotone"
+              dataKey="handicap"
+              stroke="hsl(var(--primary))"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+              dot={{ r: 2.5, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+              activeDot={{ r: 4.5, fill: "hsl(var(--primary))", stroke: "hsl(var(--card))", strokeWidth: 2 }}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+type TooltipProps = {
+  active?: boolean;
+  payload?: Array<{ payload: ChartPoint }>;
+};
+
+function ChartTooltip({ active, payload }: Readonly<TooltipProps>) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  const vsPar = p.gross - p.par;
+  const vsParLabel = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : String(vsPar);
+  return (
+    <div
+      className="font-sans text-xs rounded-md px-2.5 py-2 shadow-md"
+      style={{
+        background: "hsl(var(--card))",
+        border: "1px solid hsl(var(--card-border))",
+        color: "hsl(var(--card-foreground))",
+      }}
+    >
+      <div className="font-semibold truncate" style={{ maxWidth: 220 }}>{p.name}</div>
+      {p.course && (
+        <div className="text-[11px] truncate" style={{ color: "hsl(var(--muted-foreground))", maxWidth: 220 }}>
+          {p.course}
+        </div>
+      )}
+      <div className="text-[11px] mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{p.label}</div>
+      <div className="mt-1.5 flex items-center justify-between gap-3 tabular-nums">
+        <span style={{ color: "hsl(var(--score-birdie))" }}>Gross</span>
+        <span className="font-semibold">{p.gross} <span className="text-[10px] opacity-70">({vsParLabel})</span></span>
+      </div>
+      <div className="flex items-center justify-between gap-3 tabular-nums">
+        <span style={{ color: "hsl(var(--brass-ink))" }}>Handicap</span>
+        <span className="font-semibold">{p.handicap.toFixed(1)}</span>
+      </div>
+    </div>
+  );
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+function shortDate(input: string): string {
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return input;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function fmt(n: number | null): string {

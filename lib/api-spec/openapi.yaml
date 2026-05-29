@@ -1775,6 +1775,45 @@ components:
             required:
               - name
               - rounds
+        roundHistory:
+          type: array
+          description: Completed 18-hole rounds in chronological order (oldest first). Each entry includes the gross total and the handicap used at the time, so a chart can show score progression alongside handicap.
+          items:
+            type: object
+            properties:
+              roundId:
+                type: integer
+              tripId:
+                type: integer
+              name:
+                type: string
+              course:
+                type: ["string", "null"]
+              date:
+                type: ["string", "null"]
+                description: Round date as entered (ISO-ish YYYY-MM-DD or null).
+              playedAt:
+                type: string
+                format: date-time
+                description: Effective date used for ordering — completedAt when set, else updatedAt.
+              gross:
+                type: integer
+              par:
+                type: integer
+                description: Sum of par across all 18 holes for the round.
+              handicap:
+                type: number
+                description: Handicap of the user's player row for this round.
+            required:
+              - roundId
+              - tripId
+              - name
+              - course
+              - date
+              - playedAt
+              - gross
+              - par
+              - handicap
       required:
         - tripsCreated
         - roundsPlayed
@@ -1782,6 +1821,7 @@ components:
         - scoring
         - holeOutcomes
         - playersPlayedWith
+        - roundHistory
 
     Player:
       type: object
