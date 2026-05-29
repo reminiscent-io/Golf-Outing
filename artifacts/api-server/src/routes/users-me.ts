@@ -56,9 +56,47 @@ router.get("/users/me/trips", requireAuth, async (req: AuthedRequest, res): Prom
     if (e.trip.kind === "personal") byTripId.delete(id);
   }
 
+  // Pull every round's date for these trips so we can show a date range per trip
+  // and sort My Trips by when they were actually played (not when the trip row
+  // was created).
+  const tripIds = Array.from(byTripId.keys());
+  const rangeByTripId = new Map<number, { start: string; end: string }>();
+  if (tripIds.length > 0) {
+    const roundRows = await db
+      .select({ tripId: roundsTable.tripId, date: roundsTable.date })
+      .from(roundsTable)
+      .where(inArray(roundsTable.tripId, tripIds));
+    for (const row of roundRows) {
+      if (!row.date) continue;
+      const existing = rangeByTripId.get(row.tripId);
+      if (!existing) {
+        rangeByTripId.set(row.tripId, { start: row.date, end: row.date });
+      } else {
+        if (row.date < existing.start) existing.start = row.date;
+        if (row.date > existing.end) existing.end = row.date;
+      }
+    }
+  }
+
+  // Sort most-recent first using the trip's latest round date (falling back to
+  // the trip's createdAt when no rounds have a date yet).
+  const sortKey = (e: Acc): number => {
+    const range = rangeByTripId.get(e.trip.id);
+    if (range) return Date.parse(`${range.end}T00:00:00Z`);
+    return e.trip.createdAt.getTime();
+  };
+
   const result = Array.from(byTripId.values())
-    .sort((a, b) => b.trip.createdAt.getTime() - a.trip.createdAt.getTime())
-    .map(e => ({ trip: ser(e.trip), via: e.via, players: ser(e.players) }));
+    .sort((a, b) => sortKey(b) - sortKey(a))
+    .map(e => {
+      const range = rangeByTripId.get(e.trip.id) ?? null;
+      return {
+        trip: ser(e.trip),
+        via: e.via,
+        players: ser(e.players),
+        dateRange: range,
+      };
+    });
 
   res.json(result);
 });

@@ -24,15 +24,16 @@ function MyTripsContent({ session }: Readonly<{ session: AuthSession }>) {
 
   // Bucket trips by attachment state so each section can read at a glance
   // without per-row badges. Owner takes precedence over player; saved-only
-  // falls through to "watching".
-  const made: UserTripAssociation[] = [];
-  const playing: UserTripAssociation[] = [];
+  // falls through to "watching". The server already returns the list ordered
+  // most-recent-played first, so the buckets inherit that order.
+  const created: UserTripAssociation[] = [];
+  const joined: UserTripAssociation[] = [];
   const watching: UserTripAssociation[] = [];
   for (const item of trips) {
     const isOwn = item.trip.createdByUserId === myUserId;
     const isPlayer = item.via === "player" || item.via === "both";
-    if (isOwn) made.push(item);
-    else if (isPlayer) playing.push(item);
+    if (isOwn) created.push(item);
+    else if (isPlayer) joined.push(item);
     else watching.push(item);
   }
 
@@ -52,7 +53,7 @@ function MyTripsContent({ session }: Readonly<{ session: AuthSession }>) {
             <div className="min-w-0">
               <h1 className="text-3xl font-serif" style={{ color: BRASS }}>My Trips</h1>
               <p className="text-sm font-sans mt-1" style={{ color: BRASS_FAINT }}>
-                Trips you made, joined, or are watching.
+                Trips you created, joined, or are watching.
               </p>
             </div>
             <button
@@ -82,9 +83,9 @@ function MyTripsContent({ session }: Readonly<{ session: AuthSession }>) {
           </div>
         ) : hasAny ? (
           <div>
-            {made.length > 0 && (
-              <Section label="Made">
-                {made.map(item => (
+            {created.length > 0 && (
+              <Section label="Created">
+                {created.map(item => (
                   <TripRow
                     key={item.trip.id}
                     item={item}
@@ -94,9 +95,9 @@ function MyTripsContent({ session }: Readonly<{ session: AuthSession }>) {
                 ))}
               </Section>
             )}
-            {playing.length > 0 && (
-              <Section label="Playing">
-                {playing.map(item => (
+            {joined.length > 0 && (
+              <Section label="Joined">
+                {joined.map(item => (
                   <TripRow
                     key={item.trip.id}
                     item={item}
@@ -167,6 +168,30 @@ function Section({ label, children }: Readonly<{ label: string; children: React.
   );
 }
 
+// Parse a "YYYY-MM-DD" round.date string as a local-time Date so month/day
+// labels match what the user picked, regardless of the browser timezone.
+function parseLocalDate(ymd: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function formatTripDates(range: UserTripAssociation["dateRange"]): string | null {
+  if (!range) return null;
+  const start = parseLocalDate(range.start);
+  const end = parseLocalDate(range.end);
+  if (!start || !end) return null;
+  const sameDay = range.start === range.end;
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const sameMonth = sameYear && start.getMonth() === end.getMonth();
+  const monthDay = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const monthDayYear = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  if (sameDay) return monthDayYear(start);
+  if (sameMonth) return `${monthDay(start)}–${end.getDate()}, ${end.getFullYear()}`;
+  if (sameYear) return `${monthDay(start)} – ${monthDay(end)}, ${end.getFullYear()}`;
+  return `${monthDayYear(start)} – ${monthDayYear(end)}`;
+}
+
 function TripRow({
   item,
   variant,
@@ -176,7 +201,7 @@ function TripRow({
   variant: "primary" | "watching";
   onClick: () => void;
 }>) {
-  const playerNames = item.players.length > 0 ? item.players.map(p => p.name).join(", ") : "";
+  const dateLabel = formatTripDates(item.dateRange);
 
   if (variant === "watching") {
     return (
@@ -189,9 +214,9 @@ function TripRow({
           <div className="font-sans font-semibold text-sm truncate" style={{ color: BRASS_MUTED }}>
             {item.trip.name}
           </div>
-          {playerNames && (
+          {dateLabel && (
             <div className="text-xs mt-0.5 truncate" style={{ color: BRASS_FAINT }}>
-              {playerNames}
+              {dateLabel}
             </div>
           )}
         </div>
@@ -217,9 +242,9 @@ function TripRow({
           >
             {item.trip.name}
           </div>
-          {playerNames && (
+          {dateLabel && (
             <div className="text-xs mt-1 truncate" style={{ color: INK_SOFT }}>
-              as {playerNames}
+              {dateLabel}
             </div>
           )}
         </div>

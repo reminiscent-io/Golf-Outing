@@ -511,9 +511,9 @@ export default function LandingPage() {
               animationDelay: "180ms",
             }}
           >
-            Live scoring{" "}
+            Keeping golf{" "}
             <span style={{ color: BRASS, fontStyle: "italic", fontWeight: 500 }}>
-              for the rounds that travel.
+              social.
             </span>
           </h1>
 
@@ -521,9 +521,9 @@ export default function LandingPage() {
             className="font-sans text-[15px] mt-5 max-w-md rise"
             style={{ color: BRASS_MUTED, lineHeight: 1.55, animationDelay: "300ms" }}
           >
-            Stableford, Skins, Nassau, Net Stroke. Everyone in the group sees the leaderboard
-            update as fast as you tap a score. Solo loops or four-man trips, your buddies can
-            follow along, drop kudos, and trade jabs in the comments.
+            Live scoring tracks your round and shows you everyone else&rsquo;s. Stableford, Skins,
+            Nassau and Net Stroke built in. Net or gross handicaps. Keep your own scorecard, or
+            track the whole group.
           </p>
 
           <div
@@ -694,8 +694,7 @@ export default function LandingPage() {
             className="font-serif leading-[1.04] mb-4"
             style={{ color: CREAM_FG, fontSize: "clamp(2rem, 8vw, 2.75rem)", fontWeight: 500 }}
           >
-            Tee it up.{" "}
-            <span style={{ color: BRASS, fontStyle: "italic" }}>The card's already drawn.</span>
+            Let's <span style={{ color: BRASS, fontStyle: "italic" }}>tee it up.</span>
           </h2>
           <p
             className="font-sans text-sm max-w-xs mx-auto mb-8"
