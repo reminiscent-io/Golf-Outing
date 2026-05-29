@@ -68,7 +68,11 @@ router.get("/trips/:tripId", async (req, res): Promise<void> => {
   res.json(GetTripResponse.parse(ser(trip)));
 });
 
-router.patch("/trips/:tripId", async (req, res): Promise<void> => {
+router.patch("/trips/:tripId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const params = UpdateTripParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -79,20 +83,40 @@ router.patch("/trips/:tripId", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [trip] = await db.update(tripsTable).set({ ...parsed.data, updatedAt: new Date() }).where(eq(tripsTable.id, params.data.tripId)).returning();
-  if (!trip) {
+  const [existing] = await db.select().from(tripsTable).where(eq(tripsTable.id, params.data.tripId));
+  if (!existing) {
     res.status(404).json({ error: "Trip not found" });
     return;
   }
+  if (existing.createdByUserId !== req.user.id) {
+    res.status(403).json({ error: "Only the trip creator can edit this trip" });
+    return;
+  }
+  const [trip] = await db.update(tripsTable).set({ ...parsed.data, updatedAt: new Date() }).where(eq(tripsTable.id, params.data.tripId)).returning();
   res.json(UpdateTripResponse.parse(ser(trip)));
 });
 
-router.delete("/trips/:tripId", async (req, res): Promise<void> => {
+router.delete("/trips/:tripId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const params = DeleteTripParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const [trip] = await db.select().from(tripsTable).where(eq(tripsTable.id, params.data.tripId));
+  if (!trip) {
+    res.status(404).json({ error: "Trip not found" });
+    return;
+  }
+  if (trip.createdByUserId !== req.user.id) {
+    res.status(403).json({ error: "Only the trip creator can delete this trip" });
+    return;
+  }
+  // FK cascades remove the trip's rounds, players, scores, comments, kudos and
+  // follow rows; see lib/db schema onDelete: "cascade".
   await db.delete(tripsTable).where(eq(tripsTable.id, params.data.tripId));
   res.sendStatus(204);
 });

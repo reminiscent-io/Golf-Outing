@@ -394,7 +394,7 @@ export const updateTrip = async (
 };
 
 export const getUpdateTripMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -435,13 +435,13 @@ export type UpdateTripMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateTrip>>
 >;
 export type UpdateTripMutationBody = BodyType<UpdateTripBody>;
-export type UpdateTripMutationError = ErrorType<unknown>;
+export type UpdateTripMutationError = ErrorType<void>;
 
 /**
  * @summary Update a trip
  */
 export const useUpdateTrip = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -461,6 +461,7 @@ export const useUpdateTrip = <
 };
 
 /**
+ * Permanently deletes the trip and all data attached to it (rounds, players, scores, comments, kudos). Only the trip's creator may do this.
  * @summary Delete a trip
  */
 export const getDeleteTripUrl = (tripId: number) => {
@@ -478,7 +479,7 @@ export const deleteTrip = async (
 };
 
 export const getDeleteTripMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -519,13 +520,13 @@ export type DeleteTripMutationResult = NonNullable<
   Awaited<ReturnType<typeof deleteTrip>>
 >;
 
-export type DeleteTripMutationError = ErrorType<unknown>;
+export type DeleteTripMutationError = ErrorType<void>;
 
 /**
  * @summary Delete a trip
  */
 export const useDeleteTrip = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

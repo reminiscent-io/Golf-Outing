@@ -103,6 +103,7 @@ export const UpdateTripResponse = zod.object({
 });
 
 /**
+ * Permanently deletes the trip and all data attached to it (rounds, players, scores, comments, kudos). Only the trip's creator may do this.
  * @summary Delete a trip
  */
 export const DeleteTripParams = zod.object({
