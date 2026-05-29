@@ -101,6 +101,8 @@ paths:
       operationId: updateTrip
       tags: [trips]
       summary: Update a trip
+      security:
+        - bearerAuth: []
       parameters:
         - name: tripId
           in: path
@@ -120,10 +122,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Trip"
+        "403":
+          description: Not the trip creator
+        "404":
+          description: Not found
     delete:
       operationId: deleteTrip
       tags: [trips]
       summary: Delete a trip
+      description: >-
+        Permanently deletes the trip and all data attached to it (rounds,
+        players, scores, comments, kudos). Only the trip's creator may do this.
+      security:
+        - bearerAuth: []
       parameters:
         - name: tripId
           in: path
@@ -133,6 +144,10 @@ paths:
       responses:
         "204":
           description: Deleted
+        "403":
+          description: Not the trip creator
+        "404":
+          description: Not found
 
   /auth/request-otp:
     post:

@@ -1,8 +1,26 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { useListMyTrips, type UserTripAssociation } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useListMyTrips,
+  useDeleteTrip,
+  getListMyTripsQueryKey,
+  type UserTripAssociation,
+} from "@workspace/api-client-react";
 import { useAuthSession, type AuthSession } from "@/lib/auth";
-import { ArrowLeft, Flag, ChevronRight, Plus } from "lucide-react";
+import { ArrowLeft, Flag, ChevronRight, Plus, Trash2, Loader2 } from "lucide-react";
 import { RequireSignIn } from "@/components/require-sign-in";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const BRASS = "hsl(42 52% 59%)";
 const BRASS_MUTED = "hsl(42 35% 70%)";
@@ -16,7 +34,18 @@ const FOREST_HAIRLINE = "hsl(158 30% 28%)";
 
 function MyTripsContent({ session }: Readonly<{ session: AuthSession }>) {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
   const { data: items, isLoading } = useListMyTrips();
+  const deleteTrip = useDeleteTrip();
+
+  // Only the creator can delete, so a delete affordance only appears in the
+  // "Created" bucket below. Refresh the list on success so the row drops out.
+  function handleDeleteTrip(tripId: number) {
+    deleteTrip.mutate(
+      { tripId },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListMyTripsQueryKey() }) },
+    );
+  }
 
   const myUserId = session.user.id;
   const trips = items ?? [];
@@ -91,6 +120,8 @@ function MyTripsContent({ session }: Readonly<{ session: AuthSession }>) {
                     item={item}
                     variant="primary"
                     onClick={() => navigate(`/trips/${item.trip.id}`)}
+                    onDelete={() => handleDeleteTrip(item.trip.id)}
+                    deletePending={deleteTrip.isPending && deleteTrip.variables?.tripId === item.trip.id}
                   />
                 ))}
               </Section>
@@ -196,10 +227,14 @@ function TripRow({
   item,
   variant,
   onClick,
+  onDelete,
+  deletePending,
 }: Readonly<{
   item: UserTripAssociation;
   variant: "primary" | "watching";
   onClick: () => void;
+  onDelete?: () => void;
+  deletePending?: boolean;
 }>) {
   const dateLabel = formatTripDates(item.dateRange);
 
@@ -249,8 +284,67 @@ function TripRow({
           )}
         </div>
       </div>
-      <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
+      <div className="flex items-center gap-1 shrink-0">
+        {onDelete && (
+          <DeleteTripButton tripName={item.trip.name} pending={!!deletePending} onConfirm={onDelete} />
+        )}
+        <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
+      </div>
     </div>
+  );
+}
+
+const DANGER = "hsl(2 62% 44%)";
+
+function DeleteTripButton({
+  tripName,
+  pending,
+  onConfirm,
+}: Readonly<{ tripName: string; pending: boolean; onConfirm: () => void }>) {
+  const [open, setOpen] = useState(false);
+
+  // Close the confirm dialog once the delete is in flight; the list refetch on
+  // success removes this row entirely.
+  function handleConfirm(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(false);
+    onConfirm();
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Delete ${tripName}`}
+          disabled={pending}
+          onClick={(e) => e.stopPropagation()}
+          className="rounded-lg p-2 transition-colors hover:bg-black/5 disabled:opacity-60"
+          style={{ color: DANGER }}
+        >
+          {pending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete “{tripName}”?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently deletes the trip and everything attached to it — all rounds,
+            players, scores, comments and kudos. This can&apos;t be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirm}
+            className="bg-[hsl(2_62%_44%)] hover:bg-[hsl(2_62%_38%)] focus-visible:ring-[hsl(2_62%_44%)]"
+          >
+            Delete trip
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
