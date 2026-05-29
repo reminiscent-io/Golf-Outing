@@ -7,7 +7,6 @@ import {
   useListPlayers,
   useGetScores,
   useGetRoundLeaderboard,
-  useUpsertScore,
   useUpdateRound,
   useDeleteRound,
   getGetRoundQueryKey,
@@ -21,10 +20,9 @@ import {
   getListRoundGroupsQueryKey,
   usePutRoundGroupCompletion,
   useGetScrambleScores,
-  useUpsertScrambleScore,
   getGetScrambleScoresQueryKey,
 } from "@workspace/api-client-react";
-import { ArrowLeft, Settings, Trophy, Grid3X3, Info, Trash2 } from "lucide-react";
+import { ArrowLeft, Settings, Trophy, Grid3X3, Info, Trash2, CloudOff, RefreshCw, Check } from "lucide-react";
 import confetti from "canvas-confetti";
 import { CourseSearchField } from "@/components/course-search-field";
 import type { CourseTee } from "@/lib/course-lookup";
@@ -34,6 +32,7 @@ import { RoundSocialStrip } from "@/components/round-social-strip";
 import { GameInfoButton, GameInfoModal } from "@/components/game-info-modal";
 import { useTripIdentity } from "@/lib/trip-identity";
 import { useAuthSession } from "@/lib/auth";
+import { useOfflineSync } from "@/lib/offline-sync";
 
 type SubTab = "scorecard" | "results" | "setup";
 type ScrambleType = "fourMan" | "twoMan";
@@ -362,6 +361,52 @@ function ScrambleScorecard(props: {
   );
 }
 
+// Small pill that surfaces offline / sync state so the player knows their
+// scores are safe even with no signal. Stays out of the way once everything is
+// synced and online.
+function SyncStatus({ online, syncing, pendingCount }: { online: boolean; syncing: boolean; pendingCount: number }) {
+  let icon: React.ReactNode;
+  let label: string;
+  let fg: string;
+  let bg: string;
+
+  if (pendingCount > 0 && (!online || !syncing)) {
+    // Have unsynced scores and we're either offline or idle between retries.
+    icon = <CloudOff size={11} />;
+    label = online
+      ? `${pendingCount} to sync`
+      : `${pendingCount} saved offline`;
+    fg = "hsl(38 30% 12%)";
+    bg = "hsl(42 52% 59%)";
+  } else if (pendingCount > 0 && syncing) {
+    icon = <RefreshCw size={11} className="animate-spin" />;
+    label = `Syncing ${pendingCount}…`;
+    fg = "hsl(38 30% 12%)";
+    bg = "hsl(42 52% 59%)";
+  } else if (!online) {
+    icon = <CloudOff size={11} />;
+    label = "Offline";
+    fg = "hsl(42 35% 65%)";
+    bg = "hsl(158 35% 20%)";
+  } else {
+    // Online with nothing pending — quietly confirm everything is saved.
+    icon = <Check size={11} />;
+    label = "All scores saved";
+    fg = "hsl(150 30% 60%)";
+    bg = "hsl(158 35% 18%)";
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-sans font-semibold uppercase tracking-wide"
+      style={{ color: fg, background: bg }}
+    >
+      {icon}
+      {label}
+    </span>
+  );
+}
+
 export default function RoundPage() {
   const { tripId: tripIdStr, roundId: roundIdStr } = useParams<{ tripId: string; roundId: string }>();
   const tripId = Number(tripIdStr);
@@ -384,6 +429,10 @@ export default function RoundPage() {
   const { data: leaderboard, isLoading: lbLoading } = useGetRoundLeaderboard(tripId, roundId, {
     query: { queryKey: getGetRoundLeaderboardQueryKey(tripId, roundId), enabled: subTab === "results", refetchInterval: 10000 },
   });
+
+  // Offline-first score sync: queues writes locally and replays them when the
+  // connection returns, overlaying unsynced values on the grid in the meantime.
+  const offline = useOfflineSync(tripId, roundId);
 
   const identity = useTripIdentity(tripId);
   const myPlayerId = identity?.kind === "player" ? identity.playerId : undefined;
@@ -462,10 +511,8 @@ export default function RoundPage() {
 
   const visiblePlayers = [...baseVisible].sort((a, b) => playerSortKey(a.id) - playerSortKey(b.id));
 
-  const upsertScore = useUpsertScore();
   const updateRound = useUpdateRound();
   const deleteRound = useDeleteRound();
-  const upsertScrambleScore = useUpsertScrambleScore();
   const putGroupCompletion = usePutRoundGroupCompletion();
 
   function setGroupComplete(completed: boolean) {
@@ -593,10 +640,16 @@ export default function RoundPage() {
   });
 
   function getScore(playerId: number, holeIdx: number): number | null {
+    // Unsynced offline edits win over the last value the server gave us, so the
+    // grid always shows what the player most recently typed.
+    const pending = offline.pendingScores.get(playerId);
+    if (pending?.has(holeIdx)) return pending.get(holeIdx) ?? null;
     return scoresMap.get(playerId)?.[holeIdx] ?? null;
   }
 
   function getScrambleScore(teamKey: string, holeIdx: number): number | null {
+    const pending = offline.pendingScramble.get(teamKey);
+    if (pending?.has(holeIdx)) return pending.get(holeIdx) ?? null;
     return scrambleScoresByKey.get(teamKey)?.[holeIdx] ?? null;
   }
 
@@ -697,17 +750,11 @@ export default function RoundPage() {
     const holePar = par[holeIdx];
     const isGrossBirdie =
       score != null && score !== prevScore && holePar != null && score <= holePar - 1;
-    upsertScore.mutate(
-      { tripId, roundId, data: { playerId, hole: holeIdx + 1, score } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetScoresQueryKey(tripId, roundId) });
-          queryClient.invalidateQueries({ queryKey: getGetRoundLeaderboardQueryKey(tripId, roundId) });
-          queryClient.invalidateQueries({ queryKey: getGetTripLeaderboardQueryKey(tripId) });
-          if (isGrossBirdie) fireBirdieConfetti();
-        },
-      }
-    );
+    // Persist locally and sync in the background. Works offline: the write is
+    // durably queued and replayed when the connection returns, and the grid
+    // already reflects the value via the pending overlay.
+    offline.enqueueScore({ playerId, hole: holeIdx + 1, score });
+    if (isGrossBirdie) fireBirdieConfetti();
     if (andAdvance) {
       advanceToNext(playerId, holeIdx);
     } else {
@@ -781,19 +828,13 @@ export default function RoundPage() {
       if (!andAdvance) setEditingScramble(null);
       return;
     }
-    upsertScrambleScore.mutate(
-      {
-        tripId,
-        roundId,
-        data: { groupNumber: team.groupNumber, teamSide: team.teamSide, hole: holeIdx + 1, score },
-      },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetScrambleScoresQueryKey(tripId, roundId) });
-          queryClient.invalidateQueries({ queryKey: getGetRoundLeaderboardQueryKey(tripId, roundId) });
-        },
-      }
-    );
+    // Queue locally and sync in the background — works offline (see above).
+    offline.enqueueScramble({
+      groupNumber: team.groupNumber,
+      teamSide: team.teamSide,
+      hole: holeIdx + 1,
+      score,
+    });
     if (andAdvance) {
       advanceScrambleNext(teams, teamKey, holeIdx);
     } else {
@@ -994,8 +1035,13 @@ export default function RoundPage() {
               {round.date && <span>{round.date}</span>}
             </div>
           )}
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             <SignedInAs tripId={tripId} />
+            <SyncStatus
+              online={offline.online}
+              syncing={offline.syncing}
+              pendingCount={offline.pendingCount}
+            />
           </div>
         </div>
       </div>
