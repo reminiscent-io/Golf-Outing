@@ -165,6 +165,7 @@ router.get("/users/me/stats", requireAuth, async (req: AuthedRequest, res): Prom
     scoring: { bestGross: null, worstGross: null, avgGross: null, completedRounds: 0 },
     holeOutcomes: { eagles: 0, birdies: 0, pars: 0, bogeys: 0, doubles: 0, triples: 0, quadPlus: 0 },
     playersPlayedWith: [],
+    roundHistory: [],
   };
 
   if (myPlayerIds.length === 0) {
@@ -202,7 +203,9 @@ router.get("/users/me/stats", requireAuth, async (req: AuthedRequest, res): Prom
   // but score rows are keyed (roundId, playerId) — multiple rows for one user in one
   // round shouldn't happen in practice. Defensively, sum holes per (round, hole) only once.
   const countedHoles = new Set<string>();
-  const userRoundComplete = new Map<number, { sum: number; played: number }>();
+  type PerRound = { sum: number; played: number; handicap: number };
+  const userRoundComplete = new Map<number, PerRound>();
+  const myPlayerById = new Map(myPlayers.map(p => [p.id, p]));
 
   for (const row of myScoreRows) {
     const round = roundById.get(row.roundId);
@@ -230,20 +233,48 @@ router.get("/users/me/stats", requireAuth, async (req: AuthedRequest, res): Prom
       roundPlayed++;
     }
     const prev = userRoundComplete.get(row.roundId);
+    const hcp = myPlayerById.get(row.playerId)?.handicap ?? prev?.handicap ?? 0;
     userRoundComplete.set(row.roundId, {
       sum: (prev?.sum ?? 0) + roundSum,
       played: (prev?.played ?? 0) + roundPlayed,
+      handicap: hcp,
     });
   }
 
-  for (const { sum, played } of userRoundComplete.values()) {
-    if (played === 18) {
-      completedRounds++;
-      completedGrossSum += sum;
-      if (bestGross == null || sum < bestGross) bestGross = sum;
-      if (worstGross == null || sum > worstGross) worstGross = sum;
-    }
+  type RoundHistoryEntry = {
+    roundId: number;
+    tripId: number;
+    name: string;
+    course: string | null;
+    date: string | null;
+    playedAt: Date;
+    gross: number;
+    par: number;
+    handicap: number;
+  };
+  const roundHistory: RoundHistoryEntry[] = [];
+  for (const [roundId, { sum, played, handicap }] of userRoundComplete) {
+    if (played !== 18) continue;
+    completedRounds++;
+    completedGrossSum += sum;
+    if (bestGross == null || sum < bestGross) bestGross = sum;
+    if (worstGross == null || sum > worstGross) worstGross = sum;
+    const round = roundById.get(roundId);
+    if (!round) continue;
+    const totalPar = round.par.reduce((a, b) => a + b, 0);
+    roundHistory.push({
+      roundId,
+      tripId: round.tripId,
+      name: round.name,
+      course: round.course,
+      date: round.date,
+      playedAt: round.completedAt ?? round.updatedAt,
+      gross: sum,
+      par: totalPar,
+      handicap,
+    });
   }
+  roundHistory.sort((a, b) => a.playedAt.getTime() - b.playedAt.getTime());
   const avgGross = completedRounds > 0 ? completedGrossSum / completedRounds : null;
 
   // Co-players: distinct other players in the same rounds. Roll up by userId when both sides
@@ -287,6 +318,7 @@ router.get("/users/me/stats", requireAuth, async (req: AuthedRequest, res): Prom
     scoring: { bestGross, worstGross, avgGross, completedRounds },
     holeOutcomes: outcomes,
     playersPlayedWith,
+    roundHistory,
   }));
 });
 

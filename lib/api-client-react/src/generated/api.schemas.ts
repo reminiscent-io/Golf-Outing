@@ -430,6 +430,26 @@ export type MyStatsResponsePlayersPlayedWithItem = {
   rounds: number;
 };
 
+export type MyStatsResponseRoundHistoryItem = {
+  roundId: number;
+  tripId: number;
+  name: string;
+  /** @nullable */
+  course: string | null;
+  /**
+   * Round date as entered (ISO-ish YYYY-MM-DD or null).
+   * @nullable
+   */
+  date: string | null;
+  /** Effective date used for ordering — completedAt when set, else updatedAt. */
+  playedAt: string;
+  gross: number;
+  /** Sum of par across all 18 holes for the round. */
+  par: number;
+  /** Handicap of the user's player row for this round. */
+  handicap: number;
+};
+
 /**
  * Aggregate of every round the user has played plus every trip they've created.
  */
@@ -446,6 +466,8 @@ export interface MyStatsResponse {
   holeOutcomes: MyStatsResponseHoleOutcomes;
   /** Distinct co-players (excluding the user) ranked by number of shared rounds. The same person across trips appears once when their player rows share a userId, otherwise once per name. */
   playersPlayedWith: MyStatsResponsePlayersPlayedWithItem[];
+  /** Completed 18-hole rounds in chronological order (oldest first). Each entry includes the gross total and the handicap used at the time, so a chart can show score progression alongside handicap. */
+  roundHistory: MyStatsResponseRoundHistoryItem[];
 }
 
 export interface CreatePlayerBody {

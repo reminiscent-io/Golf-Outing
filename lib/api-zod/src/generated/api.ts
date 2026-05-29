@@ -422,6 +422,34 @@ export const GetMyStatsResponse = zod
       .describe(
         "Distinct co-players (excluding the user) ranked by number of shared rounds. The same person across trips appears once when their player rows share a userId, otherwise once per name.",
       ),
+    roundHistory: zod
+      .array(
+        zod.object({
+          roundId: zod.number(),
+          tripId: zod.number(),
+          name: zod.string(),
+          course: zod.string().nullable(),
+          date: zod
+            .string()
+            .nullable()
+            .describe("Round date as entered (ISO-ish YYYY-MM-DD or null)."),
+          playedAt: zod.coerce
+            .date()
+            .describe(
+              "Effective date used for ordering — completedAt when set, else updatedAt.",
+            ),
+          gross: zod.number(),
+          par: zod
+            .number()
+            .describe("Sum of par across all 18 holes for the round."),
+          handicap: zod
+            .number()
+            .describe("Handicap of the user's player row for this round."),
+        }),
+      )
+      .describe(
+        "Completed 18-hole rounds in chronological order (oldest first). Each entry includes the gross total and the handicap used at the time, so a chart can show score progression alongside handicap.",
+      ),
   })
   .describe(
     "Aggregate of every round the user has played plus every trip they've created.",
