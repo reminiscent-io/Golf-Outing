@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, tripsTable, userTripFollowsTable } from "@workspace/db";
 import { ser } from "../lib/serialize";
-import { verifySession } from "../lib/jwt";
 import {
   CreateTripBody,
   GetTripParams,
@@ -18,11 +17,7 @@ import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
 const router: IRouter = Router();
 
 router.get("/trips", async (_req, res): Promise<void> => {
-  // Personal (solo-round) trips are per-user buckets; never list them on the
-  // public trips index. They surface only via /users/me/personal-trip/rounds
-  // and the round-level endpoint.
   const trips = await db.select().from(tripsTable)
-    .where(eq(tripsTable.kind, "event"))
     .orderBy(tripsTable.createdAt);
   res.json(ListTripsResponse.parse(ser(trips)));
 });
@@ -54,17 +49,6 @@ router.get("/trips/:tripId", async (req, res): Promise<void> => {
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [trip] = await db.select().from(tripsTable).where(eq(tripsTable.id, params.data.tripId));
   if (!trip) { res.status(404).json({ error: "Trip not found" }); return; }
-
-  if (trip.kind === "personal") {
-    // Only the owner can fetch the personal trip envelope.
-    const auth = req.headers.authorization;
-    if (!auth?.startsWith("Bearer ")) { res.status(404).json({ error: "Trip not found" }); return; }
-    const payload = verifySession(auth.slice(7).trim());
-    if (!payload || payload.userId !== trip.createdByUserId) {
-      res.status(404).json({ error: "Trip not found" });
-      return;
-    }
-  }
   res.json(GetTripResponse.parse(ser(trip)));
 });
 

@@ -6,7 +6,7 @@ import { usersTable } from "./users";
 
 export const roundsTable = pgTable("rounds", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull().references(() => tripsTable.id, { onDelete: "cascade" }),
+  tripId: integer("trip_id").references(() => tripsTable.id, { onDelete: "cascade" }),
   createdByUserId: integer("created_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   course: text("course"),

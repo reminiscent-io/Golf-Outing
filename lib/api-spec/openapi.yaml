@@ -303,26 +303,30 @@ paths:
         "401":
           description: Unauthorized
 
-  /users/me/personal-trip/rounds:
-    post:
-      operationId: createSoloRound
+  /users/me/rounds:
+    get:
+      operationId: listMyRounds
       tags: [users]
-      summary: Find-or-create the caller's personal trip and create a round inside it
+      summary: All rounds where the caller has a player row, joined to optional trip
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateSoloRoundBody"
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, solo, trip]
+            default: all
       responses:
-        "201":
-          description: Created
+        "200":
+          description: Rounds
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateSoloRoundResponse"
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyRoundsItem"
         "401":
           description: Unauthorized
 
@@ -821,6 +825,146 @@ paths:
         "204":
           description: Deleted
 
+  /rounds:
+    post:
+      operationId: createRoundV2
+      tags: [rounds]
+      summary: Create a round, optionally attached to a trip
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoundV2Body"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRoundV2Response"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Caller is not a player or follower of the requested trip
+
+  /rounds/{roundId}:
+    get:
+      operationId: getSoloRound
+      tags: [rounds]
+      summary: Get a round by id (works for both solo and trip rounds)
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Round"
+        "404":
+          description: Not found or not visible
+    patch:
+      operationId: updateSoloRound
+      tags: [rounds]
+      summary: Update a solo round (trip-attached rounds use the trip-scoped endpoint)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoundBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Round"
+        "403":
+          description: Caller does not own this round
+        "404":
+          description: Round not found
+    delete:
+      operationId: deleteSoloRound
+      tags: [rounds]
+      summary: Delete a solo round
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Caller does not own this round
+        "404":
+          description: Round not found
+
+  /rounds/{roundId}/scores:
+    get:
+      operationId: getSoloRoundScores
+      tags: [scores]
+      summary: Get all score rows for a (solo) round, keyed by roundId only
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerScore"
+    put:
+      operationId: upsertSoloRoundScore
+      tags: [scores]
+      summary: Upsert one player's score for one hole (solo round path)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertScoreBody"
+      responses:
+        "200":
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerScore"
+
   /trips/{tripId}/rounds:
     get:
       operationId: listRounds
@@ -1220,10 +1364,6 @@ components:
           type: string
         description:
           type: ["string", "null"]
-        kind:
-          type: string
-          enum: [event, personal]
-          description: '`event` = shared trip with friends. `personal` = solo-round bucket, one per user.'
         createdByUserId:
           type: ["integer", "null"]
           description: User who created the trip; null for legacy trips created before attribution.
@@ -1234,7 +1374,6 @@ components:
       required:
         - id
         - name
-        - kind
         - createdAt
         - updatedAt
 
@@ -1506,10 +1645,7 @@ components:
         roundId:
           type: integer
         tripId:
-          type: integer
-        tripKind:
-          type: string
-          enum: [event, personal]
+          type: ["integer", "null"]
         name:
           type: string
         course:
@@ -1538,7 +1674,6 @@ components:
       required:
         - roundId
         - tripId
-        - tripKind
         - name
         - updatedAt
         - visibility
@@ -1573,44 +1708,6 @@ components:
         nextBefore:
           type: ["string", "null"]
       required: [items, nextBefore]
-
-    CreateSoloRoundBody:
-      type: object
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 120
-        course:
-          type: ["string", "null"]
-        date:
-          type: ["string", "null"]
-        par:
-          type: array
-          items:
-            type: integer
-        holeHcp:
-          type: array
-          items:
-            type: integer
-        teeBox:
-          type: ["string", "null"]
-        courseRating:
-          type: ["number", "null"]
-        courseSlope:
-          type: ["integer", "null"]
-      required: [name]
-
-    CreateSoloRoundResponse:
-      type: object
-      properties:
-        tripId:
-          type: integer
-        roundId:
-          type: integer
-        playerId:
-          type: integer
-      required: [tripId, roundId, playerId]
 
     RequestOtpBody:
       type: object
@@ -1874,7 +1971,7 @@ components:
         id:
           type: integer
         tripId:
-          type: integer
+          type: ["integer", "null"]
         createdByUserId:
           type: ["integer", "null"]
           description: User who created the round; null for legacy rounds created before attribution.
@@ -1995,6 +2092,67 @@ components:
         - id
         - playerA
         - playerB
+
+    MyRoundsItem:
+      type: object
+      properties:
+        round:
+          $ref: "#/components/schemas/Round"
+        trip:
+          oneOf:
+            - $ref: "#/components/schemas/Trip"
+            - type: "null"
+        gross:
+          type: ["integer", "null"]
+          description: Caller's gross total if the round is complete, else null.
+        net:
+          type: ["number", "null"]
+          description: Caller's net total relative to par if the round is complete, else null.
+        holesPlayed:
+          type: integer
+          description: Number of holes the caller has a score for.
+      required: [round, holesPlayed]
+
+    CreateRoundV2Body:
+      type: object
+      properties:
+        tripId:
+          type: ["integer", "null"]
+          description: Optional trip to attach this round to. Caller must be a player or follower of that trip.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        course:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        par:
+          type: array
+          items:
+            type: integer
+        holeHcp:
+          type: array
+          items:
+            type: integer
+        teeBox:
+          type: ["string", "null"]
+        courseRating:
+          type: ["number", "null"]
+        courseSlope:
+          type: ["integer", "null"]
+      required: [name]
+
+    CreateRoundV2Response:
+      type: object
+      properties:
+        tripId:
+          type: ["integer", "null"]
+        roundId:
+          type: integer
+        playerId:
+          type: integer
+      required: [roundId, playerId]
 
     CreateRoundBody:
       type: object

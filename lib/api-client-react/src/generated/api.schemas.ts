@@ -9,23 +9,11 @@ export interface HealthStatus {
   status: string;
 }
 
-/**
- * `event` = shared trip with friends. `personal` = solo-round bucket, one per user.
- */
-export type TripKind = (typeof TripKind)[keyof typeof TripKind];
-
-export const TripKind = {
-  event: "event",
-  personal: "personal",
-} as const;
-
 export interface Trip {
   id: number;
   name: string;
   /** @nullable */
   description?: string | null;
-  /** `event` = shared trip with friends. `personal` = solo-round bucket, one per user. */
-  kind: TripKind;
   /**
    * User who created the trip; null for legacy trips created before attribution.
    * @nullable
@@ -163,14 +151,6 @@ export interface UserProfileStats {
   coursesPlayed: number;
 }
 
-export type FeedItemTripKind =
-  (typeof FeedItemTripKind)[keyof typeof FeedItemTripKind];
-
-export const FeedItemTripKind = {
-  event: "event",
-  personal: "personal",
-} as const;
-
 export type FeedItemVisibility =
   (typeof FeedItemVisibility)[keyof typeof FeedItemVisibility];
 
@@ -199,8 +179,8 @@ export interface FeedItemSummary {
 
 export interface FeedItem {
   roundId: number;
-  tripId: number;
-  tripKind: FeedItemTripKind;
+  /** @nullable */
+  tripId: number | null;
   name: string;
   /** @nullable */
   course?: string | null;
@@ -297,32 +277,6 @@ export interface FeedPage {
   items: FeedItem[];
   /** @nullable */
   nextBefore: string | null;
-}
-
-export interface CreateSoloRoundBody {
-  /**
-   * @minLength 1
-   * @maxLength 120
-   */
-  name: string;
-  /** @nullable */
-  course?: string | null;
-  /** @nullable */
-  date?: string | null;
-  par?: number[];
-  holeHcp?: number[];
-  /** @nullable */
-  teeBox?: string | null;
-  /** @nullable */
-  courseRating?: number | null;
-  /** @nullable */
-  courseSlope?: number | null;
-}
-
-export interface CreateSoloRoundResponse {
-  tripId: number;
-  roundId: number;
-  playerId: number;
 }
 
 export interface RequestOtpBody {
@@ -548,7 +502,8 @@ export interface GamesConfig {
 
 export interface Round {
   id: number;
-  tripId: number;
+  /** @nullable */
+  tripId: number | null;
   /**
    * User who created the round; null for legacy rounds created before attribution.
    * @nullable
@@ -580,6 +535,55 @@ export interface Round {
   completedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MyRoundsItem {
+  round: Round;
+  trip?: Trip | null;
+  /**
+   * Caller's gross total if the round is complete, else null.
+   * @nullable
+   */
+  gross?: number | null;
+  /**
+   * Caller's net total relative to par if the round is complete, else null.
+   * @nullable
+   */
+  net?: number | null;
+  /** Number of holes the caller has a score for. */
+  holesPlayed: number;
+}
+
+export interface CreateRoundV2Body {
+  /**
+   * Optional trip to attach this round to. Caller must be a player or follower of that trip.
+   * @nullable
+   */
+  tripId?: number | null;
+  /**
+   * @minLength 1
+   * @maxLength 120
+   */
+  name: string;
+  /** @nullable */
+  course?: string | null;
+  /** @nullable */
+  date?: string | null;
+  par?: number[];
+  holeHcp?: number[];
+  /** @nullable */
+  teeBox?: string | null;
+  /** @nullable */
+  courseRating?: number | null;
+  /** @nullable */
+  courseSlope?: number | null;
+}
+
+export interface CreateRoundV2Response {
+  /** @nullable */
+  tripId?: number | null;
+  roundId: number;
+  playerId: number;
 }
 
 export type CreateRoundBodyHandicapMode =
@@ -903,6 +907,19 @@ export interface UpsertScrambleScoreBody {
    */
   score?: number | null;
 }
+
+export type ListMyRoundsParams = {
+  filter?: ListMyRoundsFilter;
+};
+
+export type ListMyRoundsFilter =
+  (typeof ListMyRoundsFilter)[keyof typeof ListMyRoundsFilter];
+
+export const ListMyRoundsFilter = {
+  all: "all",
+  solo: "solo",
+  trip: "trip",
+} as const;
 
 export type SearchUsersParams = {
   /**

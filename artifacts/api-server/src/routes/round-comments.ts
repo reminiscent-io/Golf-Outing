@@ -10,17 +10,24 @@ router.get("/rounds/:roundId/comments", requireAuth, async (req: AuthedRequest, 
   const roundId = Number(req.params.roundId);
   if (!Number.isFinite(roundId)) { res.status(400).json({ error: "Invalid roundId" }); return; }
 
-  // Private rounds: only visible to players in the round's trip. Match the
-  // POST handler's gate so reads and writes share the same access policy.
+  // Private rounds: trip-attached rounds require the caller be a player in the
+  // same trip; tripless rounds require the caller be the round creator.
   const [round] = await db.select().from(roundsTable).where(eq(roundsTable.id, roundId));
   if (!round) { res.status(404).json({ error: "Round not found" }); return; }
   if (round.visibility === "private") {
-    const [callerPlayer] = await db.select().from(playersTable)
-      .where(and(eq(playersTable.tripId, round.tripId), eq(playersTable.userId, req.user!.id)))
-      .limit(1);
-    if (!callerPlayer) {
-      res.status(403).json({ error: "Round is private" });
-      return;
+    if (round.tripId === null) {
+      if (round.createdByUserId !== req.user!.id) {
+        res.status(403).json({ error: "Round is private" });
+        return;
+      }
+    } else {
+      const [callerPlayer] = await db.select().from(playersTable)
+        .where(and(eq(playersTable.tripId, round.tripId), eq(playersTable.userId, req.user!.id)))
+        .limit(1);
+      if (!callerPlayer) {
+        res.status(403).json({ error: "Round is private" });
+        return;
+      }
     }
   }
 

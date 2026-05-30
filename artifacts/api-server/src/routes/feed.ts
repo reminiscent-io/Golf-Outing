@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import {
   db,
   roundsTable,
@@ -79,7 +79,8 @@ router.get("/feed", requireAuth, async (req: AuthedRequest, res): Promise<void> 
       .limit(limit * 3); // overfetch to allow visibility filter below
     candidateRoundIds = rows.map(r => r.id);
   } else {
-    const rows = await db
+    // (a) Rounds where a player in the trip has userId in interestingUserIds.
+    const tripRoundRows = await db
       .selectDistinct({ id: roundsTable.id, sortKey: SORT_KEY })
       .from(roundsTable)
       .innerJoin(playersTable, eq(playersTable.tripId, roundsTable.tripId))
@@ -90,7 +91,29 @@ router.get("/feed", requireAuth, async (req: AuthedRequest, res): Promise<void> 
       ))
       .orderBy(desc(SORT_KEY))
       .limit(limit * 3);
-    candidateRoundIds = rows.map(r => r.id);
+    // (b) Tripless rounds created by an interesting user.
+    const triplessRoundRows = await db
+      .selectDistinct({ id: roundsTable.id, sortKey: SORT_KEY })
+      .from(roundsTable)
+      .where(and(
+        eq(roundsTable.visibility, "public"),
+        isNull(roundsTable.tripId),
+        inArray(roundsTable.createdByUserId, interestingUserIds),
+        before ? lt(SORT_KEY, before) : undefined,
+      ))
+      .orderBy(desc(SORT_KEY))
+      .limit(limit * 3);
+    // Merge and dedupe by id, preserving sort order.
+    const seen = new Set<number>();
+    const merged: { id: number; sortKey: Date }[] = [];
+    for (const r of [...tripRoundRows, ...triplessRoundRows]) {
+      if (!seen.has(r.id)) {
+        seen.add(r.id);
+        merged.push(r as { id: number; sortKey: Date });
+      }
+    }
+    merged.sort((a, b) => b.sortKey.getTime() - a.sortKey.getTime());
+    candidateRoundIds = merged.slice(0, limit * 3).map(r => r.id);
   }
 
   if (candidateRoundIds.length === 0) {
@@ -108,7 +131,7 @@ router.get("/feed", requireAuth, async (req: AuthedRequest, res): Promise<void> 
   // For tab=all, exclude rounds where every linked player is private OR has null userId.
   let filteredRounds = rounds;
   if (tab === "all") {
-    const tripIds = Array.from(new Set(rounds.map(r => r.tripId)));
+    const tripIds = Array.from(new Set(rounds.map(r => r.tripId).filter((x): x is number => x !== null)));
     const rPlayers = await db.select().from(playersTable).where(inArray(playersTable.tripId, tripIds));
     const userIds = Array.from(new Set(rPlayers.map(p => p.userId).filter((id): id is number => id != null)));
     const users = userIds.length === 0 ? [] : await db.select({ id: usersTable.id, profileVisibility: usersTable.profileVisibility }).from(usersTable).where(inArray(usersTable.id, userIds));

@@ -1,30 +1,32 @@
 import { useState } from "react";
-import { useCreateSoloRound } from "@workspace/api-client-react";
+import { useCreateRoundV2 } from "@workspace/api-client-react";
 import { X } from "lucide-react";
 import { CourseSearchField } from "@/components/course-search-field";
+import { TripPicker } from "@/components/trip-picker";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onCreated: (ids: { tripId: number; roundId: number; playerId: number }) => void;
+  onCreated: (ids: { tripId: number | null; roundId: number; playerId: number }) => void;
 };
 
 export function SoloRoundModal({ open, onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [course, setCourse] = useState("");
-  // Resolved from the course lookup; submitted so net scoring works out of the box.
+  const [tripId, setTripId] = useState<number | null>(null);
   const [teeBox, setTeeBox] = useState<string | null>(null);
   const [courseRating, setCourseRating] = useState<number | null>(null);
   const [courseSlope, setCourseSlope] = useState<number | null>(null);
   const [par, setPar] = useState<number[] | null>(null);
   const [holeHcp, setHoleHcp] = useState<number[] | null>(null);
-  const create = useCreateSoloRound();
+  const create = useCreateRoundV2();
 
   if (!open) return null;
 
   function reset() {
     setName("");
     setCourse("");
+    setTripId(null);
     setTeeBox(null);
     setCourseRating(null);
     setCourseSlope(null);
@@ -39,6 +41,7 @@ export function SoloRoundModal({ open, onClose, onCreated }: Props) {
     create.mutate(
       {
         data: {
+          tripId,
           name: n,
           course: c || null,
           teeBox,
@@ -48,7 +51,13 @@ export function SoloRoundModal({ open, onClose, onCreated }: Props) {
           ...(holeHcp ? { holeHcp } : {}),
         },
       },
-      { onSuccess: (resp) => { onCreated(resp); onClose(); reset(); } }
+      {
+        onSuccess: (resp) => {
+          onCreated({ tripId: resp.tripId ?? null, roundId: resp.roundId, playerId: resp.playerId });
+          onClose();
+          reset();
+        },
+      }
     );
   }
 
@@ -91,6 +100,10 @@ export function SoloRoundModal({ open, onClose, onCreated }: Props) {
           className="w-full px-3 py-2.5 rounded-lg bg-popover text-card-foreground text-sm font-sans mb-4"
           style={{ border: "1.5px solid hsl(var(--input))" }}
         />
+        <label className="block text-[10px] font-sans font-semibold uppercase tracking-[0.32em] text-muted-foreground mb-2">Trip (optional)</label>
+        <div className="mb-4">
+          <TripPicker value={tripId} onChange={setTripId} />
+        </div>
         <label className="block text-[10px] font-sans font-semibold uppercase tracking-[0.32em] text-muted-foreground mb-2">Round name (optional)</label>
         <input
           value={name}
