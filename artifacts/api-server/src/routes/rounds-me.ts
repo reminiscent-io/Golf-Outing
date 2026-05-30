@@ -87,4 +87,39 @@ router.post("/rounds", requireAuth, async (req: AuthedRequest, res): Promise<voi
   res.status(201).json({ tripId, roundId: round.id, playerId: player.id });
 });
 
+router.get("/rounds/:roundId", async (req, res): Promise<void> => {
+  const roundId = Number(req.params.roundId);
+  if (!Number.isFinite(roundId)) { res.status(400).json({ error: "Invalid roundId" }); return; }
+
+  const [round] = await db.select().from(roundsTable).where(eq(roundsTable.id, roundId)).limit(1);
+  if (!round) { res.status(404).json({ error: "Round not found" }); return; }
+
+  // Visibility rules:
+  // - Trip rounds: defer to the existing /trips/:tripId/rounds/:roundId logic;
+  //   here we mirror it (private rounds only visible to players in the same trip).
+  // - Solo rounds (tripId null): the creator always sees it; everyone else
+  //   needs the round to be public AND completed.
+  const auth = req.headers.authorization;
+  const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : null;
+  const payload = token ? verifySession(token) : null;
+
+  if (round.tripId === null) {
+    const isCreator = !!payload && payload.userId === round.createdByUserId;
+    if (!isCreator) {
+      if (round.visibility !== "public" || !round.completedAt) {
+        res.status(404).json({ error: "Round not found" });
+        return;
+      }
+    }
+  } else if (round.visibility === "private") {
+    if (!payload) { res.status(404).json({ error: "Round not found" }); return; }
+    const [callerPlayer] = await db.select().from(playersTable)
+      .where(and(eq(playersTable.tripId, round.tripId), eq(playersTable.userId, payload.userId)))
+      .limit(1);
+    if (!callerPlayer) { res.status(404).json({ error: "Round not found" }); return; }
+  }
+
+  res.json(ser(round));
+});
+
 export default router;
