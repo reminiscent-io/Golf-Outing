@@ -188,4 +188,83 @@ router.delete("/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): 
   res.sendStatus(204);
 });
 
+router.get("/users/me/rounds", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const userId = req.user!.id;
+  const filter = req.query["filter"];
+  const filterValue = filter === "solo" ? "solo" : filter === "trip" ? "trip" : "all";
+
+  // Caller's player rows — across all trips and the solo bucket (tripId null).
+  const myPlayers = await db.select().from(playersTable).where(eq(playersTable.userId, userId));
+  if (myPlayers.length === 0) { res.json([]); return; }
+  const myPlayerIds = myPlayers.map(p => p.id);
+
+  // Rounds the caller has a player row in (via scores). For a round with no scores yet,
+  // the caller is included by being the creator.
+  const myScoreRows = await db
+    .select({ roundId: scoresTable.roundId, playerId: scoresTable.playerId, holeScores: scoresTable.holeScores })
+    .from(scoresTable)
+    .where(inArray(scoresTable.playerId, myPlayerIds));
+
+  const scoredRoundIds = new Set(myScoreRows.map(r => r.roundId));
+  const createdRows = await db
+    .select({ id: roundsTable.id })
+    .from(roundsTable)
+    .where(eq(roundsTable.createdByUserId, userId));
+  for (const r of createdRows) scoredRoundIds.add(r.id);
+
+  if (scoredRoundIds.size === 0) { res.json([]); return; }
+
+  const rounds = await db.select().from(roundsTable).where(inArray(roundsTable.id, Array.from(scoredRoundIds)));
+  const filtered = rounds.filter(r => {
+    if (filterValue === "solo") return r.tripId === null;
+    if (filterValue === "trip") return r.tripId !== null;
+    return true;
+  });
+
+  // Pull all trips referenced in one query.
+  const tripIds = Array.from(new Set(filtered.map(r => r.tripId).filter((x): x is number => x !== null)));
+  const trips = tripIds.length > 0
+    ? await db.select().from(tripsTable).where(inArray(tripsTable.id, tripIds))
+    : [];
+  const tripById = new Map(trips.map(t => [t.id, t]));
+
+  // Build a map of (roundId → caller's score row) so we can compute gross/net/holesPlayed.
+  const scoreByRound = new Map<number, { holeScores: (number | null)[] }>();
+  for (const row of myScoreRows) {
+    const existing = scoreByRound.get(row.roundId);
+    if (!existing) scoreByRound.set(row.roundId, { holeScores: row.holeScores as (number | null)[] });
+  }
+
+  const items = filtered
+    .map(round => {
+      const trip = round.tripId !== null ? tripById.get(round.tripId) ?? null : null;
+      const score = scoreByRound.get(round.id);
+      let gross: number | null = null;
+      let net: number | null = null;
+      let holesPlayed = 0;
+      if (score) {
+        let sum = 0;
+        let played = 0;
+        for (let h = 0; h < 18; h++) {
+          const s = score.holeScores[h];
+          if (s != null) { sum += s; played++; }
+        }
+        holesPlayed = played;
+        if (played === 18) {
+          gross = sum;
+          const parTotal = round.par.reduce((a, b) => a + b, 0);
+          net = sum - parTotal;
+        }
+      }
+      return { round: ser(round), trip: trip ? ser(trip) : null, gross, net, holesPlayed };
+    })
+    .sort((a, b) => {
+      const aDate = a.round.date ?? a.round.createdAt;
+      const bDate = b.round.date ?? b.round.createdAt;
+      return String(bDate).localeCompare(String(aDate));
+    });
+
+  res.json(items);
+});
+
 export default router;
