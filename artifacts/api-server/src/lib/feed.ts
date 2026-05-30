@@ -16,8 +16,8 @@ export type FeedPlayer = { playerId: number; playerName: string; userId: number 
 
 export type FeedItem = {
   roundId: number;
-  tripId: number;
-  tripKind: "event" | "personal";
+  tripId: number | null;
+  tripKind: "event" | "personal" | null;
   name: string;
   course: string | null;
   date: string | null;
@@ -84,8 +84,8 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
   const viewerKudosed = new Set(viewerKudos.map(k => k.roundId));
 
   return rounds.map((r): FeedItem => {
-    const trip = tripById.get(r.tripId!)!;
-    const tripPlayers = playersByTrip.get(r.tripId!) ?? [];
+    const trip = r.tripId == null ? null : (tripById.get(r.tripId) ?? null);
+    const tripPlayers = r.tripId == null ? [] : (playersByTrip.get(r.tripId) ?? []);
     const summary = summarizeRound({
       roundId: r.id,
       par: r.par as number[],
@@ -98,8 +98,8 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
     });
     return {
       roundId: r.id,
-      tripId: r.tripId!,
-      tripKind: trip.kind,
+      tripId: r.tripId ?? null,
+      tripKind: trip?.kind ?? null,
       name: r.name,
       course: r.course ?? null,
       date: r.date ?? null,
