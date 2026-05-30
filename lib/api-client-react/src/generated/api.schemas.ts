@@ -163,8 +163,12 @@ export interface UserProfileStats {
   coursesPlayed: number;
 }
 
+/**
+ * @nullable
+ */
 export type FeedItemTripKind =
-  (typeof FeedItemTripKind)[keyof typeof FeedItemTripKind];
+  | (typeof FeedItemTripKind)[keyof typeof FeedItemTripKind]
+  | null;
 
 export const FeedItemTripKind = {
   event: "event",
@@ -199,7 +203,9 @@ export interface FeedItemSummary {
 
 export interface FeedItem {
   roundId: number;
-  tripId: number;
+  /** @nullable */
+  tripId: number | null;
+  /** @nullable */
   tripKind: FeedItemTripKind;
   name: string;
   /** @nullable */
@@ -548,7 +554,8 @@ export interface GamesConfig {
 
 export interface Round {
   id: number;
-  tripId: number;
+  /** @nullable */
+  tripId: number | null;
   /**
    * User who created the round; null for legacy rounds created before attribution.
    * @nullable

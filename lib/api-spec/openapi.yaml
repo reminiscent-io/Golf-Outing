@@ -1673,10 +1673,10 @@ components:
         roundId:
           type: integer
         tripId:
-          type: integer
+          type: ["integer", "null"]
         tripKind:
-          type: string
-          enum: [event, personal]
+          type: ["string", "null"]
+          enum: [event, personal, null]
         name:
           type: string
         course:
@@ -2041,7 +2041,7 @@ components:
         id:
           type: integer
         tripId:
-          type: integer
+          type: ["integer", "null"]
         createdByUserId:
           type: ["integer", "null"]
           description: User who created the round; null for legacy rounds created before attribution.

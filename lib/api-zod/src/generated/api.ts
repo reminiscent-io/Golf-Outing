@@ -469,7 +469,7 @@ export const ListMyRoundsQueryParams = zod.object({
 export const ListMyRoundsResponseItem = zod.object({
   round: zod.object({
     id: zod.number(),
-    tripId: zod.number(),
+    tripId: zod.number().nullable(),
     createdByUserId: zod
       .number()
       .nullish()
@@ -637,8 +637,14 @@ export const GetUserProfileResponse = zod.object({
     .array(
       zod.object({
         roundId: zod.number(),
-        tripId: zod.number(),
-        tripKind: zod.enum(["event", "personal"]),
+        tripId: zod.number().nullable(),
+        tripKind: zod
+          .union([
+            zod.literal("event"),
+            zod.literal("personal"),
+            zod.literal(null),
+          ])
+          .nullable(),
         name: zod.string(),
         course: zod.string().nullish(),
         date: zod.string().nullish(),
@@ -887,8 +893,14 @@ export const GetFeedResponse = zod.object({
   items: zod.array(
     zod.object({
       roundId: zod.number(),
-      tripId: zod.number(),
-      tripKind: zod.enum(["event", "personal"]),
+      tripId: zod.number().nullable(),
+      tripKind: zod
+        .union([
+          zod.literal("event"),
+          zod.literal("personal"),
+          zod.literal(null),
+        ])
+        .nullable(),
       name: zod.string(),
       course: zod.string().nullish(),
       date: zod.string().nullish(),
@@ -1009,7 +1021,7 @@ export const GetSoloRoundParams = zod.object({
 
 export const GetSoloRoundResponse = zod.object({
   id: zod.number(),
-  tripId: zod.number(),
+  tripId: zod.number().nullable(),
   createdByUserId: zod
     .number()
     .nullish()
@@ -1152,7 +1164,7 @@ export const UpdateSoloRoundBody = zod.object({
 
 export const UpdateSoloRoundResponse = zod.object({
   id: zod.number(),
-  tripId: zod.number(),
+  tripId: zod.number().nullable(),
   createdByUserId: zod
     .number()
     .nullish()
@@ -1280,7 +1292,7 @@ export const ListRoundsParams = zod.object({
 
 export const ListRoundsResponseItem = zod.object({
   id: zod.number(),
-  tripId: zod.number(),
+  tripId: zod.number().nullable(),
   createdByUserId: zod
     .number()
     .nullish()
@@ -1425,7 +1437,7 @@ export const GetRoundParams = zod.object({
 
 export const GetRoundResponse = zod.object({
   id: zod.number(),
-  tripId: zod.number(),
+  tripId: zod.number().nullable(),
   createdByUserId: zod
     .number()
     .nullish()
@@ -1569,7 +1581,7 @@ export const UpdateRoundBody = zod.object({
 
 export const UpdateRoundResponse = zod.object({
   id: zod.number(),
-  tripId: zod.number(),
+  tripId: zod.number().nullable(),
   createdByUserId: zod
     .number()
     .nullish()

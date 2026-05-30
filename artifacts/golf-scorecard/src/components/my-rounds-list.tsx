@@ -23,7 +23,7 @@ export function MyRoundsList() {
   const { allCount, soloCount, tripCount } = useMemo(() => {
     let solo = 0, trip = 0;
     for (const it of safeItems) {
-      if (it.trip == null) solo++;
+      if (it.round.tripId === null) solo++;
       else trip++;
     }
     return { allCount: safeItems.length, soloCount: solo, tripCount: trip };
@@ -116,7 +116,7 @@ function RoundRow({ item }: Readonly<{ item: MyRoundsItem }>) {
   const r = item.round;
   const trip = item.trip;
   const inProgress = !r.completedAt;
-  const detailHref = trip == null ? `/rounds/${r.id}` : `/trips/${trip.id}/rounds/${r.id}`;
+  const detailHref = r.tripId === null ? `/rounds/${r.id}` : `/trips/${r.tripId}/rounds/${r.id}`;
 
   const dateInfo = parseDateForRow(r.date ?? r.createdAt);
   const grossLabel = inProgress ? "—" : (item.gross != null ? String(item.gross) : "—");

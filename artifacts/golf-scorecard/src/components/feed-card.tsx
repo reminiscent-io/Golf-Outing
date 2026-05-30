@@ -43,7 +43,7 @@ export function FeedCard({ item }: Props) {
 
       <button
         type="button"
-        onClick={() => navigate(`/trips/${item.tripId}/rounds/${item.roundId}`)}
+        onClick={() => navigate(item.tripId == null ? `/rounds/${item.roundId}` : `/trips/${item.tripId}/rounds/${item.roundId}`)}
         className="block w-full text-left"
       >
         <h3 className="font-serif text-lg font-semibold text-card-foreground leading-tight">{item.name}</h3>
