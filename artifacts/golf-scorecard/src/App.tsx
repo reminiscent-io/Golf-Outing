@@ -18,6 +18,8 @@ import UserProfilePage from "@/pages/user-profile";
 import { TripAuthGate } from "@/components/trip-auth-gate";
 import { UserSearchBar } from "@/components/user-search";
 import { useAuthSession, clearSession, maybeRefreshSession } from "@/lib/auth";
+import { RequireSignIn } from "@/components/require-sign-in";
+import SoloRoundPage from "@/pages/solo-round";
 import { firstName } from "@/lib/format";
 import { SignInModal } from "@/components/sign-in-modal";
 
@@ -228,6 +230,12 @@ function MyTripsRedirect() {
   return null;
 }
 
+function SoloRoundRouteGuard() {
+  const session = useAuthSession();
+  if (!session) return <RequireSignIn mandatory>{null}</RequireSignIn>;
+  return <SoloRoundPage />;
+}
+
 function Router() {
   return (
     <>
@@ -242,6 +250,7 @@ function Router() {
         <Route path="/me/trips" component={MyTripsRedirect} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/users/:userId" component={UserProfileOrSelf} />
+        <Route path="/rounds/:roundId" component={SoloRoundRouteGuard} />
         <Route path="/trips/:tripId" component={GatedTripHub} />
         <Route path="/trips/:tripId/rounds/:roundId" component={GatedRound} />
         <Route component={NotFound} />
