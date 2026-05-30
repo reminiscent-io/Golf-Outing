@@ -12,7 +12,7 @@ import {
 import { ser } from "../lib/serialize";
 import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
 import { verifySession } from "../lib/jwt";
-import { CreateRoundV2Body } from "@workspace/api-zod";
+import { CreateRoundV2Body, UpdateRoundBody } from "@workspace/api-zod";
 
 const DEFAULT_PAR = Array(18).fill(4);
 const DEFAULT_HCP = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -120,6 +120,46 @@ router.get("/rounds/:roundId", async (req, res): Promise<void> => {
   }
 
   res.json(ser(round));
+});
+
+router.patch("/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const userId = req.user!.id;
+  const roundId = Number(req.params.roundId);
+  if (!Number.isFinite(roundId)) { res.status(400).json({ error: "Invalid roundId" }); return; }
+  const parsed = UpdateRoundBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [round] = await db.select().from(roundsTable).where(eq(roundsTable.id, roundId)).limit(1);
+  if (!round) { res.status(404).json({ error: "Round not found" }); return; }
+  if (round.tripId !== null) {
+    // Use the trip-scoped endpoint for trip rounds.
+    res.status(404).json({ error: "Round not found" });
+    return;
+  }
+  if (round.createdByUserId !== userId) {
+    res.status(403).json({ error: "Only the round creator can update this round" });
+    return;
+  }
+
+  const data = parsed.data;
+  const updateData: Record<string, unknown> = { updatedAt: new Date() };
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.course !== undefined) updateData.course = data.course;
+  if (data.date !== undefined) updateData.date = data.date;
+  if (data.par !== undefined) updateData.par = data.par;
+  if (data.holeHcp !== undefined) updateData.holeHcp = data.holeHcp;
+  if (data.gamesConfig !== undefined) updateData.gamesConfig = data.gamesConfig;
+  if (data.handicapMode !== undefined) updateData.handicapMode = data.handicapMode;
+  if (data.teeBox !== undefined) updateData.teeBox = data.teeBox;
+  if (data.courseRating !== undefined) updateData.courseRating = data.courseRating;
+  if (data.courseSlope !== undefined) updateData.courseSlope = data.courseSlope;
+  if (data.visibility !== undefined) updateData.visibility = data.visibility;
+  if (data.completedAt !== undefined) {
+    updateData.completedAt = data.completedAt == null ? null : new Date(data.completedAt);
+  }
+
+  const [updated] = await db.update(roundsTable).set(updateData).where(eq(roundsTable.id, roundId)).returning();
+  res.json(ser(updated));
 });
 
 export default router;
