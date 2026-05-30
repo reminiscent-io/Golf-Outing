@@ -11,7 +11,7 @@ import NewTripPage from "@/pages/trips-new";
 import TripHubPage from "@/pages/trip-hub";
 import RoundPage from "@/pages/round";
 import PrivacyPage from "@/pages/privacy";
-import MyTripsPage from "@/pages/my-trips";
+import MyGolfPage from "@/pages/my-golf";
 import ProfilePage from "@/pages/profile";
 import FeedPage from "@/pages/feed";
 import UserProfilePage from "@/pages/user-profile";
@@ -73,7 +73,7 @@ function NavBar() {
   const [location] = useLocation();
   const [signInOpen, setSignInOpen] = useState(false);
 
-  const isMyTrips = location === "/me/trips";
+  const isMyGolf = location.startsWith("/my-golf");
 
   return (
     <header
@@ -110,16 +110,17 @@ function NavBar() {
             <>
               {/* Primary nav: My Trips with active state */}
               <Link
-                href="/me/trips"
-                aria-current={isMyTrips ? "page" : undefined}
+                href="/my-golf"
+                aria-label="My Golf"
+                aria-current={isMyGolf ? "page" : undefined}
                 className="relative inline-flex h-10 items-center px-2.5 rounded-md font-sans text-[11px] font-semibold uppercase hover-elevate active-elevate transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(42_52%_59%)]"
                 style={{
-                  color: isMyTrips ? BRASS : BRASS_MUTED,
+                  color: isMyGolf ? BRASS : BRASS_MUTED,
                   letterSpacing: "0.18em",
                 }}
               >
-                My Trips
-                {isMyTrips && (
+                My Golf
+                {isMyGolf && (
                   <span
                     aria-hidden
                     className="absolute left-2.5 right-2.5 -bottom-px h-px rounded-full"
@@ -221,6 +222,12 @@ function UserProfileOrSelf() {
   return <UserProfilePage userId={id} />;
 }
 
+function MyTripsRedirect() {
+  const [, navigate] = useLocation();
+  useEffect(() => { navigate("/my-golf?tab=trips", { replace: true }); }, [navigate]);
+  return null;
+}
+
 function Router() {
   return (
     <>
@@ -231,7 +238,8 @@ function Router() {
         <Route path="/trips" component={TripsPage} />
         <Route path="/trips/new" component={NewTripPage} />
         <Route path="/privacy" component={PrivacyPage} />
-        <Route path="/me/trips" component={MyTripsPage} />
+        <Route path="/my-golf" component={MyGolfPage} />
+        <Route path="/me/trips" component={MyTripsRedirect} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/users/:userId" component={UserProfileOrSelf} />
         <Route path="/trips/:tripId" component={GatedTripHub} />
