@@ -118,7 +118,7 @@ router.get("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => 
     const payload = token ? verifySession(token) : null;
     if (!payload) { res.status(404).json({ error: "Round not found" }); return; }
     const [callerPlayer] = await db.select().from(playersTable)
-      .where(and(eq(playersTable.tripId, round.tripId), eq(playersTable.userId, payload.userId)))
+      .where(and(eq(playersTable.tripId, params.data.tripId), eq(playersTable.userId, payload.userId)))
       .limit(1);
     if (!callerPlayer) { res.status(404).json({ error: "Round not found" }); return; }
   }

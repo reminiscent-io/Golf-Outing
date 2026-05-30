@@ -42,7 +42,7 @@ export type FeedItem = {
 export async function summarizeFeedItems(rounds: Round[], viewerId: number): Promise<FeedItem[]> {
   if (rounds.length === 0) return [];
   const roundIds = rounds.map(r => r.id);
-  const tripIds = Array.from(new Set(rounds.map(r => r.tripId)));
+  const tripIds = Array.from(new Set(rounds.map(r => r.tripId).filter((x): x is number => x !== null)));
 
   const [trips, players, scores, assignments, kudosCounts, commentCounts, viewerKudos] = await Promise.all([
     db.select().from(tripsTable).where(inArray(tripsTable.id, tripIds)),
@@ -62,6 +62,7 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
   const tripById = new Map(trips.map(t => [t.id, t]));
   const playersByTrip = new Map<number, typeof players>();
   for (const p of players) {
+    if (p.tripId === null) continue;
     const arr = playersByTrip.get(p.tripId) ?? [];
     arr.push(p);
     playersByTrip.set(p.tripId, arr);
@@ -83,8 +84,8 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
   const viewerKudosed = new Set(viewerKudos.map(k => k.roundId));
 
   return rounds.map((r): FeedItem => {
-    const trip = tripById.get(r.tripId)!;
-    const tripPlayers = playersByTrip.get(r.tripId) ?? [];
+    const trip = tripById.get(r.tripId!)!;
+    const tripPlayers = playersByTrip.get(r.tripId!) ?? [];
     const summary = summarizeRound({
       roundId: r.id,
       par: r.par as number[],
@@ -97,7 +98,7 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
     });
     return {
       roundId: r.id,
-      tripId: r.tripId,
+      tripId: r.tripId!,
       tripKind: trip.kind,
       name: r.name,
       course: r.course ?? null,

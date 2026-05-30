@@ -67,7 +67,7 @@ router.get("/users/me/trips", requireAuth, async (req: AuthedRequest, res): Prom
       .from(roundsTable)
       .where(inArray(roundsTable.tripId, tripIds));
     for (const row of roundRows) {
-      if (!row.date) continue;
+      if (!row.date || row.tripId === null) continue;
       const existing = rangeByTripId.get(row.tripId);
       if (!existing) {
         rangeByTripId.set(row.tripId, { start: row.date, end: row.date });
@@ -243,7 +243,7 @@ router.get("/users/me/stats", requireAuth, async (req: AuthedRequest, res): Prom
 
   type RoundHistoryEntry = {
     roundId: number;
-    tripId: number;
+    tripId: number | null;
     name: string;
     course: string | null;
     date: string | null;

@@ -108,7 +108,7 @@ router.get("/feed", requireAuth, async (req: AuthedRequest, res): Promise<void> 
   // For tab=all, exclude rounds where every linked player is private OR has null userId.
   let filteredRounds = rounds;
   if (tab === "all") {
-    const tripIds = Array.from(new Set(rounds.map(r => r.tripId)));
+    const tripIds = Array.from(new Set(rounds.map(r => r.tripId).filter((x): x is number => x !== null)));
     const rPlayers = await db.select().from(playersTable).where(inArray(playersTable.tripId, tripIds));
     const userIds = Array.from(new Set(rPlayers.map(p => p.userId).filter((id): id is number => id != null)));
     const users = userIds.length === 0 ? [] : await db.select({ id: usersTable.id, profileVisibility: usersTable.profileVisibility }).from(usersTable).where(inArray(usersTable.id, userIds));
