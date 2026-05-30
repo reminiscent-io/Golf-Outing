@@ -1231,6 +1231,47 @@ export const DeleteSoloRoundParams = zod.object({
 });
 
 /**
+ * @summary Get all score rows for a (solo) round, keyed by roundId only
+ */
+export const GetSoloRoundScoresParams = zod.object({
+  roundId: zod.coerce.number(),
+});
+
+export const GetSoloRoundScoresResponseItem = zod.object({
+  id: zod.number(),
+  roundId: zod.number(),
+  playerId: zod.number(),
+  holeScores: zod
+    .array(zod.number().nullable())
+    .describe("18 values - gross score per hole (null = not entered)"),
+});
+export const GetSoloRoundScoresResponse = zod.array(
+  GetSoloRoundScoresResponseItem,
+);
+
+/**
+ * @summary Upsert one player's score for one hole (solo round path)
+ */
+export const UpsertSoloRoundScoreParams = zod.object({
+  roundId: zod.coerce.number(),
+});
+
+export const UpsertSoloRoundScoreBody = zod.object({
+  playerId: zod.number(),
+  hole: zod.number().describe("Hole number 1-18"),
+  score: zod.number().nullish().describe("Gross score (null to clear)"),
+});
+
+export const UpsertSoloRoundScoreResponse = zod.object({
+  id: zod.number(),
+  roundId: zod.number(),
+  playerId: zod.number(),
+  holeScores: zod
+    .array(zod.number().nullable())
+    .describe("18 values - gross score per hole (null = not entered)"),
+});
+
+/**
  * @summary List rounds in a trip
  */
 export const ListRoundsParams = zod.object({

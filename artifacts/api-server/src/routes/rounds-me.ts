@@ -12,7 +12,7 @@ import {
 import { ser } from "../lib/serialize";
 import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
 import { verifySession } from "../lib/jwt";
-import { CreateRoundV2Body, UpdateRoundBody } from "@workspace/api-zod";
+import { CreateRoundV2Body, UpdateRoundBody, UpsertScoreBody } from "@workspace/api-zod";
 
 const DEFAULT_PAR = Array(18).fill(4);
 const DEFAULT_HCP = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -265,6 +265,49 @@ router.get("/users/me/rounds", requireAuth, async (req: AuthedRequest, res): Pro
     });
 
   res.json(items);
+});
+
+router.get("/rounds/:roundId/scores", async (req, res): Promise<void> => {
+  const roundId = Number(req.params.roundId);
+  if (!Number.isFinite(roundId)) { res.status(400).json({ error: "Invalid roundId" }); return; }
+  const scores = await db.select().from(scoresTable).where(eq(scoresTable.roundId, roundId));
+  res.json(ser(scores));
+});
+
+router.put("/rounds/:roundId/scores", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const roundId = Number(req.params.roundId);
+  if (!Number.isFinite(roundId)) { res.status(400).json({ error: "Invalid roundId" }); return; }
+  const parsed = UpsertScoreBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const { playerId, hole, score } = parsed.data;
+  const holeIdx = hole - 1;
+  if (holeIdx < 0 || holeIdx > 17) { res.status(400).json({ error: "Hole must be between 1 and 18" }); return; }
+
+  const [player] = await db.select().from(playersTable).where(eq(playersTable.id, playerId)).limit(1);
+  if (!player || player.userId !== req.user?.id) {
+    res.status(403).json({ error: "Cannot score for another player" });
+    return;
+  }
+
+  const [existing] = await db.select().from(scoresTable)
+    .where(and(eq(scoresTable.roundId, roundId), eq(scoresTable.playerId, playerId)))
+    .limit(1);
+
+  let row;
+  if (existing) {
+    const newHoleScores = [...existing.holeScores];
+    while (newHoleScores.length < 18) newHoleScores.push(null);
+    newHoleScores[holeIdx] = score ?? null;
+    [row] = await db.update(scoresTable)
+      .set({ holeScores: newHoleScores, updatedAt: new Date() })
+      .where(eq(scoresTable.id, existing.id))
+      .returning();
+  } else {
+    const newHoleScores = new Array(18).fill(null) as (number | null)[];
+    newHoleScores[holeIdx] = score ?? null;
+    [row] = await db.insert(scoresTable).values({ roundId, playerId, holeScores: newHoleScores }).returning();
+  }
+  res.json(ser(row));
 });
 
 export default router;

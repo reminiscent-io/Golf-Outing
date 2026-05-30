@@ -942,6 +942,52 @@ paths:
         "404":
           description: Round not found
 
+  /rounds/{roundId}/scores:
+    get:
+      operationId: getSoloRoundScores
+      tags: [scores]
+      summary: Get all score rows for a (solo) round, keyed by roundId only
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerScore"
+    put:
+      operationId: upsertSoloRoundScore
+      tags: [scores]
+      summary: Upsert one player's score for one hole (solo round path)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertScoreBody"
+      responses:
+        "200":
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerScore"
+
   /trips/{tripId}/rounds:
     get:
       operationId: listRounds

@@ -3464,6 +3464,182 @@ export const useDeleteSoloRound = <
 };
 
 /**
+ * @summary Get all score rows for a (solo) round, keyed by roundId only
+ */
+export const getGetSoloRoundScoresUrl = (roundId: number) => {
+  return `/api/rounds/${roundId}/scores`;
+};
+
+export const getSoloRoundScores = async (
+  roundId: number,
+  options?: RequestInit,
+): Promise<PlayerScore[]> => {
+  return customFetch<PlayerScore[]>(getGetSoloRoundScoresUrl(roundId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSoloRoundScoresQueryKey = (roundId: number) => {
+  return [`/api/rounds/${roundId}/scores`] as const;
+};
+
+export const getGetSoloRoundScoresQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSoloRoundScores>>,
+  TError = ErrorType<unknown>,
+>(
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSoloRoundScores>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetSoloRoundScoresQueryKey(roundId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSoloRoundScores>>
+  > = ({ signal }) =>
+    getSoloRoundScores(roundId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!roundId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSoloRoundScores>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSoloRoundScoresQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSoloRoundScores>>
+>;
+export type GetSoloRoundScoresQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get all score rows for a (solo) round, keyed by roundId only
+ */
+
+export function useGetSoloRoundScores<
+  TData = Awaited<ReturnType<typeof getSoloRoundScores>>,
+  TError = ErrorType<unknown>,
+>(
+  roundId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSoloRoundScores>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSoloRoundScoresQueryOptions(roundId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Upsert one player's score for one hole (solo round path)
+ */
+export const getUpsertSoloRoundScoreUrl = (roundId: number) => {
+  return `/api/rounds/${roundId}/scores`;
+};
+
+export const upsertSoloRoundScore = async (
+  roundId: number,
+  upsertScoreBody: UpsertScoreBody,
+  options?: RequestInit,
+): Promise<PlayerScore> => {
+  return customFetch<PlayerScore>(getUpsertSoloRoundScoreUrl(roundId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(upsertScoreBody),
+  });
+};
+
+export const getUpsertSoloRoundScoreMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertSoloRoundScore>>,
+    TError,
+    { roundId: number; data: BodyType<UpsertScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof upsertSoloRoundScore>>,
+  TError,
+  { roundId: number; data: BodyType<UpsertScoreBody> },
+  TContext
+> => {
+  const mutationKey = ["upsertSoloRoundScore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof upsertSoloRoundScore>>,
+    { roundId: number; data: BodyType<UpsertScoreBody> }
+  > = (props) => {
+    const { roundId, data } = props ?? {};
+
+    return upsertSoloRoundScore(roundId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpsertSoloRoundScoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof upsertSoloRoundScore>>
+>;
+export type UpsertSoloRoundScoreMutationBody = BodyType<UpsertScoreBody>;
+export type UpsertSoloRoundScoreMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Upsert one player's score for one hole (solo round path)
+ */
+export const useUpsertSoloRoundScore = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertSoloRoundScore>>,
+    TError,
+    { roundId: number; data: BodyType<UpsertScoreBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof upsertSoloRoundScore>>,
+  TError,
+  { roundId: number; data: BodyType<UpsertScoreBody> },
+  TContext
+> => {
+  return useMutation(getUpsertSoloRoundScoreMutationOptions(options));
+};
+
+/**
  * @summary List rounds in a trip
  */
 export const getListRoundsUrl = (tripId: number) => {
