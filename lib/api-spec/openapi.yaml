@@ -821,6 +821,31 @@ paths:
         "204":
           description: Deleted
 
+  /rounds:
+    post:
+      operationId: createRoundV2
+      tags: [rounds]
+      summary: Create a round, optionally attached to a trip
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoundV2Body"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRoundV2Response"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Caller is not a player or follower of the requested trip
+
   /trips/{tripId}/rounds:
     get:
       operationId: listRounds
@@ -1995,6 +2020,47 @@ components:
         - id
         - playerA
         - playerB
+
+    CreateRoundV2Body:
+      type: object
+      properties:
+        tripId:
+          type: ["integer", "null"]
+          description: Optional trip to attach this round to. Caller must be a player or follower of that trip.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        course:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        par:
+          type: array
+          items:
+            type: integer
+        holeHcp:
+          type: array
+          items:
+            type: integer
+        teeBox:
+          type: ["string", "null"]
+        courseRating:
+          type: ["number", "null"]
+        courseSlope:
+          type: ["integer", "null"]
+      required: [name]
+
+    CreateRoundV2Response:
+      type: object
+      properties:
+        tripId:
+          type: ["integer", "null"]
+        roundId:
+          type: integer
+        playerId:
+          type: integer
+      required: [roundId, playerId]
 
     CreateRoundBody:
       type: object
