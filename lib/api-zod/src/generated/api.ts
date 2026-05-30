@@ -21,11 +21,6 @@ export const ListTripsResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
-  kind: zod
-    .enum(["event", "personal"])
-    .describe(
-      "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
-    ),
   createdByUserId: zod
     .number()
     .nullish()
@@ -56,11 +51,6 @@ export const GetTripResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
-  kind: zod
-    .enum(["event", "personal"])
-    .describe(
-      "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
-    ),
   createdByUserId: zod
     .number()
     .nullish()
@@ -87,11 +77,6 @@ export const UpdateTripResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   description: zod.string().nullish(),
-  kind: zod
-    .enum(["event", "personal"])
-    .describe(
-      "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
-    ),
   createdByUserId: zod
     .number()
     .nullish()
@@ -334,11 +319,6 @@ export const ListMyTripsResponseItem = zod.object({
     id: zod.number(),
     name: zod.string(),
     description: zod.string().nullish(),
-    kind: zod
-      .enum(["event", "personal"])
-      .describe(
-        "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
-      ),
     createdByUserId: zod
       .number()
       .nullish()
@@ -549,11 +529,6 @@ export const ListMyRoundsResponseItem = zod.object({
         id: zod.number(),
         name: zod.string(),
         description: zod.string().nullish(),
-        kind: zod
-          .enum(["event", "personal"])
-          .describe(
-            "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
-          ),
         createdByUserId: zod
           .number()
           .nullish()
@@ -581,22 +556,6 @@ export const ListMyRoundsResponseItem = zod.object({
     .describe("Number of holes the caller has a score for."),
 });
 export const ListMyRoundsResponse = zod.array(ListMyRoundsResponseItem);
-
-/**
- * @summary Find-or-create the caller's personal trip and create a round inside it
- */
-export const createSoloRoundBodyNameMax = 120;
-
-export const CreateSoloRoundBody = zod.object({
-  name: zod.string().min(1).max(createSoloRoundBodyNameMax),
-  course: zod.string().nullish(),
-  date: zod.string().nullish(),
-  par: zod.array(zod.number()).optional(),
-  holeHcp: zod.array(zod.number()).optional(),
-  teeBox: zod.string().nullish(),
-  courseRating: zod.number().nullish(),
-  courseSlope: zod.number().nullish(),
-});
 
 /**
  * @summary Save (follow) a trip to the current user's account
@@ -638,13 +597,6 @@ export const GetUserProfileResponse = zod.object({
       zod.object({
         roundId: zod.number(),
         tripId: zod.number().nullable(),
-        tripKind: zod
-          .union([
-            zod.literal("event"),
-            zod.literal("personal"),
-            zod.literal(null),
-          ])
-          .nullable(),
         name: zod.string(),
         course: zod.string().nullish(),
         date: zod.string().nullish(),
@@ -894,13 +846,6 @@ export const GetFeedResponse = zod.object({
     zod.object({
       roundId: zod.number(),
       tripId: zod.number().nullable(),
-      tripKind: zod
-        .union([
-          zod.literal("event"),
-          zod.literal("personal"),
-          zod.literal(null),
-        ])
-        .nullable(),
       name: zod.string(),
       course: zod.string().nullish(),
       date: zod.string().nullish(),

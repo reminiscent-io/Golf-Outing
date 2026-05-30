@@ -1,8 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
-  roundsTable,
-  tripsTable,
   playersTable,
   scoresTable,
   roundKudosTable,
@@ -17,7 +15,6 @@ export type FeedPlayer = { playerId: number; playerName: string; userId: number 
 export type FeedItem = {
   roundId: number;
   tripId: number | null;
-  tripKind: "event" | "personal" | null;
   name: string;
   course: string | null;
   date: string | null;
@@ -44,8 +41,7 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
   const roundIds = rounds.map(r => r.id);
   const tripIds = Array.from(new Set(rounds.map(r => r.tripId).filter((x): x is number => x !== null)));
 
-  const [trips, players, scores, assignments, kudosCounts, commentCounts, viewerKudos] = await Promise.all([
-    db.select().from(tripsTable).where(inArray(tripsTable.id, tripIds)),
+  const [players, scores, assignments, kudosCounts, commentCounts, viewerKudos] = await Promise.all([
     db.select().from(playersTable).where(inArray(playersTable.tripId, tripIds)),
     db.select().from(scoresTable).where(inArray(scoresTable.roundId, roundIds)),
     db.select().from(roundGroupAssignmentsTable).where(inArray(roundGroupAssignmentsTable.roundId, roundIds)),
@@ -59,7 +55,6 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
       .from(roundKudosTable).where(and(inArray(roundKudosTable.roundId, roundIds), eq(roundKudosTable.userId, viewerId))),
   ]);
 
-  const tripById = new Map(trips.map(t => [t.id, t]));
   const playersByTrip = new Map<number, typeof players>();
   for (const p of players) {
     if (p.tripId === null) continue;
@@ -84,7 +79,6 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
   const viewerKudosed = new Set(viewerKudos.map(k => k.roundId));
 
   return rounds.map((r): FeedItem => {
-    const trip = r.tripId == null ? null : (tripById.get(r.tripId) ?? null);
     const tripPlayers = r.tripId == null ? [] : (playersByTrip.get(r.tripId) ?? []);
     const summary = summarizeRound({
       roundId: r.id,
@@ -99,7 +93,6 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
     return {
       roundId: r.id,
       tripId: r.tripId ?? null,
-      tripKind: trip?.kind ?? null,
       name: r.name,
       course: r.course ?? null,
       date: r.date ?? null,

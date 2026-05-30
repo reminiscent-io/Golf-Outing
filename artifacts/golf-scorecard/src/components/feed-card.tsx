@@ -12,7 +12,7 @@ export function FeedCard({ item }: Props) {
   const [, navigate] = useLocation();
 
   const isLive = item.completedAt == null;
-  const tripKindLabel = item.tripKind === "personal" ? "Solo round" : null;
+  const tripKindLabel = item.tripId == null ? "Solo round" : null;
 
   function toggleKudos() {
     const mutate = (item.viewerHasKudosed ? revoke.mutate : give.mutate);

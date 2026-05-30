@@ -24,8 +24,6 @@ import type {
   CreateRoundCommentBody,
   CreateRoundV2Body,
   CreateRoundV2Response,
-  CreateSoloRoundBody,
-  CreateSoloRoundResponse,
   CreateTripBody,
   FeedPage,
   FollowEntry,
@@ -1269,92 +1267,6 @@ export function useListMyRounds<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
-
-/**
- * @summary Find-or-create the caller's personal trip and create a round inside it
- */
-export const getCreateSoloRoundUrl = () => {
-  return `/api/users/me/personal-trip/rounds`;
-};
-
-export const createSoloRound = async (
-  createSoloRoundBody: CreateSoloRoundBody,
-  options?: RequestInit,
-): Promise<CreateSoloRoundResponse> => {
-  return customFetch<CreateSoloRoundResponse>(getCreateSoloRoundUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(createSoloRoundBody),
-  });
-};
-
-export const getCreateSoloRoundMutationOptions = <
-  TError = ErrorType<void>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createSoloRound>>,
-    TError,
-    { data: BodyType<CreateSoloRoundBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createSoloRound>>,
-  TError,
-  { data: BodyType<CreateSoloRoundBody> },
-  TContext
-> => {
-  const mutationKey = ["createSoloRound"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createSoloRound>>,
-    { data: BodyType<CreateSoloRoundBody> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return createSoloRound(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type CreateSoloRoundMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createSoloRound>>
->;
-export type CreateSoloRoundMutationBody = BodyType<CreateSoloRoundBody>;
-export type CreateSoloRoundMutationError = ErrorType<void>;
-
-/**
- * @summary Find-or-create the caller's personal trip and create a round inside it
- */
-export const useCreateSoloRound = <
-  TError = ErrorType<void>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createSoloRound>>,
-    TError,
-    { data: BodyType<CreateSoloRoundBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof createSoloRound>>,
-  TError,
-  { data: BodyType<CreateSoloRoundBody> },
-  TContext
-> => {
-  return useMutation(getCreateSoloRoundMutationOptions(options));
-};
 
 /**
  * @summary Save (follow) a trip to the current user's account

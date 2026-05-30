@@ -9,23 +9,11 @@ export interface HealthStatus {
   status: string;
 }
 
-/**
- * `event` = shared trip with friends. `personal` = solo-round bucket, one per user.
- */
-export type TripKind = (typeof TripKind)[keyof typeof TripKind];
-
-export const TripKind = {
-  event: "event",
-  personal: "personal",
-} as const;
-
 export interface Trip {
   id: number;
   name: string;
   /** @nullable */
   description?: string | null;
-  /** `event` = shared trip with friends. `personal` = solo-round bucket, one per user. */
-  kind: TripKind;
   /**
    * User who created the trip; null for legacy trips created before attribution.
    * @nullable
@@ -163,18 +151,6 @@ export interface UserProfileStats {
   coursesPlayed: number;
 }
 
-/**
- * @nullable
- */
-export type FeedItemTripKind =
-  | (typeof FeedItemTripKind)[keyof typeof FeedItemTripKind]
-  | null;
-
-export const FeedItemTripKind = {
-  event: "event",
-  personal: "personal",
-} as const;
-
 export type FeedItemVisibility =
   (typeof FeedItemVisibility)[keyof typeof FeedItemVisibility];
 
@@ -205,8 +181,6 @@ export interface FeedItem {
   roundId: number;
   /** @nullable */
   tripId: number | null;
-  /** @nullable */
-  tripKind: FeedItemTripKind;
   name: string;
   /** @nullable */
   course?: string | null;
@@ -303,32 +277,6 @@ export interface FeedPage {
   items: FeedItem[];
   /** @nullable */
   nextBefore: string | null;
-}
-
-export interface CreateSoloRoundBody {
-  /**
-   * @minLength 1
-   * @maxLength 120
-   */
-  name: string;
-  /** @nullable */
-  course?: string | null;
-  /** @nullable */
-  date?: string | null;
-  par?: number[];
-  holeHcp?: number[];
-  /** @nullable */
-  teeBox?: string | null;
-  /** @nullable */
-  courseRating?: number | null;
-  /** @nullable */
-  courseSlope?: number | null;
-}
-
-export interface CreateSoloRoundResponse {
-  tripId: number;
-  roundId: number;
-  playerId: number;
 }
 
 export interface RequestOtpBody {
