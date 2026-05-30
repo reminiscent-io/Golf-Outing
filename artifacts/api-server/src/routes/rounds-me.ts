@@ -162,4 +162,30 @@ router.patch("/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): P
   res.json(ser(updated));
 });
 
+router.delete("/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const userId = req.user!.id;
+  const roundId = Number(req.params.roundId);
+  if (!Number.isFinite(roundId)) { res.status(400).json({ error: "Invalid roundId" }); return; }
+
+  const [round] = await db.select({
+    id: roundsTable.id,
+    tripId: roundsTable.tripId,
+    createdByUserId: roundsTable.createdByUserId,
+  }).from(roundsTable).where(eq(roundsTable.id, roundId)).limit(1);
+
+  if (!round) { res.status(404).json({ error: "Round not found" }); return; }
+  if (round.tripId !== null) {
+    // Trip rounds delete via /trips/:tripId/rounds/:roundId.
+    res.status(404).json({ error: "Round not found" });
+    return;
+  }
+  if (round.createdByUserId !== userId) {
+    res.status(403).json({ error: "Only the round creator can delete this round" });
+    return;
+  }
+
+  await db.delete(roundsTable).where(eq(roundsTable.id, roundId));
+  res.sendStatus(204);
+});
+
 export default router;
