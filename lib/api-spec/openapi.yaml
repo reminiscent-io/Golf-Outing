@@ -303,6 +303,33 @@ paths:
         "401":
           description: Unauthorized
 
+  /users/me/rounds:
+    get:
+      operationId: listMyRounds
+      tags: [users]
+      summary: All rounds where the caller has a player row, joined to optional trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, solo, trip]
+            default: all
+      responses:
+        "200":
+          description: Rounds
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyRoundsItem"
+        "401":
+          description: Unauthorized
+
   /users/me/personal-trip/rounds:
     post:
       operationId: createSoloRound
@@ -2089,6 +2116,26 @@ components:
         - id
         - playerA
         - playerB
+
+    MyRoundsItem:
+      type: object
+      properties:
+        round:
+          $ref: "#/components/schemas/Round"
+        trip:
+          oneOf:
+            - $ref: "#/components/schemas/Trip"
+            - type: "null"
+        gross:
+          type: ["integer", "null"]
+          description: Caller's gross total if the round is complete, else null.
+        net:
+          type: ["number", "null"]
+          description: Caller's net total relative to par if the round is complete, else null.
+        holesPlayed:
+          type: integer
+          description: Number of holes the caller has a score for.
+      required: [round, holesPlayed]
 
     CreateRoundV2Body:
       type: object
