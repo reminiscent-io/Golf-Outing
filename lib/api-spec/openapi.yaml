@@ -846,6 +846,75 @@ paths:
         "403":
           description: Caller is not a player or follower of the requested trip
 
+  /rounds/{roundId}:
+    get:
+      operationId: getSoloRound
+      tags: [rounds]
+      summary: Get a round by id (works for both solo and trip rounds)
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Round"
+        "404":
+          description: Not found or not visible
+    patch:
+      operationId: updateSoloRound
+      tags: [rounds]
+      summary: Update a solo round (trip-attached rounds use the trip-scoped endpoint)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoundBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Round"
+        "403":
+          description: Caller does not own this round
+        "404":
+          description: Round not found
+    delete:
+      operationId: deleteSoloRound
+      tags: [rounds]
+      summary: Delete a solo round
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Caller does not own this round
+        "404":
+          description: Round not found
+
   /trips/{tripId}/rounds:
     get:
       operationId: listRounds
