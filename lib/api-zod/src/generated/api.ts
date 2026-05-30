@@ -456,6 +456,133 @@ export const GetMyStatsResponse = zod
   );
 
 /**
+ * @summary All rounds where the caller has a player row, joined to optional trip
+ */
+export const listMyRoundsQueryFilterDefault = `all`;
+
+export const ListMyRoundsQueryParams = zod.object({
+  filter: zod
+    .enum(["all", "solo", "trip"])
+    .default(listMyRoundsQueryFilterDefault),
+});
+
+export const ListMyRoundsResponseItem = zod.object({
+  round: zod.object({
+    id: zod.number(),
+    tripId: zod.number(),
+    createdByUserId: zod
+      .number()
+      .nullish()
+      .describe(
+        "User who created the round; null for legacy rounds created before attribution.",
+      ),
+    name: zod.string(),
+    course: zod.string().nullish(),
+    date: zod.string().nullish(),
+    par: zod.array(zod.number()).describe("18 values - par for each hole"),
+    holeHcp: zod
+      .array(zod.number())
+      .describe("18 values - handicap stroke index for each hole (1-18)"),
+    gamesConfig: zod.object({
+      stableford: zod.boolean(),
+      skins: zod.boolean(),
+      nassau: zod.boolean(),
+      netStroke: zod.boolean(),
+      bestBall: zod.boolean(),
+      bestBallTeams: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            name: zod.string(),
+            playerIds: zod.array(zod.number()),
+          }),
+        )
+        .optional(),
+      matchPlay: zod.boolean(),
+      matchPlayMatches: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            playerA: zod.number(),
+            playerB: zod.number(),
+          }),
+        )
+        .optional(),
+      scramble: zod
+        .boolean()
+        .optional()
+        .describe(
+          "When true, scramble replaces individual game modes for this round.",
+        ),
+      scrambleType: zod
+        .union([
+          zod.literal("fourMan"),
+          zod.literal("twoMan"),
+          zod.literal(null),
+        ])
+        .nullish()
+        .describe(
+          "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.",
+        ),
+    }),
+    handicapMode: zod
+      .enum(["net", "gross"])
+      .describe(
+        "net = course-adjusted (low plays scratch); gross = use raw handicap",
+      ),
+    teeBox: zod.string().nullish(),
+    courseRating: zod.number().nullish(),
+    courseSlope: zod.number().nullish(),
+    visibility: zod.enum(["public", "private"]),
+    completedAt: zod
+      .string()
+      .nullish()
+      .describe(
+        "ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.",
+      ),
+    createdAt: zod.string(),
+    updatedAt: zod.string(),
+  }),
+  trip: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        name: zod.string(),
+        description: zod.string().nullish(),
+        kind: zod
+          .enum(["event", "personal"])
+          .describe(
+            "`event` = shared trip with friends. `personal` = solo-round bucket, one per user.",
+          ),
+        createdByUserId: zod
+          .number()
+          .nullish()
+          .describe(
+            "User who created the trip; null for legacy trips created before attribution.",
+          ),
+        createdAt: zod.string(),
+        updatedAt: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  gross: zod
+    .number()
+    .nullish()
+    .describe("Caller's gross total if the round is complete, else null."),
+  net: zod
+    .number()
+    .nullish()
+    .describe(
+      "Caller's net total relative to par if the round is complete, else null.",
+    ),
+  holesPlayed: zod
+    .number()
+    .describe("Number of holes the caller has a score for."),
+});
+export const ListMyRoundsResponse = zod.array(ListMyRoundsResponseItem);
+
+/**
  * @summary Find-or-create the caller's personal trip and create a round inside it
  */
 export const createSoloRoundBodyNameMax = 120;
@@ -849,6 +976,258 @@ export const UpdatePlayerResponse = zod.object({
 export const DeletePlayerParams = zod.object({
   tripId: zod.coerce.number(),
   playerId: zod.coerce.number(),
+});
+
+/**
+ * @summary Create a round, optionally attached to a trip
+ */
+export const createRoundV2BodyNameMax = 120;
+
+export const CreateRoundV2Body = zod.object({
+  tripId: zod
+    .number()
+    .nullish()
+    .describe(
+      "Optional trip to attach this round to. Caller must be a player or follower of that trip.",
+    ),
+  name: zod.string().min(1).max(createRoundV2BodyNameMax),
+  course: zod.string().nullish(),
+  date: zod.string().nullish(),
+  par: zod.array(zod.number()).optional(),
+  holeHcp: zod.array(zod.number()).optional(),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
+});
+
+/**
+ * @summary Get a round by id (works for both solo and trip rounds)
+ */
+export const GetSoloRoundParams = zod.object({
+  roundId: zod.coerce.number(),
+});
+
+export const GetSoloRoundResponse = zod.object({
+  id: zod.number(),
+  tripId: zod.number(),
+  createdByUserId: zod
+    .number()
+    .nullish()
+    .describe(
+      "User who created the round; null for legacy rounds created before attribution.",
+    ),
+  name: zod.string(),
+  course: zod.string().nullish(),
+  date: zod.string().nullish(),
+  par: zod.array(zod.number()).describe("18 values - par for each hole"),
+  holeHcp: zod
+    .array(zod.number())
+    .describe("18 values - handicap stroke index for each hole (1-18)"),
+  gamesConfig: zod.object({
+    stableford: zod.boolean(),
+    skins: zod.boolean(),
+    nassau: zod.boolean(),
+    netStroke: zod.boolean(),
+    bestBall: zod.boolean(),
+    bestBallTeams: zod
+      .array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          playerIds: zod.array(zod.number()),
+        }),
+      )
+      .optional(),
+    matchPlay: zod.boolean(),
+    matchPlayMatches: zod
+      .array(
+        zod.object({
+          id: zod.string(),
+          playerA: zod.number(),
+          playerB: zod.number(),
+        }),
+      )
+      .optional(),
+    scramble: zod
+      .boolean()
+      .optional()
+      .describe(
+        "When true, scramble replaces individual game modes for this round.",
+      ),
+    scrambleType: zod
+      .union([zod.literal("fourMan"), zod.literal("twoMan"), zod.literal(null)])
+      .nullish()
+      .describe(
+        "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.",
+      ),
+  }),
+  handicapMode: zod
+    .enum(["net", "gross"])
+    .describe(
+      "net = course-adjusted (low plays scratch); gross = use raw handicap",
+    ),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
+  visibility: zod.enum(["public", "private"]),
+  completedAt: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.",
+    ),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Update a solo round (trip-attached rounds use the trip-scoped endpoint)
+ */
+export const UpdateSoloRoundParams = zod.object({
+  roundId: zod.coerce.number(),
+});
+
+export const UpdateSoloRoundBody = zod.object({
+  name: zod.string().optional(),
+  course: zod.string().nullish(),
+  date: zod.string().nullish(),
+  par: zod.array(zod.number()).optional(),
+  holeHcp: zod.array(zod.number()).optional(),
+  gamesConfig: zod
+    .object({
+      stableford: zod.boolean(),
+      skins: zod.boolean(),
+      nassau: zod.boolean(),
+      netStroke: zod.boolean(),
+      bestBall: zod.boolean(),
+      bestBallTeams: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            name: zod.string(),
+            playerIds: zod.array(zod.number()),
+          }),
+        )
+        .optional(),
+      matchPlay: zod.boolean(),
+      matchPlayMatches: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            playerA: zod.number(),
+            playerB: zod.number(),
+          }),
+        )
+        .optional(),
+      scramble: zod
+        .boolean()
+        .optional()
+        .describe(
+          "When true, scramble replaces individual game modes for this round.",
+        ),
+      scrambleType: zod
+        .union([
+          zod.literal("fourMan"),
+          zod.literal("twoMan"),
+          zod.literal(null),
+        ])
+        .nullish()
+        .describe(
+          "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.",
+        ),
+    })
+    .optional(),
+  handicapMode: zod.enum(["net", "gross"]).optional(),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
+  visibility: zod.enum(["public", "private"]).optional(),
+  completedAt: zod
+    .string()
+    .nullish()
+    .describe(
+      "Send a timestamp to mark the round complete; send null to clear.",
+    ),
+});
+
+export const UpdateSoloRoundResponse = zod.object({
+  id: zod.number(),
+  tripId: zod.number(),
+  createdByUserId: zod
+    .number()
+    .nullish()
+    .describe(
+      "User who created the round; null for legacy rounds created before attribution.",
+    ),
+  name: zod.string(),
+  course: zod.string().nullish(),
+  date: zod.string().nullish(),
+  par: zod.array(zod.number()).describe("18 values - par for each hole"),
+  holeHcp: zod
+    .array(zod.number())
+    .describe("18 values - handicap stroke index for each hole (1-18)"),
+  gamesConfig: zod.object({
+    stableford: zod.boolean(),
+    skins: zod.boolean(),
+    nassau: zod.boolean(),
+    netStroke: zod.boolean(),
+    bestBall: zod.boolean(),
+    bestBallTeams: zod
+      .array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          playerIds: zod.array(zod.number()),
+        }),
+      )
+      .optional(),
+    matchPlay: zod.boolean(),
+    matchPlayMatches: zod
+      .array(
+        zod.object({
+          id: zod.string(),
+          playerA: zod.number(),
+          playerB: zod.number(),
+        }),
+      )
+      .optional(),
+    scramble: zod
+      .boolean()
+      .optional()
+      .describe(
+        "When true, scramble replaces individual game modes for this round.",
+      ),
+    scrambleType: zod
+      .union([zod.literal("fourMan"), zod.literal("twoMan"), zod.literal(null)])
+      .nullish()
+      .describe(
+        "fourMan = whole group is one team. twoMan = slots 1-2 and 3-4 form two cart teams.",
+      ),
+  }),
+  handicapMode: zod
+    .enum(["net", "gross"])
+    .describe(
+      "net = course-adjusted (low plays scratch); gross = use raw handicap",
+    ),
+  teeBox: zod.string().nullish(),
+  courseRating: zod.number().nullish(),
+  courseSlope: zod.number().nullish(),
+  visibility: zod.enum(["public", "private"]),
+  completedAt: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.",
+    ),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Delete a solo round
+ */
+export const DeleteSoloRoundParams = zod.object({
+  roundId: zod.coerce.number(),
 });
 
 /**
