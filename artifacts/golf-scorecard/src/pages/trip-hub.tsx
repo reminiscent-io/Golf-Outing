@@ -10,6 +10,7 @@ import {
   useUpdatePlayer,
   useDeletePlayer,
   useCreateRound,
+  useDeleteRound,
   useListMyTrips,
   useSaveTrip,
   useUnsaveTrip,
@@ -124,6 +125,8 @@ export default function TripHubPage() {
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
   const createRound = useCreateRound();
+  const deleteRound = useDeleteRound();
+  const currentUserId = session?.user.id;
 
   // Player form state
   const [showAddPlayer, setShowAddPlayer] = useState(false);
@@ -190,6 +193,19 @@ export default function TripHubPage() {
     deletePlayer.mutate(
       { tripId, playerId },
       { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListPlayersQueryKey(tripId) }) }
+    );
+  }
+
+  function handleDeleteRound(roundId: number) {
+    if (!confirm("Delete this round? This will permanently remove all of its scores and cannot be undone.")) return;
+    deleteRound.mutate(
+      { tripId, roundId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListRoundsQueryKey(tripId) });
+          queryClient.invalidateQueries({ queryKey: getGetTripLeaderboardQueryKey(tripId) });
+        },
+      }
     );
   }
 
@@ -494,7 +510,15 @@ export default function TripHubPage() {
             )}
 
             {rounds && rounds.length > 0 ? (
-              rounds.map(round => (
+              rounds.map(round => {
+                // Mirror the server rule: the round's creator or the trip's
+                // creator may delete it.
+                const canDeleteRound = !!currentUserId && (
+                  round.createdByUserId === currentUserId ||
+                  trip?.createdByUserId === currentUserId
+                );
+                const deletingThis = deleteRound.isPending && deleteRound.variables?.roundId === round.id;
+                return (
                 <div
                   key={round.id}
                   onClick={() => navigate(`/trips/${tripId}/rounds/${round.id}`)}
@@ -517,9 +541,24 @@ export default function TripHubPage() {
                       </div>
                     </div>
                   </div>
-                  <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
+                  <div className="flex items-center gap-1 shrink-0">
+                    {canDeleteRound && (
+                      <button
+                        type="button"
+                        aria-label={`Delete ${round.name}`}
+                        disabled={deletingThis}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteRound(round.id); }}
+                        className="p-1.5 rounded-lg transition-opacity hover:opacity-70 disabled:opacity-50"
+                        style={{ color: "hsl(0 55% 42%)" }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                    <ChevronRight size={18} style={{ color: "hsl(38 20% 50%)" }} />
+                  </div>
                 </div>
-              ))
+                );
+              })
             ) : (
               !showAddRound && (
                 <div className="text-center py-12">
