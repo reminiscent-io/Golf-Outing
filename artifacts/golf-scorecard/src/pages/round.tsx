@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, Fragment } from "react";
+import { useState, useCallback, useRef, useEffect, Fragment, type CSSProperties } from "react";
 import { useLocation, useParams, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -37,6 +37,33 @@ import { useOfflineSync } from "@/lib/offline-sync";
 type SubTab = "scorecard" | "results" | "setup";
 type ScrambleType = "fourMan" | "twoMan";
 type ScrambleTeamSide = "A" | "B" | "G";
+
+// Renders a player's name. If the player is linked to a user account, the name
+// becomes a link to that user's profile (the profile page itself enforces
+// public/private visibility). Otherwise it renders as plain text.
+function PlayerProfileName({
+  playerId,
+  name,
+  players,
+  className,
+  style,
+}: {
+  playerId: number | null | undefined;
+  name: string;
+  players: ReadonlyArray<{ id: number; userId?: number | null }> | undefined;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  const uid = playerId == null ? null : (players?.find(p => p.id === playerId)?.userId ?? null);
+  if (uid != null) {
+    return (
+      <Link href={`/users/${uid}`} className={`${className ?? ""} hover:underline`.trim()} style={style}>
+        {name}
+      </Link>
+    );
+  }
+  return <span className={className} style={style}>{name}</span>;
+}
 
 // Scoring helpers (client-side for color coding)
 function strokesOnHole(hcp: number, holeHcpIdx: number): number {
@@ -1551,14 +1578,13 @@ export default function RoundPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-sans font-semibold w-4 text-center" style={{ color: "hsl(38 20% 45%)" }}>{idx + 1}</span>
                         <div>
-                          {(() => {
-                            const uid = (players ?? []).find(p => p.id === e.playerId)?.userId;
-                            return uid != null ? (
-                              <Link href={`/users/${uid}`} className="font-sans font-semibold text-sm hover:underline" style={{ color: "hsl(38 30% 14%)" }}>{e.playerName}</Link>
-                            ) : (
-                              <div className="font-sans font-semibold text-sm" style={{ color: "hsl(38 30% 14%)" }}>{e.playerName}</div>
-                            );
-                          })()}
+                          <PlayerProfileName
+                            playerId={e.playerId}
+                            name={e.playerName}
+                            players={players}
+                            className="font-sans font-semibold text-sm"
+                            style={{ color: "hsl(38 30% 14%)" }}
+                          />
                           <div className="text-[10px]" style={{ color: "hsl(38 20% 42%)" }}>{e.holesPlayed}/18 holes</div>
                         </div>
                       </div>
@@ -1584,8 +1610,15 @@ export default function RoundPage() {
                   {leaderboard.nassauResult.matches.map(m => {
                     const nameFor = (id: number) =>
                       leaderboard.entries.find(e => e.playerId === id)?.playerName?.split(" ")[0] ?? `#${id}`;
-                    const teamAName = m.teamAPlayerIds.map(nameFor).join(" / ") || "—";
-                    const teamBName = m.teamBPlayerIds.map(nameFor).join(" / ") || "—";
+                    const renderTeam = (ids: number[]) =>
+                      ids.length === 0
+                        ? "—"
+                        : ids.map((id, i) => (
+                            <Fragment key={id}>
+                              {i > 0 && " / "}
+                              <PlayerProfileName playerId={id} name={nameFor(id)} players={players} className="font-sans text-xs" />
+                            </Fragment>
+                          ));
                     const outcomeLabel = (side: "A" | "B" | "halved" | null, margin: number) => {
                       if (side == null) return "—";
                       if (side === "halved") return "All square";
@@ -1598,7 +1631,7 @@ export default function RoundPage() {
                             Group {m.groupNumber}
                           </div>
                           <div className="font-sans text-xs" style={{ color: "hsl(38 20% 45%)" }}>
-                            Team {m.teamA} ({teamAName}) vs Team {m.teamB} ({teamBName})
+                            Team {m.teamA} ({renderTeam(m.teamAPlayerIds)}) vs Team {m.teamB} ({renderTeam(m.teamBPlayerIds)})
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
@@ -1641,7 +1674,11 @@ export default function RoundPage() {
                     >
                       <div className="font-serif font-semibold text-sm" style={{ color: "hsl(38 30% 14%)" }}>#{s.hole}</div>
                       <div className="font-sans text-sm" style={{ color: s.winnerId ? "hsl(148 45% 30%)" : s.tied ? "hsl(38 20% 45%)" : "hsl(38 20% 55%)" }}>
-                        {s.winnerName ?? (s.tied ? "Tied — carries" : "—")}
+                        {s.winnerId != null && s.winnerName != null ? (
+                          <PlayerProfileName playerId={s.winnerId} name={s.winnerName} players={players} className="font-sans text-sm" />
+                        ) : (
+                          s.winnerName ?? (s.tied ? "Tied — carries" : "—")
+                        )}
                       </div>
                       <div className="text-right font-serif text-sm font-semibold" style={{ color: "hsl(42 52% 45%)" }}>
                         {s.carry > 1 || s.winnerId ? (s.carry > 1 && !s.winnerId ? `${s.carry} carry` : s.carry) : ""}
