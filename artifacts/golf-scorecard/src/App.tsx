@@ -80,7 +80,7 @@ function NavBar() {
   return (
     <header
       aria-label="Primary"
-      className="w-full pt-safe pl-safe pr-safe"
+      className="sticky top-0 z-50 w-full pt-safe pl-safe pr-safe"
       style={{ background: NAV_BG, borderBottom: `1px solid ${NAV_BORDER}` }}
     >
       <div className="mx-auto flex h-12 items-center justify-between gap-3 px-3 sm:px-4">
