@@ -64,10 +64,11 @@ router.patch("/trips/:tripId/players/:playerId", optionalAuth, async (req: Optio
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
   if (parsed.data.handicap !== undefined) updateData.handicap = parsed.data.handicap;
 
-  // Allow setting userId only when the caller is authed and matches the requested userId
-  // (i.e. the user is claiming a row created earlier by someone else). We don't allow
-  // arbitrary impersonation here; if the body sends a userId that isn't req.user.id, we
-  // ignore it. Setting userId=null is allowed for explicit unlinking by the same user.
+  // Linking a player row to a user account is an *explicit* action: the body must
+  // send a userId. A user may only link a row to themselves (userId === req.user.id)
+  // or unlink it (userId === null); any other value is ignored so editing another
+  // player's name/handicap never silently claims their row. Incidental edits that
+  // omit userId leave the existing link untouched.
   if (parsed.data.userId !== undefined && req.user) {
     if (parsed.data.userId === null) {
       updateData.userId = null;
@@ -75,15 +76,6 @@ router.patch("/trips/:tripId/players/:playerId", optionalAuth, async (req: Optio
       // Optional sanity: verify user exists.
       const [u] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
       if (u) updateData.userId = req.user.id;
-    }
-  } else if (req.user) {
-    // No explicit userId in the body but caller is authed and the row is currently unlinked → claim it.
-    const [existing] = await db
-      .select()
-      .from(playersTable)
-      .where(and(eq(playersTable.id, params.data.playerId), eq(playersTable.tripId, params.data.tripId)));
-    if (existing && existing.userId == null) {
-      updateData.userId = req.user.id;
     }
   }
 

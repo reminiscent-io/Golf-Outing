@@ -125,10 +125,11 @@ export function TripAuthGate({ tripId, children }: Props) {
     if (selectedPlayerId === "" || !players) return;
     const player = players.find(p => p.id === selectedPlayerId);
     if (!player) return;
-    // Claim the player row for this user if not already linked.
-    if (player.userId == null) {
+    // Claim the player row for this user if not already linked. The userId must be
+    // sent explicitly — the server only links a row on an explicit self-claim.
+    if (player.userId == null && session) {
       updatePlayer.mutate(
-        { tripId, playerId: player.id, data: {} },
+        { tripId, playerId: player.id, data: { userId: session.user.id } },
         {
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: getListPlayersQueryKey(tripId) });
