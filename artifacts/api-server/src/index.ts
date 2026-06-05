@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
+import { startAutoCloseSweeper } from "./lib/auto-close";
 
 const rawPort = process.env["PORT"];
 
@@ -61,6 +62,8 @@ runStartupMigrations()
         process.exit(1);
       }
       logger.info({ port }, "Server listening");
+      // Sweep overdue rounds now and hourly so they close ~a day after their date.
+      startAutoCloseSweeper();
     });
   })
   .catch((err) => {
