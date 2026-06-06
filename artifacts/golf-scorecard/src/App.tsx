@@ -22,6 +22,8 @@ import { RequireSignIn } from "@/components/require-sign-in";
 import SoloRoundPage from "@/pages/solo-round";
 import { firstName } from "@/lib/format";
 import { SignInModal } from "@/components/sign-in-modal";
+import ClaimLandingPage from "@/pages/claim-landing";
+import { ClaimReviewModal } from "@/components/claim-review-modal";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -240,6 +242,7 @@ function Router() {
   return (
     <>
       <NavBar />
+      <ClaimReviewModal />
       <Switch>
         <Route path="/" component={HomeOrFeed} />
         <Route path="/landing" component={LandingPage} />
@@ -253,6 +256,7 @@ function Router() {
         <Route path="/rounds/:roundId" component={SoloRoundRouteGuard} />
         <Route path="/trips/:tripId" component={GatedTripHub} />
         <Route path="/trips/:tripId/rounds/:roundId" component={GatedRound} />
+        <Route path="/claim/:code" component={ClaimLandingPage} />
         <Route component={NotFound} />
       </Switch>
     </>
