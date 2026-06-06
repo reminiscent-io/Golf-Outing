@@ -20,7 +20,7 @@ Golf Trip Live Scorecard — a full-stack live scoring app (trips, rounds, 18-ho
 | [lib/api-spec/openapi.yaml](lib/api-spec/openapi.yaml) | **Source of truth** for the HTTP API. Edit this, then run codegen. |
 | [lib/api-client-react](lib/api-client-react/) | Orval-generated React Query hooks + shared [customFetch](lib/api-client-react/src/custom-fetch.ts) (handles base URL, auth header, JSON/text/blob parsing, `ApiError`). |
 | [lib/api-zod](lib/api-zod/) | Orval-generated Zod v4 validators (coerces query/param/body, `useDates`, `useBigInt`). |
-| [lib/db](lib/db/) | Drizzle schema + `pg.Pool`. Tables: `users`, `user_follows`, `user_trip_follows`, `trips`, `players`, `rounds`, `round_group_assignments`, `scores`, `scramble_scores`, `round_kudos`, `round_comments`. |
+| [lib/db](lib/db/) | Drizzle schema + `pg.Pool`. Tables: `users`, `user_follows`, `user_trip_follows`, `trips`, `players`, `rounds`, `round_group_assignments`, `scores`, `scramble_scores`, `round_kudos`, `round_comments`, `round_player_tees`. |
 | [artifacts/api-server](artifacts/api-server/) | Express server, routes in `src/routes/`, scoring algorithms in [src/lib/scoring.ts](artifacts/api-server/src/lib/scoring.ts). |
 | [artifacts/golf-scorecard](artifacts/golf-scorecard/) | Main React app. Routes in [App.tsx](artifacts/golf-scorecard/src/App.tsx): `/` (feed when signed in, landing otherwise), `/landing`, `/me/trips`, `/trips`, `/trips/new`, `/trips/:tripId`, `/trips/:tripId/rounds/:roundId`, `/profile`, `/users/:userId`, `/privacy`. |
 | [scripts](scripts/) | One-off tsx scripts (e.g. `test-golf-course-api`). |
