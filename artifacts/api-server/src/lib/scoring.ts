@@ -76,11 +76,6 @@ export function resolvePlayingHandicaps(
   return result;
 }
 
-export function fieldMinHandicap(players: { handicap: number }[]): number {
-  if (players.length === 0) return 0;
-  return Math.min(...players.map(p => Number(p.handicap) || 0));
-}
-
 export function netForHole(gross: number | null, playerHcp: number, holeHcpIdx: number): number | null {
   if (gross == null) return null;
   return gross - strokesOnHole(playerHcp, holeHcpIdx);

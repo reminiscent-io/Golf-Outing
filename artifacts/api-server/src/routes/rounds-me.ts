@@ -163,7 +163,7 @@ router.patch("/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): P
 
   const wantsTees = parsed.data.playerTees !== undefined;
   if (wantsTees) {
-    const soloPlayers = await db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.userId, userId));
+    const soloPlayers = await db.select({ id: playersTable.id }).from(playersTable).where(and(isNull(playersTable.tripId), eq(playersTable.userId, userId)));
     const validation = validatePlayerTees(parsed.data.playerTees!, new Set(soloPlayers.map(p => p.id)));
     if (!validation.ok) { res.status(400).json({ error: validation.error }); return; }
   }
