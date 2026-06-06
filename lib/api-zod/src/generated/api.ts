@@ -629,6 +629,12 @@ export const GetUserProfileResponse = zod.object({
             playerId: zod.number(),
             playerName: zod.string(),
             userId: zod.number().nullish(),
+            gross: zod
+              .number()
+              .nullish()
+              .describe(
+                "Running gross for live rounds, final gross when complete; null until a score is entered.",
+              ),
           }),
         ),
         summary: zod.object({
@@ -949,7 +955,7 @@ export const getFeedQueryLimitDefault = 20;
 export const getFeedQueryLimitMax = 50;
 
 export const GetFeedQueryParams = zod.object({
-  tab: zod.enum(["buddies", "following", "all"]),
+  tab: zod.enum(["buddies", "mine", "all"]),
   before: zod.coerce.string().optional(),
   limit: zod.coerce
     .number()
@@ -974,6 +980,12 @@ export const GetFeedResponse = zod.object({
           playerId: zod.number(),
           playerName: zod.string(),
           userId: zod.number().nullish(),
+          gross: zod
+            .number()
+            .nullish()
+            .describe(
+              "Running gross for live rounds, final gross when complete; null until a score is entered.",
+            ),
         }),
       ),
       summary: zod.object({

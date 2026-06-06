@@ -7,7 +7,33 @@ import { FeedCard } from "@/components/feed-card";
 import { useAuthSession } from "@/lib/auth";
 import { SoloRoundModal } from "@/components/solo-round-modal";
 
-type Tab = "buddies" | "following" | "all";
+type Tab = "buddies" | "mine" | "all";
+
+function SectionHeader({ label, live }: { label: string; live?: boolean }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      {live && (
+        <span className="relative flex h-1.5 w-1.5" aria-hidden>
+          <span
+            className="absolute inline-flex h-full w-full rounded-full animate-ping opacity-70 motion-reduce:hidden"
+            style={{ backgroundColor: "hsl(var(--score-birdie))" }}
+          />
+          <span
+            className="relative inline-flex h-1.5 w-1.5 rounded-full"
+            style={{ backgroundColor: "hsl(var(--score-birdie))" }}
+          />
+        </span>
+      )}
+      <h2
+        className="font-sans text-[10px] font-semibold uppercase tracking-[0.32em]"
+        style={{ color: "hsl(var(--brass-ink))" }}
+      >
+        {label}
+      </h2>
+      <span className="flex-1 border-t border-dashed border-card-border" aria-hidden />
+    </div>
+  );
+}
 
 export default function FeedPage() {
   const session = useAuthSession();
@@ -35,6 +61,8 @@ export default function FeedPage() {
     () => (query.data?.pages ?? []).flatMap(p => p.items),
     [query.data]
   );
+  const liveItems = useMemo(() => items.filter(i => i.completedAt == null), [items]);
+  const finishedItems = useMemo(() => items.filter(i => i.completedAt != null), [items]);
 
   if (!session) return null;
 
@@ -42,7 +70,7 @@ export default function FeedPage() {
     <div className="min-h-dvh bg-background">
       <div className="max-w-lg mx-auto px-4 py-6">
         <div className="flex items-center gap-1 mb-4 border-b border-card-border">
-          {(["buddies", "following", "all"] as const).map(t => (
+          {(["buddies", "mine", "all"] as const).map(t => (
             <button
               key={t}
               type="button"
@@ -65,12 +93,27 @@ export default function FeedPage() {
         {!query.isLoading && items.length === 0 && (
           <p className="text-sm font-sans text-muted-foreground text-center py-12">
             {tab === "buddies" && "Play a round with someone to start seeing their rounds here."}
-            {tab === "following" && "Find people you know and follow them to fill this feed."}
+            {tab === "mine" && "Rounds you've played will show up here."}
             {tab === "all" && "No public rounds yet."}
           </p>
         )}
-        <div className="space-y-3">
-          {items.map(item => <FeedCard key={item.roundId} item={item} />)}
+        <div className="space-y-8">
+          {liveItems.length > 0 && (
+            <section>
+              <SectionHeader label="Live rounds" live />
+              <div className="space-y-3">
+                {liveItems.map(item => <FeedCard key={item.roundId} item={item} />)}
+              </div>
+            </section>
+          )}
+          {finishedItems.length > 0 && (
+            <section>
+              <SectionHeader label="Finished rounds" />
+              <div className="space-y-3">
+                {finishedItems.map(item => <FeedCard key={item.roundId} item={item} />)}
+              </div>
+            </section>
+          )}
         </div>
         {query.hasNextPage && (
           <button

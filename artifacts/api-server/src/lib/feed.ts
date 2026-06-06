@@ -12,7 +12,7 @@ import {
 import { summarizeRound } from "./scoring";
 import { teeMapFromRows } from "./player-tees";
 
-export type FeedPlayer = { playerId: number; playerName: string; userId: number | null };
+export type FeedPlayer = { playerId: number; playerName: string; userId: number | null; gross: number | null };
 
 export type FeedItem = {
   roundId: number;
@@ -89,6 +89,7 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
 
   return rounds.map((r): FeedItem => {
     const tripPlayers = r.tripId == null ? [] : (playersByTrip.get(r.tripId) ?? []);
+    const roundScores = scoresByRound.get(r.id) ?? new Map<number, (number | null)[]>();
     const summary = summarizeRound({
       roundId: r.id,
       par: r.par as number[],
@@ -96,7 +97,7 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
       handicapMode: r.handicapMode,
       course: { slope: r.courseSlope, rating: r.courseRating, totalPar: (r.par as number[]).reduce((a, b) => a + b, 0) },
       players: tripPlayers.map(p => ({ id: p.id, name: p.name, handicap: p.handicap })),
-      scores: scoresByRound.get(r.id) ?? new Map(),
+      scores: roundScores,
       assignments: assignsByRound.get(r.id) ?? [],
       playerTees: teeMapFromRows(teesByRound.get(r.id) ?? []),
     });
@@ -109,7 +110,13 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
       completedAt: r.completedAt ? r.completedAt.toISOString() : null,
       updatedAt: r.updatedAt.toISOString(),
       visibility: r.visibility,
-      players: tripPlayers.map(p => ({ playerId: p.id, playerName: p.name, userId: p.userId ?? null })),
+      players: tripPlayers.map(p => {
+        const holes = roundScores.get(p.id);
+        const gross = holes
+          ? holes.reduce<number | null>((acc, h) => (h == null ? acc : (acc ?? 0) + h), null)
+          : null;
+        return { playerId: p.id, playerName: p.name, userId: p.userId ?? null, gross };
+      }),
       summary,
       kudosCount: kudosCountByRound.get(r.id) ?? 0,
       commentCount: commentCountByRound.get(r.id) ?? 0,
