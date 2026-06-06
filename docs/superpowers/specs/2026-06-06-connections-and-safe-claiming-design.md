@@ -159,6 +159,15 @@ Edit [lib/api-spec/openapi.yaml](../../../lib/api-spec/openapi.yaml): add `invit
 - Phone equality is exact post-`normalizePhone`; no fuzzy matching.
 - The existing self-claim path in [players.ts](../../../artifacts/api-server/src/routes/players.ts) is retrofitted with the core guard, closing the picker hole the same release.
 
+## Known gaps & follow-ups (recorded during implementation review)
+
+Surfaced by adversarial review of the security-critical routes and consciously deferred — the *hard* guarantee (you cannot claim a row tagged to a phone you don't control) holds regardless. Recorded so they aren't silently lost:
+
+1. **Mutating player routes use `optionalAuth` with no trip-membership check.** `POST`/`PATCH /trips/:tripId/players/:playerId` accept any signed-in caller, so an authed-but-unrelated user could clear (`invitedPhone: null`) an *unclaimed* row's phone tag and un-reserve it before the real owner claims. The reservation is therefore *soft* until these routes gain membership authorization (broadly tightening player-route auth was out of scope for this slice). **Follow-up:** require trip participation on player mutations.
+2. **No `UNIQUE(trip_id, user_id)` index for event trips.** One-identity-per-trip is enforced in application code for event trips; only solo rows have a DB backstop (`players_solo_per_user`). A narrow concurrent-claim race could double-link in an event trip. Mitigated by the app guard, sequential per-request processing, and the claims loop degrading a `23505` unique-violation to a graceful skip. **Follow-up:** add a partial unique index `(trip_id, user_id) WHERE user_id IS NOT NULL` (verify no duplicate data first); the existing catch then makes it graceful.
+3. **`GET /claim/:code` preview has no `visibility` filter.** A holder of the (unguessable, deliberately-shared) code sees the round name/date/trip/tagger of the invited row — including for a `visibility: private` round. Arguably intended (the code is a capability the tagger shares with the invitee), but flagged as a product decision. **Follow-up:** decide whether to reduce the preview for private rounds.
+4. **Pre-existing `trips.kind` schema/DB drift (unrelated to this feature).** The live dev DB's `trips.kind` column (with data) is absent from `lib/db/src/schema/trips.ts`, so `drizzle-kit push` wants to drop it. The two additive `players` columns here were applied to the dev DB via direct `ALTER TABLE`/`CREATE INDEX` instead of `db push`. **Follow-up:** reconcile `trips.kind` before relying on `db push` / the `[postMerge]` hook; the `invited_phone` + future per-trip indexes were likewise not pushed.
+
 ## Future phases
 
 - **Phase 2 — History & "played with me":** surface a connection's external round history and the mutual relationship on profiles/Connections, respecting `profileVisibility`. Leans on the existing feed/profile infra.
