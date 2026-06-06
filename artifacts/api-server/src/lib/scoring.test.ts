@@ -5,9 +5,11 @@ import {
   computePlayerStats,
   computeSkins,
   computeTeamNassau,
+  resolvePlayingHandicaps,
   summarizeRound,
   type SummarizeInputs,
   type TeamNassauSlot,
+  type PlayerTee,
 } from "./scoring";
 
 function holes(values: Array<number | null>): (number | null)[] {
@@ -281,5 +283,55 @@ describe("summarizeRound", () => {
     assert.equal(out.leaderName, null);
     assert.equal(out.leaderNet, null);
     assert.equal(out.leaderGross, null);
+  });
+});
+
+describe("resolvePlayingHandicaps", () => {
+  const flatTee = (slope: number, rating: number): PlayerTee => ({
+    par: Array(18).fill(4),
+    holeHcp: Array.from({ length: 18 }, (_, i) => i + 1),
+    course: { slope, rating, totalPar: 72 },
+  });
+
+  it("net: group-relative, plays off the lowest Course Handicap in the group", () => {
+    const players = [{ id: 1, handicap: 10 }, { id: 2, handicap: 20 }];
+    const assignments = [{ playerId: 1, groupNumber: 1 }, { playerId: 2, groupNumber: 1 }];
+    const def = flatTee(113, 72); // CR-Par = 0, slope 113 => CH == index
+    const r = resolvePlayingHandicaps(players, new Map(), def, assignments, "net");
+    assert.equal(r.get(1)!.courseHandicap, 10);
+    assert.equal(r.get(2)!.courseHandicap, 20);
+    assert.equal(r.get(1)!.playingHandicap, 0);  // low plays scratch
+    assert.equal(r.get(2)!.playingHandicap, 10); // 20 - 10
+  });
+
+  it("gross: every player plays their full Course Handicap", () => {
+    const players = [{ id: 1, handicap: 10 }, { id: 2, handicap: 20 }];
+    const assignments = [{ playerId: 1, groupNumber: 1 }, { playerId: 2, groupNumber: 1 }];
+    const r = resolvePlayingHandicaps(players, new Map(), flatTee(113, 72), assignments, "gross");
+    assert.equal(r.get(1)!.playingHandicap, 10);
+    assert.equal(r.get(2)!.playingHandicap, 20);
+  });
+
+  it("ungrouped players fall back to the field-min Course Handicap", () => {
+    const players = [{ id: 1, handicap: 5 }, { id: 2, handicap: 15 }];
+    const r = resolvePlayingHandicaps(players, new Map(), flatTee(113, 72), [], "net");
+    assert.equal(r.get(1)!.playingHandicap, 0);  // 5 - 5
+    assert.equal(r.get(2)!.playingHandicap, 10); // 15 - 5
+  });
+
+  it("mixed tees: reference is the true min over per-player Course Handicaps", () => {
+    // P1 index 12 tough tee (slope 140, CR 74 => CH = round(12*140/113 + 2) = round(14.87+2)=17)
+    // P2 index 12 easy tee (slope 100, CR 70 => CH = round(12*100/113 - 2) = round(10.62-2)=9)
+    const players = [{ id: 1, handicap: 12 }, { id: 2, handicap: 12 }];
+    const assignments = [{ playerId: 1, groupNumber: 1 }, { playerId: 2, groupNumber: 1 }];
+    const tees = new Map<number, PlayerTee>([
+      [1, flatTee(140, 74)],
+      [2, flatTee(100, 70)],
+    ]);
+    const r = resolvePlayingHandicaps(players, tees, flatTee(113, 72), assignments, "net");
+    assert.equal(r.get(1)!.courseHandicap, 17);
+    assert.equal(r.get(2)!.courseHandicap, 9);
+    assert.equal(r.get(2)!.playingHandicap, 0);  // min CH plays scratch
+    assert.equal(r.get(1)!.playingHandicap, 8);  // 17 - 9
   });
 });

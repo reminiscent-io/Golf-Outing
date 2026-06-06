@@ -26,6 +26,56 @@ export function whsCourseHandicap(handicapIndex: number, course: CourseInputs = 
   return Math.round(idx * slopeAdjust + ratingDiff);
 }
 
+// A player's complete tee card for scoring (own par/holeHcp + course inputs).
+export type PlayerTee = {
+  par: number[];        // length 18
+  holeHcp: number[];    // length 18
+  course: CourseInputs; // { slope, rating, totalPar }
+};
+
+export type ResolvedHandicap = { courseHandicap: number; playingHandicap: number };
+
+// Compute each player's WHS Course Handicap from THEIR OWN tee, then the
+// group-relative reference minimum (lowest Course Handicap within the player's
+// assigned group; field-min Course Handicap for ungrouped players), and the
+// resulting playing handicap used for per-hole stroke allocation:
+//   net   => max(0, ownCH - refMinCH)
+//   gross => max(0, ownCH)
+// For a round with no overrides this reproduces the legacy result exactly,
+// because round() is monotonic so min(round(h*k+c)) == round(min(h)*k+c).
+export function resolvePlayingHandicaps(
+  players: { id: number; handicap: number }[],
+  teeByPlayer: Map<number, PlayerTee>,
+  defaultTee: PlayerTee,
+  assignments: { playerId: number; groupNumber: number }[],
+  mode: HandicapMode
+): Map<number, ResolvedHandicap> {
+  const chById = new Map<number, number>();
+  for (const p of players) {
+    const tee = teeByPlayer.get(p.id) ?? defaultTee;
+    chById.set(p.id, whsCourseHandicap(p.handicap, tee.course));
+  }
+  const groupMinCh = new Map<number, number>();
+  for (const a of assignments) {
+    const ch = chById.get(a.playerId);
+    if (ch == null) continue;
+    const cur = groupMinCh.get(a.groupNumber);
+    if (cur == null || ch < cur) groupMinCh.set(a.groupNumber, ch);
+  }
+  const allCh = players.map(p => chById.get(p.id) ?? 0);
+  const fieldMinCh = allCh.length ? Math.min(...allCh) : 0;
+  const playerGroup = new Map(assignments.map(a => [a.playerId, a.groupNumber]));
+  const result = new Map<number, ResolvedHandicap>();
+  for (const p of players) {
+    const ch = chById.get(p.id) ?? 0;
+    const grp = playerGroup.get(p.id);
+    const refMin = grp != null ? (groupMinCh.get(grp) ?? fieldMinCh) : fieldMinCh;
+    const playing = mode === "gross" ? Math.max(0, ch) : Math.max(0, ch - refMin);
+    result.set(p.id, { courseHandicap: ch, playingHandicap: playing });
+  }
+  return result;
+}
+
 export function fieldMinHandicap(players: { handicap: number }[]): number {
   if (players.length === 0) return 0;
   return Math.min(...players.map(p => Number(p.handicap) || 0));
