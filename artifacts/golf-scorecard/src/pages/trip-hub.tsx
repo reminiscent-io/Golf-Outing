@@ -132,6 +132,7 @@ export default function TripHubPage() {
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerHcp, setNewPlayerHcp] = useState("18");
+  const [newPlayerPhone, setNewPlayerPhone] = useState("");
   const [editingPlayerId, setEditingPlayerId] = useState<number | null>(null);
   const [editPlayerName, setEditPlayerName] = useState("");
   const [editPlayerHcp, setEditPlayerHcp] = useState("");
@@ -161,7 +162,7 @@ export default function TripHubPage() {
     if (isObserver) return;
     if (!newPlayerName.trim()) return;
     createPlayer.mutate(
-      { tripId, data: { name: newPlayerName.trim(), handicap: parseHandicap(newPlayerHcp) } },
+      { tripId, data: { name: newPlayerName.trim(), handicap: parseHandicap(newPlayerHcp), invitedPhone: newPlayerPhone.trim() || null } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListPlayersQueryKey(tripId) });
@@ -169,6 +170,7 @@ export default function TripHubPage() {
           setShowAddPlayer(false);
           setNewPlayerName("");
           setNewPlayerHcp("18");
+          setNewPlayerPhone("");
         },
       }
     );
@@ -690,6 +692,19 @@ export default function TripHubPage() {
                       style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
                     />
                   </div>
+                </div>
+                <div className="mb-3">
+                  <label htmlFor="new-player-phone" className="block text-xs font-sans font-semibold uppercase tracking-widest mb-1" style={{ color: "hsl(38 20% 38%)" }}>Phone to invite (optional)</label>
+                  <input
+                    id="new-player-phone"
+                    type="tel"
+                    inputMode="tel"
+                    value={newPlayerPhone}
+                    onChange={e => setNewPlayerPhone(e.target.value)}
+                    placeholder="Phone to invite (optional)"
+                    className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none"
+                    style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
