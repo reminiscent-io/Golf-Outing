@@ -17,12 +17,14 @@ import roundKudosRouter from "./round-kudos";
 import roundCommentsRouter from "./round-comments";
 import roundSocialRouter from "./round-social";
 import feedRouter from "./feed";
+import connectionsRouter from "./connections";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(usersMeRouter);
+router.use(connectionsRouter);
 router.use(usersRouter);
 router.use(userFollowsRouter);
 router.use(tripsRouter);
