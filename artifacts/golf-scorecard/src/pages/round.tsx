@@ -86,13 +86,6 @@ function whsCourseHandicap(idx: number, course: CourseInputs): number {
   return Math.round((idx || 0) * slopeAdjust + ratingDiff);
 }
 
-function effectiveHandicap(playerHcp: number, fieldMinHcp: number, mode: HandicapMode, course: CourseInputs): number {
-  const ch = whsCourseHandicap(playerHcp, course);
-  if (mode === "gross") return Math.max(0, ch);
-  const minCh = whsCourseHandicap(fieldMinHcp, course);
-  return Math.max(0, ch - minCh);
-}
-
 function formatHandicap(h: number): string {
   return (Math.round(h * 10) / 10).toFixed(1);
 }
@@ -1011,7 +1004,6 @@ export default function RoundPage() {
   // use the round default; only per-player stroke/score math below resolves a
   // player's own tee via `teeFor`.
   const defaultCourse: CourseInputs = { slope: round?.courseSlope ?? null, rating: round?.courseRating ?? null, totalPar: par.reduce((a, b) => a + b, 0) };
-  const course = defaultCourse;
   // Resolves the par/holeHcp/course inputs for a player — their tee override if
   // present, otherwise the round default.
   const teeFor = (pid: number): { par: number[]; holeHcp: number[]; course: CourseInputs } => {
