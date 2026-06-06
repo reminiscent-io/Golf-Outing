@@ -813,7 +813,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [buddies, following, all]
+            enum: [buddies, mine, all]
         - name: before
           in: query
           required: false
@@ -1843,6 +1843,9 @@ components:
           type: string
         userId:
           type: ["integer", "null"]
+        gross:
+          type: ["integer", "null"]
+          description: Running gross for live rounds, final gross when complete; null until a score is entered.
       required: [playerId, playerName]
 
     FeedItem:

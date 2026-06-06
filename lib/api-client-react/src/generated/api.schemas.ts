@@ -164,6 +164,11 @@ export interface FeedPlayer {
   playerName: string;
   /** @nullable */
   userId?: number | null;
+  /**
+   * Running gross for live rounds, final gross when complete; null until a score is entered.
+   * @nullable
+   */
+  gross?: number | null;
 }
 
 export interface FeedItemSummary {
@@ -1054,6 +1059,6 @@ export type GetFeedTab = (typeof GetFeedTab)[keyof typeof GetFeedTab];
 
 export const GetFeedTab = {
   buddies: "buddies",
-  following: "following",
+  mine: "mine",
   all: "all",
 } as const;
