@@ -446,6 +446,109 @@ paths:
         "401":
           description: Unauthorized
 
+  /users/me/connections:
+    get:
+      operationId: listMyConnections
+      tags: [users]
+      summary: People I've played with, split into accounts and pending placeholders
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Connections
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectionsResponse" }
+        "401":
+          description: Unauthorized
+
+  /users/me/claimable:
+    get:
+      operationId: listMyClaimable
+      tags: [users]
+      summary: Player rows tagged to my verified phone that I can claim
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Claimable items
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ClaimableItem" }
+        "401":
+          description: Unauthorized
+
+  /users/me/claims:
+    post:
+      operationId: submitClaims
+      tags: [users]
+      summary: Accept or decline tagged player rows (phone-matched or via a share code)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClaimRequestBody" }
+      responses:
+        "200":
+          description: Claim result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClaimResult" }
+        "401":
+          description: Unauthorized
+
+  /claim/{code}:
+    get:
+      operationId: getClaimPreview
+      tags: [players]
+      summary: Public preview of what a share code claims
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClaimPreview" }
+        "404":
+          description: Unknown or already-redeemed code
+
+  /trips/{tripId}/players/{playerId}/invite:
+    post:
+      operationId: createPlayerInvite
+      tags: [players]
+      summary: Generate (or rotate) a single-use share code for an unclaimed player row
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: playerId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Invite code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InviteResponse" }
+        "401":
+          description: Unauthorized
+        "403":
+          description: Not a participant in this trip
+        "409":
+          description: Row already claimed
+
   /users/{userId}/follow:
     post:
       operationId: followUser
@@ -1558,6 +1661,109 @@ components:
           type: ["string", "null"]
       required: [userId, fullName, roundsTogether]
 
+    ConnectionAccount:
+      type: object
+      properties:
+        userId: { type: integer }
+        name: { type: string }
+        sharedRounds: { type: integer }
+      required: [userId, name, sharedRounds]
+
+    ConnectionPending:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        tripId: { type: ["integer", "null"] }
+        hasPhone: { type: boolean }
+        hasInvite: { type: boolean }
+        playerIds:
+          type: array
+          items: { type: integer }
+        sharedRounds: { type: integer }
+      required: [id, name, hasPhone, hasInvite, playerIds, sharedRounds]
+
+    ConnectionsResponse:
+      type: object
+      properties:
+        accounts:
+          type: array
+          items: { $ref: "#/components/schemas/ConnectionAccount" }
+        pending:
+          type: array
+          items: { $ref: "#/components/schemas/ConnectionPending" }
+      required: [accounts, pending]
+
+    ClaimableRound:
+      type: object
+      properties:
+        roundId: { type: integer }
+        name: { type: string }
+        date: { type: ["string", "null"] }
+      required: [roundId, name]
+
+    ClaimableItem:
+      type: object
+      properties:
+        playerId: { type: integer }
+        name: { type: string }
+        tripId: { type: ["integer", "null"] }
+        tripName: { type: ["string", "null"] }
+        taggedBy: { type: ["string", "null"] }
+        rounds:
+          type: array
+          items: { $ref: "#/components/schemas/ClaimableRound" }
+      required: [playerId, name, rounds]
+
+    ClaimPreview:
+      type: object
+      properties:
+        playerId: { type: integer }
+        name: { type: string }
+        tripName: { type: ["string", "null"] }
+        taggedBy: { type: ["string", "null"] }
+        rounds:
+          type: array
+          items: { $ref: "#/components/schemas/ClaimableRound" }
+      required: [playerId, name, rounds]
+
+    ClaimRequestBody:
+      type: object
+      properties:
+        accepts:
+          type: array
+          items: { type: integer }
+        declines:
+          type: array
+          items: { type: integer }
+        code: { type: ["string", "null"] }
+      required: [accepts]
+
+    ClaimSkip:
+      type: object
+      properties:
+        playerId: { type: integer }
+        reason: { type: string }
+      required: [playerId, reason]
+
+    ClaimResult:
+      type: object
+      properties:
+        claimed:
+          type: array
+          items: { type: integer }
+        skipped:
+          type: array
+          items: { $ref: "#/components/schemas/ClaimSkip" }
+      required: [claimed, skipped]
+
+    InviteResponse:
+      type: object
+      properties:
+        code: { type: string }
+        path: { type: string }
+      required: [code, path]
+
     FollowEntry:
       type: object
       properties:
@@ -1951,6 +2157,9 @@ components:
           type: number
         userId:
           type: ["integer", "null"]
+        invitedPhone:
+          type: ["string", "null"]
+          description: Optional phone (any format) reserving this row for a specific person; normalized server-side. Write-only — never returned.
       required:
         - name
         - handicap
@@ -1964,6 +2173,9 @@ components:
           type: number
         userId:
           type: ["integer", "null"]
+        invitedPhone:
+          type: ["string", "null"]
+          description: Optional phone (any format) reserving this row for a specific person; normalized server-side. Write-only — never returned.
 
     Round:
       type: object

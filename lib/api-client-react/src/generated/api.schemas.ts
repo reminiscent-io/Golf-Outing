@@ -228,6 +228,79 @@ export interface Buddy {
   lastPlayedAt?: string | null;
 }
 
+export interface ConnectionAccount {
+  userId: number;
+  name: string;
+  sharedRounds: number;
+}
+
+export interface ConnectionPending {
+  id: string;
+  name: string;
+  /** @nullable */
+  tripId?: number | null;
+  hasPhone: boolean;
+  hasInvite: boolean;
+  playerIds: number[];
+  sharedRounds: number;
+}
+
+export interface ConnectionsResponse {
+  accounts: ConnectionAccount[];
+  pending: ConnectionPending[];
+}
+
+export interface ClaimableRound {
+  roundId: number;
+  name: string;
+  /** @nullable */
+  date?: string | null;
+}
+
+export interface ClaimableItem {
+  playerId: number;
+  name: string;
+  /** @nullable */
+  tripId?: number | null;
+  /** @nullable */
+  tripName?: string | null;
+  /** @nullable */
+  taggedBy?: string | null;
+  rounds: ClaimableRound[];
+}
+
+export interface ClaimPreview {
+  playerId: number;
+  name: string;
+  /** @nullable */
+  tripName?: string | null;
+  /** @nullable */
+  taggedBy?: string | null;
+  rounds: ClaimableRound[];
+}
+
+export interface ClaimRequestBody {
+  accepts: number[];
+  declines?: number[];
+  /** @nullable */
+  code?: string | null;
+}
+
+export interface ClaimSkip {
+  playerId: number;
+  reason: string;
+}
+
+export interface ClaimResult {
+  claimed: number[];
+  skipped: ClaimSkip[];
+}
+
+export interface InviteResponse {
+  code: string;
+  path: string;
+}
+
 export interface FollowEntry {
   userId: number;
   fullName: string;
@@ -429,6 +502,11 @@ export interface CreatePlayerBody {
   handicap: number;
   /** @nullable */
   userId?: number | null;
+  /**
+   * Optional phone (any format) reserving this row for a specific person; normalized server-side. Write-only — never returned.
+   * @nullable
+   */
+  invitedPhone?: string | null;
 }
 
 export interface UpdatePlayerBody {
@@ -436,6 +514,11 @@ export interface UpdatePlayerBody {
   handicap?: number;
   /** @nullable */
   userId?: number | null;
+  /**
+   * Optional phone (any format) reserving this row for a specific person; normalized server-side. Write-only — never returned.
+   * @nullable
+   */
+  invitedPhone?: string | null;
 }
 
 /**

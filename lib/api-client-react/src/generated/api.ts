@@ -19,6 +19,11 @@ import type {
 import type {
   AuthSession,
   Buddy,
+  ClaimPreview,
+  ClaimRequestBody,
+  ClaimResult,
+  ClaimableItem,
+  ConnectionsResponse,
   CreatePlayerBody,
   CreateRoundBody,
   CreateRoundCommentBody,
@@ -30,6 +35,7 @@ import type {
   GetFeedParams,
   HandicapHistoryEntry,
   HealthStatus,
+  InviteResponse,
   ListFollowersParams,
   ListFollowingParams,
   ListMyRoundsParams,
@@ -1691,6 +1697,417 @@ export function useListMyBuddies<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary People I've played with, split into accounts and pending placeholders
+ */
+export const getListMyConnectionsUrl = () => {
+  return `/api/users/me/connections`;
+};
+
+export const listMyConnections = async (
+  options?: RequestInit,
+): Promise<ConnectionsResponse> => {
+  return customFetch<ConnectionsResponse>(getListMyConnectionsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMyConnectionsQueryKey = () => {
+  return [`/api/users/me/connections`] as const;
+};
+
+export const getListMyConnectionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyConnections>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyConnections>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMyConnectionsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMyConnections>>
+  > = ({ signal }) => listMyConnections({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyConnections>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMyConnectionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyConnections>>
+>;
+export type ListMyConnectionsQueryError = ErrorType<void>;
+
+/**
+ * @summary People I've played with, split into accounts and pending placeholders
+ */
+
+export function useListMyConnections<
+  TData = Awaited<ReturnType<typeof listMyConnections>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyConnections>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMyConnectionsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Player rows tagged to my verified phone that I can claim
+ */
+export const getListMyClaimableUrl = () => {
+  return `/api/users/me/claimable`;
+};
+
+export const listMyClaimable = async (
+  options?: RequestInit,
+): Promise<ClaimableItem[]> => {
+  return customFetch<ClaimableItem[]>(getListMyClaimableUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMyClaimableQueryKey = () => {
+  return [`/api/users/me/claimable`] as const;
+};
+
+export const getListMyClaimableQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyClaimable>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyClaimable>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMyClaimableQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyClaimable>>> = ({
+    signal,
+  }) => listMyClaimable({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyClaimable>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMyClaimableQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyClaimable>>
+>;
+export type ListMyClaimableQueryError = ErrorType<void>;
+
+/**
+ * @summary Player rows tagged to my verified phone that I can claim
+ */
+
+export function useListMyClaimable<
+  TData = Awaited<ReturnType<typeof listMyClaimable>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyClaimable>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMyClaimableQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Accept or decline tagged player rows (phone-matched or via a share code)
+ */
+export const getSubmitClaimsUrl = () => {
+  return `/api/users/me/claims`;
+};
+
+export const submitClaims = async (
+  claimRequestBody: ClaimRequestBody,
+  options?: RequestInit,
+): Promise<ClaimResult> => {
+  return customFetch<ClaimResult>(getSubmitClaimsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(claimRequestBody),
+  });
+};
+
+export const getSubmitClaimsMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitClaims>>,
+    TError,
+    { data: BodyType<ClaimRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitClaims>>,
+  TError,
+  { data: BodyType<ClaimRequestBody> },
+  TContext
+> => {
+  const mutationKey = ["submitClaims"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitClaims>>,
+    { data: BodyType<ClaimRequestBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitClaims(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitClaimsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitClaims>>
+>;
+export type SubmitClaimsMutationBody = BodyType<ClaimRequestBody>;
+export type SubmitClaimsMutationError = ErrorType<void>;
+
+/**
+ * @summary Accept or decline tagged player rows (phone-matched or via a share code)
+ */
+export const useSubmitClaims = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitClaims>>,
+    TError,
+    { data: BodyType<ClaimRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitClaims>>,
+  TError,
+  { data: BodyType<ClaimRequestBody> },
+  TContext
+> => {
+  return useMutation(getSubmitClaimsMutationOptions(options));
+};
+
+/**
+ * @summary Public preview of what a share code claims
+ */
+export const getGetClaimPreviewUrl = (code: string) => {
+  return `/api/claim/${code}`;
+};
+
+export const getClaimPreview = async (
+  code: string,
+  options?: RequestInit,
+): Promise<ClaimPreview> => {
+  return customFetch<ClaimPreview>(getGetClaimPreviewUrl(code), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetClaimPreviewQueryKey = (code: string) => {
+  return [`/api/claim/${code}`] as const;
+};
+
+export const getGetClaimPreviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getClaimPreview>>,
+  TError = ErrorType<void>,
+>(
+  code: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClaimPreview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetClaimPreviewQueryKey(code);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getClaimPreview>>> = ({
+    signal,
+  }) => getClaimPreview(code, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!code,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getClaimPreview>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetClaimPreviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getClaimPreview>>
+>;
+export type GetClaimPreviewQueryError = ErrorType<void>;
+
+/**
+ * @summary Public preview of what a share code claims
+ */
+
+export function useGetClaimPreview<
+  TData = Awaited<ReturnType<typeof getClaimPreview>>,
+  TError = ErrorType<void>,
+>(
+  code: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClaimPreview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetClaimPreviewQueryOptions(code, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Generate (or rotate) a single-use share code for an unclaimed player row
+ */
+export const getCreatePlayerInviteUrl = (tripId: number, playerId: number) => {
+  return `/api/trips/${tripId}/players/${playerId}/invite`;
+};
+
+export const createPlayerInvite = async (
+  tripId: number,
+  playerId: number,
+  options?: RequestInit,
+): Promise<InviteResponse> => {
+  return customFetch<InviteResponse>(
+    getCreatePlayerInviteUrl(tripId, playerId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getCreatePlayerInviteMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPlayerInvite>>,
+    TError,
+    { tripId: number; playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPlayerInvite>>,
+  TError,
+  { tripId: number; playerId: number },
+  TContext
+> => {
+  const mutationKey = ["createPlayerInvite"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPlayerInvite>>,
+    { tripId: number; playerId: number }
+  > = (props) => {
+    const { tripId, playerId } = props ?? {};
+
+    return createPlayerInvite(tripId, playerId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreatePlayerInviteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPlayerInvite>>
+>;
+
+export type CreatePlayerInviteMutationError = ErrorType<void>;
+
+/**
+ * @summary Generate (or rotate) a single-use share code for an unclaimed player row
+ */
+export const useCreatePlayerInvite = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPlayerInvite>>,
+    TError,
+    { tripId: number; playerId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createPlayerInvite>>,
+  TError,
+  { tripId: number; playerId: number },
+  TContext
+> => {
+  return useMutation(getCreatePlayerInviteMutationOptions(options));
+};
 
 /**
  * @summary Follow a user

@@ -668,6 +668,102 @@ export const ListMyBuddiesResponseItem = zod.object({
 export const ListMyBuddiesResponse = zod.array(ListMyBuddiesResponseItem);
 
 /**
+ * @summary People I've played with, split into accounts and pending placeholders
+ */
+export const ListMyConnectionsResponse = zod.object({
+  accounts: zod.array(
+    zod.object({
+      userId: zod.number(),
+      name: zod.string(),
+      sharedRounds: zod.number(),
+    }),
+  ),
+  pending: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      tripId: zod.number().nullish(),
+      hasPhone: zod.boolean(),
+      hasInvite: zod.boolean(),
+      playerIds: zod.array(zod.number()),
+      sharedRounds: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Player rows tagged to my verified phone that I can claim
+ */
+export const ListMyClaimableResponseItem = zod.object({
+  playerId: zod.number(),
+  name: zod.string(),
+  tripId: zod.number().nullish(),
+  tripName: zod.string().nullish(),
+  taggedBy: zod.string().nullish(),
+  rounds: zod.array(
+    zod.object({
+      roundId: zod.number(),
+      name: zod.string(),
+      date: zod.string().nullish(),
+    }),
+  ),
+});
+export const ListMyClaimableResponse = zod.array(ListMyClaimableResponseItem);
+
+/**
+ * @summary Accept or decline tagged player rows (phone-matched or via a share code)
+ */
+export const SubmitClaimsBody = zod.object({
+  accepts: zod.array(zod.number()),
+  declines: zod.array(zod.number()).optional(),
+  code: zod.string().nullish(),
+});
+
+export const SubmitClaimsResponse = zod.object({
+  claimed: zod.array(zod.number()),
+  skipped: zod.array(
+    zod.object({
+      playerId: zod.number(),
+      reason: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Public preview of what a share code claims
+ */
+export const GetClaimPreviewParams = zod.object({
+  code: zod.coerce.string(),
+});
+
+export const GetClaimPreviewResponse = zod.object({
+  playerId: zod.number(),
+  name: zod.string(),
+  tripName: zod.string().nullish(),
+  taggedBy: zod.string().nullish(),
+  rounds: zod.array(
+    zod.object({
+      roundId: zod.number(),
+      name: zod.string(),
+      date: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Generate (or rotate) a single-use share code for an unclaimed player row
+ */
+export const CreatePlayerInviteParams = zod.object({
+  tripId: zod.coerce.number(),
+  playerId: zod.coerce.number(),
+});
+
+export const CreatePlayerInviteResponse = zod.object({
+  code: zod.string(),
+  path: zod.string(),
+});
+
+/**
  * @summary Follow a user
  */
 export const FollowUserParams = zod.object({
@@ -902,6 +998,12 @@ export const CreatePlayerBody = zod.object({
   name: zod.string(),
   handicap: zod.number(),
   userId: zod.number().nullish(),
+  invitedPhone: zod
+    .string()
+    .nullish()
+    .describe(
+      "Optional phone (any format) reserving this row for a specific person; normalized server-side. Write-only — never returned.",
+    ),
 });
 
 /**
@@ -916,6 +1018,12 @@ export const UpdatePlayerBody = zod.object({
   name: zod.string().optional(),
   handicap: zod.number().optional(),
   userId: zod.number().nullish(),
+  invitedPhone: zod
+    .string()
+    .nullish()
+    .describe(
+      "Optional phone (any format) reserving this row for a specific person; normalized server-side. Write-only — never returned.",
+    ),
 });
 
 export const UpdatePlayerResponse = zod.object({
