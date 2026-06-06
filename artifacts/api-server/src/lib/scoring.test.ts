@@ -1,7 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildPlayerMinHcp,
   computePlayerStats,
   computeSkins,
   computeTeamNassau,
@@ -19,9 +18,30 @@ function holes(values: Array<number | null>): (number | null)[] {
 const par = Array(18).fill(4);
 const holeHcp = Array.from({ length: 18 }, (_, i) => i + 1);
 
+// Flat reference course so that WHS Course Handicap == handicap index
+// (slope 113, rating == par => CR - Par = 0). This lets the test set up
+// group/field references purely from raw handicaps.
+const flatCourse = { slope: 113, rating: 72, totalPar: 72 };
+
+// Build the per-player holeHcp / playingHandicap maps for a set of slots/players
+// by resolving playing handicaps through the new group-relative reference.
+function nassauMaps(
+  slots: TeamNassauSlot[],
+  mode: "net" | "gross"
+): { holeHcpByPlayer: Map<number, number[]>; playingByPlayer: Map<number, number> } {
+  const players = slots.map(s => ({ id: s.playerId, handicap: s.handicap }));
+  const assignments = slots.map(s => ({ playerId: s.playerId, groupNumber: s.groupNumber }));
+  const defTee: PlayerTee = { par, holeHcp, course: flatCourse };
+  const resolved = resolvePlayingHandicaps(players, new Map(), defTee, assignments, mode);
+  return {
+    holeHcpByPlayer: new Map(players.map(p => [p.id, holeHcp])),
+    playingByPlayer: new Map([...resolved].map(([id, r]) => [id, r.playingHandicap])),
+  };
+}
+
 describe("computeTeamNassau", () => {
   it("returns no matches when there are no groups", () => {
-    const result = computeTeamNassau([], new Map(), par, holeHcp, "gross", {});
+    const result = computeTeamNassau([], new Map(), new Map(), new Map(), "gross");
     assert.deepEqual(result.matches, []);
   });
 
@@ -36,7 +56,8 @@ describe("computeTeamNassau", () => {
       [2, holes([4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5])], // team B total = 73
     ]);
 
-    const result = computeTeamNassau(slots, scores, par, holeHcp, "gross", {});
+    const maps = nassauMaps(slots, "gross");
+    const result = computeTeamNassau(slots, scores, maps.holeHcpByPlayer, maps.playingByPlayer, "gross");
     assert.equal(result.matches.length, 1);
     const m = result.matches[0];
     assert.equal(m.groupNumber, 1);
@@ -66,7 +87,8 @@ describe("computeTeamNassau", () => {
       [3, holes([4])],
       [4, holes([4])],          // Team B hole 1 = 4
     ]);
-    const result = computeTeamNassau(slots, scores, par, holeHcp, "gross", {});
+    const maps = nassauMaps(slots, "gross");
+    const result = computeTeamNassau(slots, scores, maps.holeHcpByPlayer, maps.playingByPlayer, "gross");
     const m = result.matches[0];
     // Team A wins hole 1 on best-ball (3 vs 4). Other holes all null — not scored.
     assert.equal(m.front, "A");
@@ -85,7 +107,8 @@ describe("computeTeamNassau", () => {
       [1, holes([4])],
       [2, holes([4])],
     ]);
-    const result = computeTeamNassau(slots, scores, par, holeHcp, "gross", {});
+    const maps = nassauMaps(slots, "gross");
+    const result = computeTeamNassau(slots, scores, maps.holeHcpByPlayer, maps.playingByPlayer, "gross");
     assert.deepEqual(result.matches, []);
   });
 
@@ -99,7 +122,8 @@ describe("computeTeamNassau", () => {
     const scores = new Map<number, (number | null)[]>([
       [1, holes([])], [2, holes([])], [3, holes([])], [4, holes([])],
     ]);
-    const result = computeTeamNassau(slots, scores, par, holeHcp, "gross", {});
+    const maps = nassauMaps(slots, "gross");
+    const result = computeTeamNassau(slots, scores, maps.holeHcpByPlayer, maps.playingByPlayer, "gross");
     assert.equal(result.matches.length, 2);
     assert.equal(result.matches[0].teamA, 1);
     assert.equal(result.matches[0].teamB, 2);
@@ -116,7 +140,8 @@ describe("computeTeamNassau", () => {
       [1, holes([4])],
       [2, holes([4])],
     ]);
-    const result = computeTeamNassau(slots, scores, par, holeHcp, "gross", {});
+    const maps = nassauMaps(slots, "gross");
+    const result = computeTeamNassau(slots, scores, maps.holeHcpByPlayer, maps.playingByPlayer, "gross");
     // Only hole 1 scored, halved → front/total both halved, back null
     const m = result.matches[0];
     assert.equal(m.front, "halved");
@@ -142,7 +167,8 @@ describe("computeTeamNassau", () => {
       [3, holes([4, 4])],
       [4, holes([5, 5])], // gross +1 on each, but with group-relative net should match team A
     ]);
-    const result = computeTeamNassau(slots, scores, par, holeHcp, "net", {});
+    const maps = nassauMaps(slots, "net");
+    const result = computeTeamNassau(slots, scores, maps.holeHcpByPlayer, maps.playingByPlayer, "net");
     const g2 = result.matches.find(m => m.groupNumber === 2)!;
     // Player 4 has 2 strokes vs player 3 across hardest holes (idx 1 and 2).
     // Hole 1 (hcp idx 1): player 3 net 4, player 4 net 5-1=4 → halved.
@@ -152,48 +178,26 @@ describe("computeTeamNassau", () => {
   });
 });
 
-describe("buildPlayerMinHcp", () => {
-  it("returns each player's group-low handicap", () => {
-    const players = [
-      { id: 1, handicap: 5 },
-      { id: 2, handicap: 8 },
-      { id: 3, handicap: 12 },
-      { id: 4, handicap: 15 },
-    ];
-    const assignments = [
-      { playerId: 1, groupNumber: 1 },
-      { playerId: 2, groupNumber: 1 },
-      { playerId: 3, groupNumber: 2 },
-      { playerId: 4, groupNumber: 2 },
-    ];
-    const min = buildPlayerMinHcp(players, assignments);
-    assert.equal(min.get(1), 5);
-    assert.equal(min.get(2), 5);
-    assert.equal(min.get(3), 12);
-    assert.equal(min.get(4), 12);
-  });
-
-  it("falls back to field-min for players without a group", () => {
-    const players = [
-      { id: 1, handicap: 5 },
-      { id: 2, handicap: 8 },
-      { id: 3, handicap: 12 },
-    ];
-    const assignments = [{ playerId: 1, groupNumber: 1 }];
-    const min = buildPlayerMinHcp(players, assignments);
-    assert.equal(min.get(1), 5);
-    assert.equal(min.get(2), 5); // unassigned → field min (5)
-    assert.equal(min.get(3), 5);
-  });
-});
-
 describe("computePlayerStats with group-relative net", () => {
   it("gives a group's high handicapper strokes off the group low, not field low", () => {
     // Field low is 0 (some other group). This player is in a group where the
     // low is 10 and they have 12 → 2 net strokes (one each on hcp idx 1, 2).
+    // Set up a group whose min Course Handicap is 10 (flat course => CH == idx),
+    // so player 4 resolves to a playing handicap of 2 — same reference the old
+    // refMinHcp=10 produced.
+    const players = [
+      { id: 3, name: "G2A", handicap: 10 },
+      { id: 4, name: "G2B", handicap: 12 },
+    ];
+    const assignments = [
+      { playerId: 3, groupNumber: 2 },
+      { playerId: 4, groupNumber: 2 },
+    ];
+    const defTee: PlayerTee = { par, holeHcp, course: flatCourse };
+    const resolved = resolvePlayingHandicaps(players, new Map(), defTee, assignments, "net");
     const player = { id: 4, name: "G2B", handicap: 12 };
     const scores = holes([5, 5, 4, 4]);
-    const stats = computePlayerStats(player, scores, par, holeHcp, 10, "net", {});
+    const stats = computePlayerStats(player, scores, par, holeHcp, resolved.get(4)!.playingHandicap);
     // Hole 1 (hcp 1): gross 5, gets 1 stroke → net 4
     // Hole 2 (hcp 2): gross 5, gets 1 stroke → net 4
     // Holes 3,4: gross 4, no strokes → net 4
@@ -212,13 +216,17 @@ describe("computeSkins with per-player min handicap", () => {
       { id: 3, name: "G2A", handicap: 10 },
       { id: 4, name: "G2B", handicap: 12 },
     ];
-    // Group min map: 1,2 ref 0; 3,4 ref 10
-    const minByPlayer = new Map<number, number>([
-      [1, 0],
-      [2, 0],
-      [3, 10],
-      [4, 10],
-    ]);
+    // Group min map: 1,2 ref 0; 3,4 ref 10 (flat course => CH == index).
+    const assignments = [
+      { playerId: 1, groupNumber: 1 },
+      { playerId: 2, groupNumber: 1 },
+      { playerId: 3, groupNumber: 2 },
+      { playerId: 4, groupNumber: 2 },
+    ];
+    const defTee: PlayerTee = { par, holeHcp, course: flatCourse };
+    const resolved = resolvePlayingHandicaps(players, new Map(), defTee, assignments, "net");
+    const holeHcpByPlayer = new Map(players.map(p => [p.id, holeHcp]));
+    const playingByPlayer = new Map([...resolved].map(([id, r]) => [id, r.playingHandicap]));
     // All shoot 4 on hole 1. Stroke allocation:
     // p1: 0 strokes → net 4. p2: gets 1 stroke (hcp 4 covers idx 1-4) → net 3.
     // p3: 0 strokes (group-low) → net 4. p4: gets 1 stroke → net 3.
@@ -229,8 +237,73 @@ describe("computeSkins with per-player min handicap", () => {
       [3, holes([4])],
       [4, holes([4])],
     ]);
-    const { perHole } = computeSkins(players, scores, holeHcp, minByPlayer, "net", {});
+    const { perHole } = computeSkins(players, scores, holeHcpByPlayer, playingByPlayer);
     assert.equal(perHole[0].tied, true);
+  });
+});
+
+describe("per-player tee threading", () => {
+  it("per-hole strokes use each player's own holeHcp", () => {
+    // Two players with identical playing handicap (1 stroke), but their stroke
+    // index orderings differ: P1 has hole 1 as index 1 (hardest); P2 has hole 1
+    // as index 18 (easiest). The single stroke lands on hole 1 for P1 but not P2.
+    const p1 = { id: 1, name: "P1", handicap: 1 };
+    const p2 = { id: 2, name: "P2", handicap: 1 };
+    const playing = 1;
+    const holeHcpP1 = Array.from({ length: 18 }, (_, i) => i + 1);          // hole 1 => idx 1
+    const holeHcpP2 = Array.from({ length: 18 }, (_, i) => 18 - i);          // hole 1 => idx 18
+    const scores = holes([4, 4]);
+    const s1 = computePlayerStats(p1, scores, par, holeHcpP1, playing);
+    const s2 = computePlayerStats(p2, scores, par, holeHcpP2, playing);
+    // Hole 1: P1 gets the stroke (idx 1 <= 1) → net 3; P2 does not (idx 18) → net 4.
+    assert.equal(s1.netHoles[0], 3);
+    assert.equal(s2.netHoles[0], 4);
+    assert.notEqual(s1.netHoles[0], s2.netHoles[0]);
+  });
+
+  it("Stableford uses each player's own par", () => {
+    // Same gross + zero strokes, but P1 plays a par-3 first hole and P2 a par-5.
+    const p1 = { id: 1, name: "P1", handicap: 0 };
+    const p2 = { id: 2, name: "P2", handicap: 0 };
+    const parP1 = [3, ...Array(17).fill(4)];
+    const parP2 = [5, ...Array(17).fill(4)];
+    const scores = holes([4]); // gross 4 on hole 1 only
+    const s1 = computePlayerStats(p1, scores, parP1, holeHcp, 0);
+    const s2 = computePlayerStats(p2, scores, parP2, holeHcp, 0);
+    // Net 4 vs par 3 => bogey => 1 pt. Net 4 vs par 5 => birdie => 3 pts.
+    assert.equal(s1.sfTotal, 1);
+    assert.equal(s2.sfTotal, 3);
+  });
+
+  it("mixed-tee net equity: higher-CH player gets strokes equal to the CH differential", () => {
+    // P1 index 12 tough tee (slope 140, CR 74 => CH 17).
+    // P2 index 12 easy tee (slope 100, CR 70 => CH 9).
+    // Group-relative reference is min CH (9), so P1 plays off 17 - 9 = 8.
+    const players = [{ id: 1, handicap: 12 }, { id: 2, handicap: 12 }];
+    const assignments = [
+      { playerId: 1, groupNumber: 1 },
+      { playerId: 2, groupNumber: 1 },
+    ];
+    const toughTee: PlayerTee = { par, holeHcp, course: { slope: 140, rating: 74, totalPar: 72 } };
+    const easyTee: PlayerTee = { par, holeHcp, course: { slope: 100, rating: 70, totalPar: 72 } };
+    const tees = new Map<number, PlayerTee>([[1, toughTee], [2, easyTee]]);
+    const defTee: PlayerTee = { par, holeHcp, course: flatCourse };
+    const resolved = resolvePlayingHandicaps(players, tees, defTee, assignments, "net");
+    assert.equal(resolved.get(1)!.courseHandicap, 17);
+    assert.equal(resolved.get(2)!.courseHandicap, 9);
+    assert.equal(resolved.get(1)!.playingHandicap, 8); // 17 - 9
+
+    // P1 (playing 8) shoots par on every hole. With holeHcp idx == hole number,
+    // a playing handicap of 8 grants exactly one stroke on holes 1..8 (idx 1..8).
+    const p1 = { id: 1, name: "P1", handicap: 12 };
+    const grossPar = holes(Array(18).fill(4));
+    const s1 = computePlayerStats(p1, grossPar, toughTee.par, toughTee.holeHcp, resolved.get(1)!.playingHandicap);
+    // Holes 1..8 (idx 1..8) receive a stroke → net 3; holes 9..18 → net 4.
+    for (let h = 0; h < 8; h++) assert.equal(s1.netHoles[h], 3, `hole ${h + 1} should get a stroke`);
+    for (let h = 8; h < 18; h++) assert.equal(s1.netHoles[h], 4, `hole ${h + 1} should not get a stroke`);
+    // Total strokes received == CH differential (8).
+    const strokesReceived = s1.grossHoles.reduce<number>((acc, g, h) => acc + (g! - s1.netHoles[h]!), 0);
+    assert.equal(strokesReceived, 8);
   });
 });
 
