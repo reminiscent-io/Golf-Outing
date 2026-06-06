@@ -909,6 +909,12 @@ export default function RoundPage() {
   const [setupTeeBox, setSetupTeeBox] = useState("");
   const [setupRating, setSetupRating] = useState("");
   const [setupSlope, setSetupSlope] = useState("");
+  // Tees from the most recent course lookup, offered as per-player overrides.
+  const [availableTees, setAvailableTees] = useState<CourseTee[]>([]);
+  // Per-player tee overrides keyed by player id. Players absent from the map
+  // use the round default tee.
+  type TeeCard = { teeBox: string | null; courseRating: number | null; courseSlope: number | null; par: number[]; holeHcp: number[] };
+  const [playerTeeOverrides, setPlayerTeeOverrides] = useState<Map<number, TeeCard>>(new Map());
   const setupInitialized = useRef(false);
 
   // Applies a tee selected via the course lookup to the editable Setup fields.
@@ -941,6 +947,11 @@ export default function RoundPage() {
       setSetupTeeBox(round.teeBox ?? "");
       setSetupRating(round.courseRating != null ? String(round.courseRating) : "");
       setSetupSlope(round.courseSlope != null ? String(round.courseSlope) : "");
+      const seeded = new Map<number, TeeCard>();
+      for (const t of round.playerTees ?? []) {
+        seeded.set(t.playerId, { teeBox: t.teeBox ?? null, courseRating: t.courseRating ?? null, courseSlope: t.courseSlope ?? null, par: t.par, holeHcp: t.holeHcp });
+      }
+      setPlayerTeeOverrides(seeded);
       setupInitialized.current = true;
     }
   }, [round]);
@@ -973,6 +984,13 @@ export default function RoundPage() {
           teeBox: setupTeeBox.trim() || null,
           courseRating: isNaN(ratingNum) ? null : ratingNum,
           courseSlope: isNaN(slopeNum) ? null : slopeNum,
+          // Full-replace: only players with an explicit override are sent.
+          playerTees: (players ?? [])
+            .filter(p => playerTeeOverrides.has(p.id))
+            .map(p => {
+              const ov = playerTeeOverrides.get(p.id)!;
+              return { playerId: p.id, teeBox: ov.teeBox, courseRating: ov.courseRating, courseSlope: ov.courseSlope, par: ov.par, holeHcp: ov.holeHcp };
+            }),
         },
       },
       {
@@ -988,44 +1006,41 @@ export default function RoundPage() {
   const par = (round?.par as number[]) || Array(18).fill(4);
   const holeHcp = (round?.holeHcp as number[]) || Array.from({ length: 18 }, (_, i) => i + 1);
   const handicapMode: HandicapMode = (round?.handicapMode as HandicapMode | undefined) ?? "net";
-  const course: CourseInputs = {
-    slope: round?.courseSlope ?? null,
-    rating: round?.courseRating ?? null,
-    totalPar: par.reduce((a, b) => a + b, 0),
+
+  // The round-default course inputs. The grid's par/holeHcp HEADER rows always
+  // use the round default; only per-player stroke/score math below resolves a
+  // player's own tee via `teeFor`.
+  const defaultCourse: CourseInputs = { slope: round?.courseSlope ?? null, rating: round?.courseRating ?? null, totalPar: par.reduce((a, b) => a + b, 0) };
+  const course = defaultCourse;
+  // Resolves the par/holeHcp/course inputs for a player — their tee override if
+  // present, otherwise the round default.
+  const teeFor = (pid: number): { par: number[]; holeHcp: number[]; course: CourseInputs } => {
+    const ov = (round?.playerTees ?? []).find(t => t.playerId === pid);
+    if (!ov) return { par, holeHcp, course: defaultCourse };
+    return { par: ov.par, holeHcp: ov.holeHcp, course: { slope: ov.courseSlope ?? null, rating: ov.courseRating ?? null, totalPar: ov.par.reduce((a, b) => a + b, 0) } };
   };
 
-  // Playing handicap per player. In "net" mode each group's lowest handicap
-  // plays scratch and others receive the integer difference from the WHS
-  // course handicap formula relative to that group; in "gross" mode each
-  // player plays their full course handicap. Players not assigned to a group
-  // fall back to the field-wide minimum.
-  const fieldMinHcp = players && players.length > 0
-    ? Math.min(...players.map(p => p.handicap || 0))
-    : 0;
-  const groupMinHcp = new Map<number, number>();
+  // Playing handicap per player. In "net" mode each group's lowest Course
+  // Handicap plays scratch and others receive the integer difference; in
+  // "gross" mode each player plays their full Course Handicap. Players not
+  // assigned to a group fall back to the field-wide minimum. Each player's
+  // Course Handicap uses their own tee's slope/rating.
+  const courseHcps = new Map<number, number>((players ?? []).map(p => [p.id, whsCourseHandicap(p.handicap || 0, teeFor(p.id).course)]));
+  // Group-relative reference over per-player Course Handicaps (field-min fallback for ungrouped).
+  const groupMinCh = new Map<number, number>();
   for (const a of groupsData?.assignments ?? []) {
-    const p = (players ?? []).find(pp => pp.id === a.playerId);
-    if (!p) continue;
-    const h = p.handicap || 0;
-    const cur = groupMinHcp.get(a.groupNumber);
-    if (cur == null || h < cur) groupMinHcp.set(a.groupNumber, h);
+    const ch = courseHcps.get(a.playerId); if (ch == null) continue;
+    const cur = groupMinCh.get(a.groupNumber);
+    if (cur == null || ch < cur) groupMinCh.set(a.groupNumber, ch);
   }
-  const playerGroup = new Map<number, number>(
-    (groupsData?.assignments ?? []).map(a => [a.playerId, a.groupNumber])
-  );
-  const playingHcps = new Map<number, number>(
-    (players ?? []).map(p => {
-      const grp = playerGroup.get(p.id);
-      const ref = grp != null ? groupMinHcp.get(grp) ?? fieldMinHcp : fieldMinHcp;
-      return [p.id, effectiveHandicap(p.handicap, ref, handicapMode, course)];
-    })
-  );
-  // Course handicap (integer) per player, derived from overall index plus
-  // the selected tee's slope/rating. Falls back to round(index) when slope
-  // or rating are missing.
-  const courseHcps = new Map<number, number>(
-    (players ?? []).map(p => [p.id, whsCourseHandicap(p.handicap || 0, course)])
-  );
+  const fieldMinCh = (players && players.length) ? Math.min(...players.map(p => courseHcps.get(p.id) ?? 0)) : 0;
+  const playerGroup = new Map<number, number>((groupsData?.assignments ?? []).map(a => [a.playerId, a.groupNumber]));
+  const playingHcps = new Map<number, number>((players ?? []).map(p => {
+    const ch = courseHcps.get(p.id) ?? 0;
+    const grp = playerGroup.get(p.id);
+    const ref = grp != null ? (groupMinCh.get(grp) ?? fieldMinCh) : fieldMinCh;
+    return [p.id, handicapMode === "gross" ? Math.max(0, ch) : Math.max(0, ch - ref)];
+  }));
 
   const SUBTABS: { id: SubTab; label: string; icon: typeof Trophy }[] = [
     { id: "scorecard", label: "Scorecard", icon: Grid3X3 },
@@ -1199,11 +1214,12 @@ export default function RoundPage() {
                     {visiblePlayers.map(p => {
                       const ch = courseHcps.get(p.id) ?? 0;
                       const ph = playingHcps.get(p.id) ?? 0;
+                      const teeName = (round?.playerTees?.find(t => t.playerId === p.id)?.teeBox) ?? round?.teeBox ?? "Default";
                       return (
                         <th key={p.id} className="px-1 py-2 text-center text-xs font-sans font-semibold"
                           style={{ color: "hsl(38 35% 22%)", ...(myPlayerId === p.id ? { boxShadow: "inset 0 0 0 2px hsl(42 52% 59% / 0.6)" } : {}) }}>
                           <div style={{ maxWidth: 46, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
-                          <div style={{ color: "hsl(38 25% 42%)", fontWeight: 400, fontSize: 9 }} title={`Index ${formatHandicap(p.handicap)} · Course HCP ${ch}${ph !== ch ? ` · Playing ${ph}` : ""}`}>
+                          <div style={{ color: "hsl(38 25% 42%)", fontWeight: 400, fontSize: 9 }} title={`Index ${formatHandicap(p.handicap)} · Course HCP ${ch}${ph !== ch ? ` · Playing ${ph}` : ""} · ${teeName}`}>
                             {ch}
                             {ph !== ch && (
                               <span style={{ color: "hsl(38 25% 42%)" }}>/{ph}</span>
@@ -1265,7 +1281,7 @@ export default function RoundPage() {
                           {visiblePlayers.map(p => {
                             const gross = getScore(p.id, holeIdx);
                             const isEditing = editingCell?.playerId === p.id && editingCell?.hole === holeIdx;
-                            const pops = strokesOnHole(playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]);
+                            const pops = strokesOnHole(playingHcps.get(p.id) ?? 0, teeFor(p.id).holeHcp[holeIdx]);
                             return (
                               <td key={p.id} className="px-1 py-1 text-center">
                                 <div className="relative inline-block">
@@ -1290,8 +1306,8 @@ export default function RoundPage() {
                                   ) : (
                                     <button
                                       onClick={() => startEdit(p.id, holeIdx)}
-                                      className={`w-9 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx])}`}
-                                      title={gross != null ? scoreLabel(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
+                                      className={`w-9 h-8 rounded-lg font-serif text-sm font-semibold transition-all hover:scale-105 ${scoreClass(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, teeFor(p.id).holeHcp[holeIdx])}`}
+                                      title={gross != null ? scoreLabel(gross, par[holeIdx], playingHcps.get(p.id) ?? 0, teeFor(p.id).holeHcp[holeIdx]) : `Enter score for hole ${holeIdx + 1}`}
                                     >
                                       {gross ?? "·"}
                                     </button>
@@ -1585,7 +1601,13 @@ export default function RoundPage() {
                             className="font-sans font-semibold text-sm"
                             style={{ color: "hsl(38 30% 14%)" }}
                           />
-                          <div className="text-[10px]" style={{ color: "hsl(38 20% 42%)" }}>{e.holesPlayed}/18 holes</div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="text-[10px]" style={{ color: "hsl(38 20% 42%)" }}>{e.holesPlayed}/18 holes</div>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-sans"
+                              style={{ background: "hsl(38 25% 85%)", color: "hsl(38 30% 25%)" }}>
+                              {(round?.playerTees?.find(t => t.playerId === e.playerId)?.teeBox) ?? round?.teeBox ?? "Default"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       <div className="text-right font-serif text-sm" style={{ color: "hsl(38 30% 25%)" }}>{e.grossTotal ?? "—"}</div>
@@ -1718,14 +1740,16 @@ export default function RoundPage() {
             </p>
             <CourseSearchField
               placeholder="e.g. Pinehurst"
+              onCourseSelected={detail => setAvailableTees(detail.tees)}
               onTeeApplied={(tee, detail) => applyTee(tee, detail.clubName)}
-              onCleared={() => {}}
+              onCleared={() => setAvailableTees([])}
             />
           </div>
 
           {/* Course info */}
           <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
-            <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-3" style={{ color: "hsl(38 20% 38%)" }}>Course Info</h3>
+            <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>Course Info</h3>
+            <p className="text-xs font-sans mb-2" style={{ color: "hsl(38 20% 45%)" }}>Applies to all players unless overridden below.</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-sans mb-1" style={{ color: "hsl(38 20% 38%)" }}>Course Name</label>
@@ -1781,6 +1805,53 @@ export default function RoundPage() {
                   style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Per-player tee overrides */}
+          <div className="rounded-xl p-4" style={{ background: "hsl(42 45% 91%)", border: "1px solid hsl(38 25% 78%)" }}>
+            <h3 className="font-sans font-semibold text-xs uppercase tracking-widest mb-2" style={{ color: "hsl(38 20% 38%)" }}>Per-player tees</h3>
+            <p className="text-xs font-sans mb-3" style={{ color: "hsl(38 20% 45%)" }}>
+              Everyone uses the round default tee unless overridden here.
+              {availableTees.length === 0 && " Look up the course above to choose a tee."}
+            </p>
+            <div className="flex flex-col gap-2">
+              {(players ?? []).map(p => {
+                const ov = playerTeeOverrides.get(p.id);
+                return (
+                  <div key={p.id} className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-sans text-sm font-semibold truncate" style={{ color: "hsl(38 30% 14%)" }}>{p.name}</div>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-sans"
+                        style={{ background: ov ? "hsl(42 52% 59% / 0.25)" : "hsl(38 25% 85%)", color: "hsl(38 30% 25%)" }}>
+                        {ov ? (ov.teeBox ?? "Custom tee") : "Default"}
+                      </span>
+                    </div>
+                    <select
+                      value=""
+                      disabled={availableTees.length === 0}
+                      onChange={e => {
+                        const tee = availableTees.find(t => t.id === e.target.value);
+                        if (!tee) return;
+                        setPlayerTeeOverrides(prev => {
+                          const next = new Map(prev);
+                          next.set(p.id, { teeBox: tee.name, courseRating: tee.rating, courseSlope: tee.slope, par: tee.par, holeHcp: tee.holeHcp });
+                          return next;
+                        });
+                      }}
+                      className="px-2 py-1.5 rounded-lg text-xs font-sans outline-none"
+                      style={{ background: "white", color: "hsl(38 30% 14%)", border: "1.5px solid hsl(38 25% 72%)" }}
+                    >
+                      <option value="">{availableTees.length ? "Override tee…" : "—"}</option>
+                      {availableTees.map(t => (<option key={t.id} value={t.id}>{t.name}{t.gender ? ` · ${t.gender}` : ""}</option>))}
+                    </select>
+                    {ov && (
+                      <button type="button" onClick={() => setPlayerTeeOverrides(prev => { const n = new Map(prev); n.delete(p.id); return n; })}
+                        className="text-[10px] font-sans underline" style={{ color: "hsl(38 20% 45%)" }}>Reset</button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
