@@ -513,6 +513,27 @@ export const ListMyRoundsResponseItem = zod.object({
     teeBox: zod.string().nullish(),
     courseRating: zod.number().nullish(),
     courseSlope: zod.number().nullish(),
+    playerTees: zod
+      .array(
+        zod.object({
+          playerId: zod.number(),
+          teeBox: zod.string().nullish(),
+          courseRating: zod.number().nullish(),
+          courseSlope: zod.number().nullish(),
+          par: zod
+            .array(zod.number())
+            .describe("18 values - par for each hole (this player's tee)"),
+          holeHcp: zod
+            .array(zod.number())
+            .describe(
+              "18 values - handicap stroke index for each hole (this player's tee)",
+            ),
+        }),
+      )
+      .optional()
+      .describe(
+        "Per-player tee overrides; only overridden players appear. Absent\/empty means all players use the round default tee.",
+      ),
     visibility: zod.enum(["public", "private"]),
     completedAt: zod
       .string()
@@ -1026,6 +1047,27 @@ export const GetSoloRoundResponse = zod.object({
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
+  playerTees: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        teeBox: zod.string().nullish(),
+        courseRating: zod.number().nullish(),
+        courseSlope: zod.number().nullish(),
+        par: zod
+          .array(zod.number())
+          .describe("18 values - par for each hole (this player's tee)"),
+        holeHcp: zod
+          .array(zod.number())
+          .describe(
+            "18 values - handicap stroke index for each hole (this player's tee)",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Per-player tee overrides; only overridden players appear. Absent\/empty means all players use the round default tee.",
+    ),
   visibility: zod.enum(["public", "private"]),
   completedAt: zod
     .string()
@@ -1105,6 +1147,27 @@ export const UpdateSoloRoundBody = zod.object({
     .describe(
       "Send a timestamp to mark the round complete; send null to clear.",
     ),
+  playerTees: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        teeBox: zod.string().nullish(),
+        courseRating: zod.number().nullish(),
+        courseSlope: zod.number().nullish(),
+        par: zod
+          .array(zod.number())
+          .describe("18 values - par for each hole (this player's tee)"),
+        holeHcp: zod
+          .array(zod.number())
+          .describe(
+            "18 values - handicap stroke index for each hole (this player's tee)",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Full-replace array of per-player tee overrides. Absent = no change; present (even empty) = diff against existing (upsert listed, delete the rest).",
+    ),
 });
 
 export const UpdateSoloRoundResponse = zod.object({
@@ -1169,6 +1232,27 @@ export const UpdateSoloRoundResponse = zod.object({
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
+  playerTees: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        teeBox: zod.string().nullish(),
+        courseRating: zod.number().nullish(),
+        courseSlope: zod.number().nullish(),
+        par: zod
+          .array(zod.number())
+          .describe("18 values - par for each hole (this player's tee)"),
+        holeHcp: zod
+          .array(zod.number())
+          .describe(
+            "18 values - handicap stroke index for each hole (this player's tee)",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Per-player tee overrides; only overridden players appear. Absent\/empty means all players use the round default tee.",
+    ),
   visibility: zod.enum(["public", "private"]),
   completedAt: zod
     .string()
@@ -1297,6 +1381,27 @@ export const ListRoundsResponseItem = zod.object({
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
+  playerTees: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        teeBox: zod.string().nullish(),
+        courseRating: zod.number().nullish(),
+        courseSlope: zod.number().nullish(),
+        par: zod
+          .array(zod.number())
+          .describe("18 values - par for each hole (this player's tee)"),
+        holeHcp: zod
+          .array(zod.number())
+          .describe(
+            "18 values - handicap stroke index for each hole (this player's tee)",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Per-player tee overrides; only overridden players appear. Absent\/empty means all players use the round default tee.",
+    ),
   visibility: zod.enum(["public", "private"]),
   completedAt: zod
     .string()
@@ -1442,6 +1547,27 @@ export const GetRoundResponse = zod.object({
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
+  playerTees: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        teeBox: zod.string().nullish(),
+        courseRating: zod.number().nullish(),
+        courseSlope: zod.number().nullish(),
+        par: zod
+          .array(zod.number())
+          .describe("18 values - par for each hole (this player's tee)"),
+        holeHcp: zod
+          .array(zod.number())
+          .describe(
+            "18 values - handicap stroke index for each hole (this player's tee)",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Per-player tee overrides; only overridden players appear. Absent\/empty means all players use the round default tee.",
+    ),
   visibility: zod.enum(["public", "private"]),
   completedAt: zod
     .string()
@@ -1522,6 +1648,27 @@ export const UpdateRoundBody = zod.object({
     .describe(
       "Send a timestamp to mark the round complete; send null to clear.",
     ),
+  playerTees: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        teeBox: zod.string().nullish(),
+        courseRating: zod.number().nullish(),
+        courseSlope: zod.number().nullish(),
+        par: zod
+          .array(zod.number())
+          .describe("18 values - par for each hole (this player's tee)"),
+        holeHcp: zod
+          .array(zod.number())
+          .describe(
+            "18 values - handicap stroke index for each hole (this player's tee)",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Full-replace array of per-player tee overrides. Absent = no change; present (even empty) = diff against existing (upsert listed, delete the rest).",
+    ),
 });
 
 export const UpdateRoundResponse = zod.object({
@@ -1586,6 +1733,27 @@ export const UpdateRoundResponse = zod.object({
   teeBox: zod.string().nullish(),
   courseRating: zod.number().nullish(),
   courseSlope: zod.number().nullish(),
+  playerTees: zod
+    .array(
+      zod.object({
+        playerId: zod.number(),
+        teeBox: zod.string().nullish(),
+        courseRating: zod.number().nullish(),
+        courseSlope: zod.number().nullish(),
+        par: zod
+          .array(zod.number())
+          .describe("18 values - par for each hole (this player's tee)"),
+        holeHcp: zod
+          .array(zod.number())
+          .describe(
+            "18 values - handicap stroke index for each hole (this player's tee)",
+          ),
+      }),
+    )
+    .optional()
+    .describe(
+      "Per-player tee overrides; only overridden players appear. Absent\/empty means all players use the round default tee.",
+    ),
   visibility: zod.enum(["public", "private"]),
   completedAt: zod
     .string()
