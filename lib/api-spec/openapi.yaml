@@ -2003,6 +2003,11 @@ components:
           type: ["number", "null"]
         courseSlope:
           type: ["integer", "null"]
+        playerTees:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoundPlayerTee"
+          description: Per-player tee overrides; only overridden players appear. Absent/empty means all players use the round default tee.
         visibility:
           type: string
           enum: [public, private]
@@ -2219,6 +2224,11 @@ components:
         completedAt:
           type: ["string", "null"]
           description: Send a timestamp to mark the round complete; send null to clear.
+        playerTees:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoundPlayerTee"
+          description: Full-replace array of per-player tee overrides. Absent = no change; present (even empty) = diff against existing (upsert listed, delete the rest).
 
     PlayerScore:
       type: object
@@ -2421,6 +2431,32 @@ components:
         - tripId
         - tripName
         - players
+
+    RoundPlayerTee:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        teeBox:
+          type: ["string", "null"]
+        courseRating:
+          type: ["number", "null"]
+        courseSlope:
+          type: ["integer", "null"]
+        par:
+          type: array
+          items:
+            type: integer
+          description: 18 values - par for each hole (this player's tee)
+        holeHcp:
+          type: array
+          items:
+            type: integer
+          description: 18 values - handicap stroke index for each hole (this player's tee)
+      required:
+        - playerId
+        - par
+        - holeHcp
 
     RoundGroupAssignment:
       type: object
