@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, roundsTable, playersTable, tripsTable, userTripFollowsTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
+import { db, roundsTable, playersTable, tripsTable, userTripFollowsTable, roundPlayerTeesTable } from "@workspace/db";
 import { ser } from "../lib/serialize";
+import { validatePlayerTees, playerTeeIdsToDelete, toApiPlayerTee } from "../lib/player-tees";
 import {
   CreateRoundBody,
   CreateRoundParams,
@@ -122,7 +123,8 @@ router.get("/trips/:tripId/rounds/:roundId", async (req, res): Promise<void> => 
       .limit(1);
     if (!callerPlayer) { res.status(404).json({ error: "Round not found" }); return; }
   }
-  res.json(GetRoundResponse.parse(ser(round)));
+  const teeRows = await db.select().from(roundPlayerTeesTable).where(eq(roundPlayerTeesTable.roundId, params.data.roundId));
+  res.json(GetRoundResponse.parse(ser({ ...round, playerTees: teeRows.map(toApiPlayerTee) })));
 });
 
 router.patch("/trips/:tripId/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
@@ -177,10 +179,49 @@ router.patch("/trips/:tripId/rounds/:roundId", requireAuth, async (req: AuthedRe
     updateData.completedAt = parsed.data.completedAt == null ? null : new Date(parsed.data.completedAt);
   }
 
-  const [updated] = await db.update(roundsTable).set(updateData)
-    .where(and(eq(roundsTable.id, params.data.roundId), eq(roundsTable.tripId, params.data.tripId)))
-    .returning();
-  res.json(UpdateRoundResponse.parse(ser(updated)));
+  const wantsTees = parsed.data.playerTees !== undefined;
+  if (wantsTees) {
+    const desired = parsed.data.playerTees!;
+    const tripPlayers = await db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.tripId, params.data.tripId));
+    const validation = validatePlayerTees(desired, new Set(tripPlayers.map(p => p.id)));
+    if (!validation.ok) { res.status(400).json({ error: validation.error }); return; }
+  }
+
+  let updated: typeof round;
+  if (wantsTees) {
+    const desired = parsed.data.playerTees!;
+    updated = await db.transaction(async (tx) => {
+      const [row] = await tx.update(roundsTable).set(updateData)
+        .where(and(eq(roundsTable.id, params.data.roundId), eq(roundsTable.tripId, params.data.tripId)))
+        .returning();
+      const existing = await tx.select({ playerId: roundPlayerTeesTable.playerId })
+        .from(roundPlayerTeesTable).where(eq(roundPlayerTeesTable.roundId, params.data.roundId));
+      const toDelete = playerTeeIdsToDelete(existing.map(e => e.playerId), desired.map(d => d.playerId));
+      if (toDelete.length) {
+        await tx.delete(roundPlayerTeesTable)
+          .where(and(eq(roundPlayerTeesTable.roundId, params.data.roundId), inArray(roundPlayerTeesTable.playerId, toDelete)));
+      }
+      for (const t of desired) {
+        await tx.insert(roundPlayerTeesTable).values({
+          roundId: params.data.roundId, playerId: t.playerId,
+          teeBox: t.teeBox ?? null, courseRating: t.courseRating ?? null, courseSlope: t.courseSlope ?? null,
+          par: t.par, holeHcp: t.holeHcp,
+        }).onConflictDoUpdate({
+          target: [roundPlayerTeesTable.roundId, roundPlayerTeesTable.playerId],
+          set: { teeBox: t.teeBox ?? null, courseRating: t.courseRating ?? null, courseSlope: t.courseSlope ?? null,
+                 par: t.par, holeHcp: t.holeHcp, updatedAt: new Date() },
+        });
+      }
+      return row;
+    });
+  } else {
+    [updated] = await db.update(roundsTable).set(updateData)
+      .where(and(eq(roundsTable.id, params.data.roundId), eq(roundsTable.tripId, params.data.tripId)))
+      .returning();
+  }
+
+  const teeRows = await db.select().from(roundPlayerTeesTable).where(eq(roundPlayerTeesTable.roundId, params.data.roundId));
+  res.json(UpdateRoundResponse.parse(ser({ ...updated, playerTees: teeRows.map(toApiPlayerTee) })));
 });
 
 router.delete("/trips/:tripId/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {

@@ -8,8 +8,10 @@ import {
   scoresTable,
   userTripFollowsTable,
   usersTable,
+  roundPlayerTeesTable,
 } from "@workspace/db";
 import { ser } from "../lib/serialize";
+import { validatePlayerTees, playerTeeIdsToDelete, toApiPlayerTee } from "../lib/player-tees";
 import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
 import { verifySession } from "../lib/jwt";
 import { CreateRoundV2Body, UpdateRoundBody, UpsertScoreBody } from "@workspace/api-zod";
@@ -119,7 +121,8 @@ router.get("/rounds/:roundId", async (req, res): Promise<void> => {
     if (!callerPlayer) { res.status(404).json({ error: "Round not found" }); return; }
   }
 
-  res.json(ser(round));
+  const teeRows = await db.select().from(roundPlayerTeesTable).where(eq(roundPlayerTeesTable.roundId, roundId));
+  res.json(ser({ ...round, playerTees: teeRows.map(toApiPlayerTee) }));
 });
 
 router.patch("/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
@@ -158,8 +161,44 @@ router.patch("/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): P
     updateData.completedAt = data.completedAt == null ? null : new Date(data.completedAt);
   }
 
-  const [updated] = await db.update(roundsTable).set(updateData).where(eq(roundsTable.id, roundId)).returning();
-  res.json(ser(updated));
+  const wantsTees = parsed.data.playerTees !== undefined;
+  if (wantsTees) {
+    const soloPlayers = await db.select({ id: playersTable.id }).from(playersTable).where(eq(playersTable.userId, userId));
+    const validation = validatePlayerTees(parsed.data.playerTees!, new Set(soloPlayers.map(p => p.id)));
+    if (!validation.ok) { res.status(400).json({ error: validation.error }); return; }
+  }
+
+  let updated: typeof round;
+  if (wantsTees) {
+    const desired = parsed.data.playerTees!;
+    updated = await db.transaction(async (tx) => {
+      const [row] = await tx.update(roundsTable).set(updateData).where(eq(roundsTable.id, roundId)).returning();
+      const existing = await tx.select({ playerId: roundPlayerTeesTable.playerId })
+        .from(roundPlayerTeesTable).where(eq(roundPlayerTeesTable.roundId, roundId));
+      const toDelete = playerTeeIdsToDelete(existing.map(e => e.playerId), desired.map(d => d.playerId));
+      if (toDelete.length) {
+        await tx.delete(roundPlayerTeesTable)
+          .where(and(eq(roundPlayerTeesTable.roundId, roundId), inArray(roundPlayerTeesTable.playerId, toDelete)));
+      }
+      for (const t of desired) {
+        await tx.insert(roundPlayerTeesTable).values({
+          roundId, playerId: t.playerId,
+          teeBox: t.teeBox ?? null, courseRating: t.courseRating ?? null, courseSlope: t.courseSlope ?? null,
+          par: t.par, holeHcp: t.holeHcp,
+        }).onConflictDoUpdate({
+          target: [roundPlayerTeesTable.roundId, roundPlayerTeesTable.playerId],
+          set: { teeBox: t.teeBox ?? null, courseRating: t.courseRating ?? null, courseSlope: t.courseSlope ?? null,
+                 par: t.par, holeHcp: t.holeHcp, updatedAt: new Date() },
+        });
+      }
+      return row;
+    });
+  } else {
+    [updated] = await db.update(roundsTable).set(updateData).where(eq(roundsTable.id, roundId)).returning();
+  }
+
+  const teeRows = await db.select().from(roundPlayerTeesTable).where(eq(roundPlayerTeesTable.roundId, roundId));
+  res.json(ser({ ...updated, playerTees: teeRows.map(toApiPlayerTee) }));
 });
 
 router.delete("/rounds/:roundId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
