@@ -3,6 +3,23 @@ import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
 import { startAutoCloseSweeper } from "./lib/auto-close";
 
+// Fail-fast: refuse to start if required secrets are absent.
+// This prevents the server from booting into an insecure state where forged
+// JWT tokens or missing Twilio credentials would silently bypass authentication.
+const REQUIRED_ENV: string[] = ["JWT_SECRET"];
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+if (IS_PRODUCTION) {
+  REQUIRED_ENV.push("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_VERIFY_SERVICE_SID");
+}
+const missingEnv = REQUIRED_ENV.filter((key) => !process.env[key]);
+if (missingEnv.length > 0) {
+  // Use process.stderr.write so this is always visible regardless of log config
+  process.stderr.write(
+    `FATAL: Missing required environment variable(s): ${missingEnv.join(", ")}. Server will not start.\n`
+  );
+  process.exit(1);
+}
+
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {
