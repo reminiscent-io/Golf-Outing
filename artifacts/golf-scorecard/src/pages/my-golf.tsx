@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { ArrowLeft, Plus } from "lucide-react";
 import { RequireSignIn } from "@/components/require-sign-in";
 import { useAuthSession, type AuthSession } from "@/lib/auth";
@@ -22,12 +22,14 @@ export default function MyGolfPage() {
 }
 
 function MyGolfContent({ session }: Readonly<{ session: AuthSession }>) {
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
+  // wouter's `useLocation` returns only the pathname, so read the query string
+  // reactively via `useSearch` (otherwise the active tab never updates on click).
+  const search = useSearch();
   const tab: Tab = useMemo(() => {
-    const search = location.includes("?") ? location.slice(location.indexOf("?")) : "";
     const t = new URLSearchParams(search).get("tab");
     return t === "trips" ? "trips" : t === "connections" ? "connections" : "rounds";
-  }, [location]);
+  }, [search]);
   const [logRoundOpen, setLogRoundOpen] = useState(false);
 
   function setTab(next: Tab) {
