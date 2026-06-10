@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { setAuthTokenGetter, setUnauthorizedHandler } from "@workspace/api-client-react";
 
 export type AuthUser = {
   id: number;
@@ -87,6 +87,12 @@ export function useAuthSession(): AuthSession | null {
 
 // Wire the bearer token getter immediately on module load.
 setAuthTokenGetter(() => readSession()?.token ?? null);
+
+// When a request made with our stored token comes back 401, the server no
+// longer accepts it (expired or signed with a rotated JWT_SECRET) — drop the
+// session so the UI falls back to the signed-out state instead of rendering
+// a signed-in shell whose every request fails.
+setUnauthorizedHandler(() => clearSession());
 
 // Maybe refresh the token if it's getting close to expiry.
 export async function maybeRefreshSession(): Promise<void> {
