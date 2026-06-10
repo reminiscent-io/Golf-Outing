@@ -6,9 +6,11 @@ import {
   roundKudosTable,
   roundCommentsTable,
   roundGroupAssignmentsTable,
+  roundPlayerTeesTable,
   type Round,
 } from "@workspace/db";
 import { summarizeRound } from "./scoring";
+import { teeMapFromRows } from "./player-tees";
 
 export type FeedPlayer = { playerId: number; playerName: string; userId: number | null; gross: number | null };
 
@@ -41,10 +43,11 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
   const roundIds = rounds.map(r => r.id);
   const tripIds = Array.from(new Set(rounds.map(r => r.tripId).filter((x): x is number => x !== null)));
 
-  const [players, scores, assignments, kudosCounts, commentCounts, viewerKudos] = await Promise.all([
+  const [players, scores, assignments, teeRows, kudosCounts, commentCounts, viewerKudos] = await Promise.all([
     db.select().from(playersTable).where(inArray(playersTable.tripId, tripIds)),
     db.select().from(scoresTable).where(inArray(scoresTable.roundId, roundIds)),
     db.select().from(roundGroupAssignmentsTable).where(inArray(roundGroupAssignmentsTable.roundId, roundIds)),
+    db.select().from(roundPlayerTeesTable).where(inArray(roundPlayerTeesTable.roundId, roundIds)),
     db.select({ roundId: roundKudosTable.roundId, n: sql<number>`count(*)::int` })
       .from(roundKudosTable).where(inArray(roundKudosTable.roundId, roundIds))
       .groupBy(roundKudosTable.roundId),
@@ -74,6 +77,12 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
     arr.push({ playerId: a.playerId, groupNumber: a.groupNumber });
     assignsByRound.set(a.roundId, arr);
   }
+  const teesByRound = new Map<number, typeof teeRows>();
+  for (const t of teeRows) {
+    const arr = teesByRound.get(t.roundId) ?? [];
+    arr.push(t);
+    teesByRound.set(t.roundId, arr);
+  }
   const kudosCountByRound = new Map(kudosCounts.map(k => [k.roundId, k.n]));
   const commentCountByRound = new Map(commentCounts.map(c => [c.roundId, c.n]));
   const viewerKudosed = new Set(viewerKudos.map(k => k.roundId));
@@ -90,6 +99,7 @@ export async function summarizeFeedItems(rounds: Round[], viewerId: number): Pro
       players: tripPlayers.map(p => ({ id: p.id, name: p.name, handicap: p.handicap })),
       scores: roundScores,
       assignments: assignsByRound.get(r.id) ?? [],
+      playerTees: teeMapFromRows(teesByRound.get(r.id) ?? []),
     });
     return {
       roundId: r.id,

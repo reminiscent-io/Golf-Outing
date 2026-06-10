@@ -588,6 +588,20 @@ export interface GamesConfig {
   scrambleType?: GamesConfigScrambleType;
 }
 
+export interface RoundPlayerTee {
+  playerId: number;
+  /** @nullable */
+  teeBox?: string | null;
+  /** @nullable */
+  courseRating?: number | null;
+  /** @nullable */
+  courseSlope?: number | null;
+  /** 18 values - par for each hole (this player's tee) */
+  par: number[];
+  /** 18 values - handicap stroke index for each hole (this player's tee) */
+  holeHcp: number[];
+}
+
 export interface Round {
   id: number;
   /** @nullable */
@@ -615,6 +629,8 @@ export interface Round {
   courseRating?: number | null;
   /** @nullable */
   courseSlope?: number | null;
+  /** Per-player tee overrides; only overridden players appear. Absent/empty means all players use the round default tee. */
+  playerTees?: RoundPlayerTee[];
   visibility: RoundVisibility;
   /**
    * ISO timestamp set when the round is explicitly marked complete or all 18 holes scored.
@@ -738,6 +754,8 @@ export interface UpdateRoundBody {
    * @nullable
    */
   completedAt?: string | null;
+  /** Full-replace array of per-player tee overrides. Absent = no change; present (even empty) = diff against existing (upsert listed, delete the rest). */
+  playerTees?: RoundPlayerTee[];
 }
 
 export interface PlayerScore {

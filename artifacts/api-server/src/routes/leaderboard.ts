@@ -1,14 +1,15 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, roundsTable, playersTable, scoresTable, tripsTable, roundGroupAssignmentsTable, scrambleScoresTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
+import { db, roundsTable, playersTable, scoresTable, tripsTable, roundGroupAssignmentsTable, scrambleScoresTable, roundPlayerTeesTable } from "@workspace/db";
 import {
   GetRoundLeaderboardParams,
   GetRoundLeaderboardResponse,
   GetTripLeaderboardParams,
   GetTripLeaderboardResponse,
 } from "@workspace/api-zod";
-import { buildPlayerMinHcp, computePlayerStats, computeSkins, computeTeamNassau, computeScramble } from "../lib/scoring";
-import type { ScrambleType, ScrambleTeamSide } from "../lib/scoring";
+import { computePlayerStats, computeSkins, computeTeamNassau, computeScramble, resolvePlayingHandicaps } from "../lib/scoring";
+import type { ScrambleType, ScrambleTeamSide, PlayerTee } from "../lib/scoring";
+import { teeMapFromRows } from "../lib/player-tees";
 
 const router: IRouter = Router();
 
@@ -53,21 +54,28 @@ router.get("/trips/:tripId/rounds/:roundId/leaderboard", async (req, res): Promi
     })
     .filter((s): s is NonNullable<typeof s> => s != null);
 
-  const playerMinHcp = buildPlayerMinHcp(players, assignments);
   const mode = (round.handicapMode ?? "net") as "net" | "gross";
   const course = {
     slope: round.courseSlope,
     rating: round.courseRating,
     totalPar: par.reduce((a, b) => a + b, 0),
   };
+
+  const overrideRows = await db.select().from(roundPlayerTeesTable).where(eq(roundPlayerTeesTable.roundId, roundId));
+  const defaultTee: PlayerTee = { par, holeHcp, course };
+  const teeByPlayer = teeMapFromRows(overrideRows);
+  const resolved = resolvePlayingHandicaps(players, teeByPlayer, defaultTee, assignments, mode);
+  const playingByPlayer = new Map([...resolved].map(([id, r]) => [id, r.playingHandicap]));
+  const holeHcpByPlayer = new Map(players.map(p => [p.id, (teeByPlayer.get(p.id) ?? defaultTee).holeHcp]));
+
   const stats = players.map(p => {
     const holeScores = allHoleScoresMap.get(p.id) || Array(18).fill(null);
-    return computePlayerStats(p, holeScores, par, holeHcp, playerMinHcp.get(p.id) ?? 0, mode, course);
+    const tee = teeByPlayer.get(p.id) ?? defaultTee;
+    return computePlayerStats(p, holeScores, tee.par, tee.holeHcp, playingByPlayer.get(p.id) ?? 0);
   });
 
-  const { skinsWon, perHole } = computeSkins(players, allHoleScoresMap, holeHcp, playerMinHcp, mode, course);
-
-  const nassau = computeTeamNassau(slots, allHoleScoresMap, par, holeHcp, mode, course);
+  const { skinsWon, perHole } = computeSkins(players, allHoleScoresMap, holeHcpByPlayer, playingByPlayer);
+  const nassau = computeTeamNassau(slots, allHoleScoresMap, holeHcpByPlayer, playingByPlayer, mode);
 
   const gamesConfig = (round.gamesConfig ?? {}) as { scramble?: boolean; scrambleType?: ScrambleType | null };
   const scrambleType: ScrambleType | null = gamesConfig.scramble && gamesConfig.scrambleType ? gamesConfig.scrambleType : null;
@@ -131,6 +139,17 @@ router.get("/trips/:tripId/leaderboard", async (req, res): Promise<void> => {
   const players = await db.select().from(playersTable).where(eq(playersTable.tripId, tripId));
   const rounds = await db.select().from(roundsTable).where(eq(roundsTable.tripId, tripId));
 
+  const roundIds = rounds.map(r => r.id);
+  const allOverrides = roundIds.length
+    ? await db.select().from(roundPlayerTeesTable).where(inArray(roundPlayerTeesTable.roundId, roundIds))
+    : [];
+  const overridesByRound = new Map<number, typeof allOverrides>();
+  for (const o of allOverrides) {
+    const arr = overridesByRound.get(o.roundId) ?? [];
+    arr.push(o);
+    overridesByRound.set(o.roundId, arr);
+  }
+
   // Aggregate per player across all rounds
   const playerTotals: Record<number, {
     roundsPlayed: number;
@@ -167,19 +186,24 @@ router.get("/trips/:tripId/leaderboard", async (req, res): Promise<void> => {
       groupNumber: roundGroupAssignmentsTable.groupNumber,
     }).from(roundGroupAssignmentsTable).where(eq(roundGroupAssignmentsTable.roundId, round.id));
 
-    const playerMinHcp = buildPlayerMinHcp(players, assignments);
     const mode = (round.handicapMode ?? "net") as "net" | "gross";
     const course = {
       slope: round.courseSlope,
       rating: round.courseRating,
       totalPar: par.reduce((a, b) => a + b, 0),
     };
+    const defaultTee: PlayerTee = { par, holeHcp, course };
+    const teeByPlayer = teeMapFromRows(overridesByRound.get(round.id) ?? []);
+    const resolved = resolvePlayingHandicaps(players, teeByPlayer, defaultTee, assignments, mode);
+    const playingByPlayer = new Map([...resolved].map(([id, r]) => [id, r.playingHandicap]));
+    const holeHcpByPlayer = new Map(players.map(p => [p.id, (teeByPlayer.get(p.id) ?? defaultTee).holeHcp]));
     const stats = players.map(p => {
       const holeScores = allHoleScoresMap.get(p.id) || Array(18).fill(null);
-      return computePlayerStats(p, holeScores, par, holeHcp, playerMinHcp.get(p.id) ?? 0, mode, course);
+      const tee = teeByPlayer.get(p.id) ?? defaultTee;
+      return computePlayerStats(p, holeScores, tee.par, tee.holeHcp, playingByPlayer.get(p.id) ?? 0);
     });
 
-    const { skinsWon } = computeSkins(players, allHoleScoresMap, holeHcp, playerMinHcp, mode, course);
+    const { skinsWon } = computeSkins(players, allHoleScoresMap, holeHcpByPlayer, playingByPlayer);
 
     stats.forEach(s => {
       if (s.holesPlayed === 0) return;
