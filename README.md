@@ -13,7 +13,12 @@ Card Caddie runs your golf trip. Create a trip, add players, schedule rounds, an
 - **Handicap-adjusted net scoring** using WHS Course Handicap
 - **Four scoring formats**: Stableford, Skins (with carry), Nassau, Net Stroke
 - **Live leaderboards** that auto-refresh as scores post
-- **Phone + OTP auth** via Twilio SMS, with 30-day session tokens
+- **Solo rounds** outside any trip, and **scramble rounds** with team scoring
+- **Per-player tees** with group-relative net adjustment
+- **Social feed** (buddies / mine / all tabs) with round kudos and comments
+- **Connections**: follow other golfers, claim pre-created players by phone tag at `/claim/:code`
+- **Privacy controls**: public/private rounds and profiles, opt-in phone discoverability
+- **Phone + OTP auth** via Twilio Verify, with 30-day session tokens
 - **Course lookup** powered by GolfCourseAPI for tees, pars, and handicap data
 
 ## Tech Stack
@@ -46,8 +51,7 @@ lib/
 
 artifacts/
 ├── api-server/       Express API server (routes, scoring algorithms)
-├── golf-scorecard/   Main React app
-└── mockup-sandbox/   Standalone design sandbox
+└── golf-scorecard/   Main React app
 ```
 
 Internal packages are imported as `@workspace/<name>` via `workspace:*`. Catalog dependencies are pinned centrally in `pnpm-workspace.yaml`.
@@ -79,15 +83,14 @@ GOLF_COURSE_API_KEY=your_key
 
 # Auth
 JWT_SECRET=your_long_random_secret
-OTP_EXPIRY_MINUTES=10
 
-# SMS (optional in dev — falls back to logging OTPs)
+# SMS OTP via Twilio Verify (required in production)
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
-TWILIO_FROM_NUMBER=
+TWILIO_VERIFY_SERVICE_SID=
 ```
 
-If any Twilio variable is missing, the server logs OTP codes via Pino instead of texting them. Handy for local dev.
+Twilio Verify owns OTP generation, delivery, and validation. If the Twilio variables are unset, the server still boots in dev but skips OTP sends and rejects every code — there is no bypass code, so signing in requires real Twilio credentials. In production the server refuses to start without them.
 
 ### Push the schema
 
@@ -100,14 +103,12 @@ There's no `migrations/` directory. Schema changes go through `db push`. Edit `l
 ### Run
 
 ```bash
-# API server
+# Both servers at once (sources .env, runs API + UI)
+pnpm run dev
+
+# Or individually
 pnpm --filter @workspace/api-server run dev
-
-# Scorecard UI
 pnpm --filter @workspace/golf-scorecard run dev
-
-# Mockup sandbox (optional)
-pnpm --filter @workspace/mockup-sandbox run dev
 ```
 
 ## Common Commands
