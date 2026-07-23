@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-06T00:00:00Z",
+  "title": "Design System: Golf Trip Live Scorecard",
+  "extensions": {
+    "colorMeta": {
+      "forest-bg": {
+        "role": "neutral",
+        "displayName": "Forest Green",
+        "canonical": "hsl(158 60% 11%)",
+        "tonalRamp": ["hsl(158 65% 7%)", "hsl(158 62% 11%)", "hsl(158 55% 16%)", "hsl(158 45% 22%)", "hsl(158 38% 30%)", "hsl(158 32% 42%)", "hsl(158 28% 60%)", "hsl(158 24% 82%)"]
+      },
+      "cream-card": {
+        "role": "neutral",
+        "displayName": "Scorecard Cream",
+        "canonical": "hsl(42 45% 91%)",
+        "tonalRamp": ["hsl(42 30% 20%)", "hsl(42 32% 32%)", "hsl(42 34% 45%)", "hsl(42 38% 58%)", "hsl(42 42% 70%)", "hsl(42 44% 80%)", "hsl(42 45% 88%)", "hsl(42 46% 95%)"]
+      },
+      "brass": {
+        "role": "primary",
+        "displayName": "Stamped Brass",
+        "canonical": "hsl(42 52% 59%)",
+        "tonalRamp": ["hsl(42 60% 18%)", "hsl(42 60% 28%)", "hsl(42 60% 38%)", "hsl(42 60% 48%)", "hsl(42 52% 59%)", "hsl(42 45% 68%)", "hsl(42 38% 78%)", "hsl(42 32% 90%)"]
+      },
+      "brass-ink": {
+        "role": "primary",
+        "displayName": "Cream-Safe Brass",
+        "canonical": "hsl(42 60% 32%)",
+        "tonalRamp": ["hsl(42 62% 14%)", "hsl(42 62% 22%)", "hsl(42 60% 32%)", "hsl(42 58% 42%)", "hsl(42 54% 54%)", "hsl(42 46% 66%)", "hsl(42 38% 78%)", "hsl(42 32% 90%)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Scorecard Ink",
+        "canonical": "hsl(38 30% 14%)",
+        "tonalRamp": ["hsl(38 32% 8%)", "hsl(38 30% 14%)", "hsl(38 26% 24%)", "hsl(38 22% 38%)", "hsl(38 18% 52%)", "hsl(38 16% 66%)", "hsl(38 14% 80%)", "hsl(38 14% 92%)"]
+      },
+      "score-birdie": {
+        "role": "tertiary",
+        "displayName": "Birdie Green",
+        "canonical": "hsl(148 45% 40%)",
+        "tonalRamp": ["hsl(148 50% 14%)", "hsl(148 48% 22%)", "hsl(148 46% 31%)", "hsl(148 45% 40%)", "hsl(148 42% 50%)", "hsl(148 38% 62%)", "hsl(148 34% 76%)", "hsl(148 30% 90%)"]
+      },
+      "score-double": {
+        "role": "tertiary",
+        "displayName": "Double Red",
+        "canonical": "hsl(0 45% 45%)",
+        "tonalRamp": ["hsl(0 50% 18%)", "hsl(0 48% 28%)", "hsl(0 46% 37%)", "hsl(0 45% 45%)", "hsl(0 42% 55%)", "hsl(0 38% 67%)", "hsl(0 34% 80%)", "hsl(0 30% 92%)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Landing hero h1 only. Fraunces 600, fluid clamp." },
+      "headline": { "displayName": "Headline", "purpose": "Section h2 on brand surfaces. Fraunces 500." },
+      "title": { "displayName": "Page Title", "purpose": "In-app page titles (My Trips, Trip Hub). Fraunces." },
+      "card-title": { "displayName": "Card Title", "purpose": "Feature and card headings. Fraunces 600, 17px." },
+      "body": { "displayName": "Body", "purpose": "Body copy and descriptions. Manrope, capped 65-75ch." },
+      "label": { "displayName": "Label", "purpose": "Buttons, tabs, UI labels. Manrope 500-600." },
+      "eyebrow": { "displayName": "Eyebrow", "purpose": "Section micro-labels. UPPERCASE Manrope 700, 0.32em tracking, brass." },
+      "stamp": { "displayName": "Stamp", "purpose": "Scorecard chrome: OUT/HOLE/PAR/THRU. UPPERCASE Manrope 700, 8-9px." }
+    },
+    "shadows": [
+      { "name": "subtle", "value": "0 1px 3px rgba(0,0,0,0.3)", "purpose": "Resting lift on a forest-context element that genuinely needs separation." },
+      { "name": "default", "value": "0 2px 6px rgba(0,0,0,0.3)", "purpose": "Standard small card lift." },
+      { "name": "medium", "value": "0 4px 12px rgba(0,0,0,0.35)", "purpose": "Popovers and raised menus." },
+      { "name": "large", "value": "0 8px 24px rgba(0,0,0,0.4)", "purpose": "Dialogs and the sign-in modal." },
+      { "name": "brass-cta", "value": "0 1px 0 hsl(42 60% 48%) inset, 0 14px 30px -12px hsla(42,60%,50%,0.55), 0 2px 0 hsla(0,0%,0%,0.18)", "purpose": "The one expressive drop in the system, reserved for the primary brass pill." }
+    ],
+    "motion": [
+      { "name": "society-rise", "value": "society-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) forwards", "purpose": "The only arrival animation: opacity 0 + translateY(8px) to settled. Staggered via animationDelay. Skips to end under prefers-reduced-motion." },
+      { "name": "live-ping", "value": "ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite", "purpose": "The live-dot pulse overlay. Reduces to a static dot under prefers-reduced-motion." },
+      { "name": "cta-lift", "value": "transform 0.2s", "purpose": "Hover lift on the primary CTA, -translate-y-0.5. Transform only, no color flash." }
+    ],
+    "breakpoints": [
+      { "name": "phone", "value": "640px" },
+      { "name": "shell-cap", "value": "512px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (Brass Pill)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The system's one primary action. One per screen, identical on landing and in-app empty states.",
+      "html": "<button class=\"ds-btn-primary\">Start a trip</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: hsl(42 52% 59%); color: hsl(38 30% 14%); font-family: 'Manrope', system-ui, sans-serif; font-weight: 600; font-size: 14px; letter-spacing: 0.04em; padding: 14px 28px; border: none; border-radius: 9999px; box-shadow: 0 1px 0 hsl(42 60% 48%) inset, 0 14px 30px -12px hsla(42,60%,50%,0.55), 0 2px 0 hsla(0,0%,0%,0.18); cursor: pointer; transition: transform 0.2s cubic-bezier(0.22,1,0.36,1); } .ds-btn-primary:hover { transform: translateY(-2px); } .ds-btn-primary:active { transform: translateY(0); } .ds-btn-primary:focus-visible { outline: 2px solid hsl(42 60% 48%); outline-offset: 2px; }"
+    },
+    {
+      "name": "Default Button (Shadcn)",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "In-app secondary action. Brass fill with a tinted border, square-ish 10px radius.",
+      "html": "<button class=\"ds-btn-default\">Create a Round</button>",
+      "css": ".ds-btn-default { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 16px; background: hsl(42 52% 59%); color: hsl(38 30% 12%); border: 1px solid hsl(42 52% 51%); border-radius: 10px; font-family: 'Manrope', system-ui, sans-serif; font-weight: 500; font-size: 14px; cursor: pointer; transition: background 0.15s; } .ds-btn-default::after { content: ''; } .ds-btn-default:hover { background: hsl(42 52% 56%); } .ds-btn-default:focus-visible { outline: none; box-shadow: 0 0 0 1px hsl(42 60% 60%); }"
+    },
+    {
+      "name": "Eyebrow",
+      "kind": "custom",
+      "refersTo": "eyebrow",
+      "description": "Section-introducing micro-label above an h2. Brass on forest, Brass Ink on cream.",
+      "html": "<span class=\"ds-eyebrow\">Live Scoring</span>",
+      "css": ".ds-eyebrow { display: inline-block; font-family: 'Manrope', system-ui, sans-serif; font-weight: 700; font-size: 10px; line-height: 1; letter-spacing: 0.32em; text-transform: uppercase; color: hsl(42 52% 59%); }"
+    },
+    {
+      "name": "Live Indicator",
+      "kind": "custom",
+      "refersTo": "live-indicator",
+      "description": "A pulsing brass-green dot signalling silent auto-refresh. The pulse is the entire signal.",
+      "html": "<span class=\"ds-live\"><span class=\"ds-live-ping\"></span><span class=\"ds-live-dot\"></span></span>",
+      "css": ".ds-live { position: relative; display: inline-flex; height: 6px; width: 6px; } .ds-live-ping { position: absolute; inset: 0; border-radius: 9999px; background: hsl(148 45% 40%); opacity: 0.75; animation: ds-ping 1.6s cubic-bezier(0,0,0.2,1) infinite; } .ds-live-dot { position: relative; display: inline-flex; height: 6px; width: 6px; border-radius: 9999px; background: hsl(148 45% 40%); } @keyframes ds-ping { 75%, 100% { transform: scale(2.4); opacity: 0; } } @media (prefers-reduced-motion: reduce) { .ds-live-ping { animation: none; opacity: 0; } }"
+    },
+    {
+      "name": "Score Cell Row",
+      "kind": "custom",
+      "refersTo": "score-cell-birdie",
+      "description": "A run of score cells from the 18-hole grid. Color plus number, never color alone. Each cell is a 44x44 touch target.",
+      "html": "<div class=\"ds-score-row\"><span class=\"ds-cell ds-eagle\">2</span><span class=\"ds-cell ds-birdie\">3</span><span class=\"ds-cell ds-par\">4</span><span class=\"ds-cell ds-bogey\">5</span><span class=\"ds-cell ds-double\">6</span><span class=\"ds-cell ds-empty\"></span></div>",
+      "css": ".ds-score-row { display: inline-flex; gap: 2px; font-family: 'Manrope', system-ui, sans-serif; font-weight: 600; font-variant-numeric: tabular-nums; } .ds-cell { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 8px; font-size: 15px; } .ds-eagle { background: hsl(42 60% 55%); color: hsl(38 30% 12%); } .ds-birdie { background: hsl(148 45% 40%); color: hsl(42 45% 91%); } .ds-par { background: hsl(42 20% 84%); color: hsl(38 30% 18%); } .ds-bogey { background: hsl(30 40% 75%); color: hsl(38 30% 18%); } .ds-double { background: hsl(0 45% 45%); color: hsl(42 45% 91%); } .ds-empty { background: hsl(42 25% 78%); }"
+    },
+    {
+      "name": "Scorecard Card",
+      "kind": "card",
+      "refersTo": "scorecard-card",
+      "description": "The signature surface: cream card on forest with a paper-band header strip, dashed divider, and a brass corner stamp. Start every score-shaped display from this.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-card-stamp\">Thru 7</span><div class=\"ds-card-band\"><span>Hole</span><span>Par</span><span>Net</span></div><div class=\"ds-card-row\"><span class=\"ds-card-name\">Mike D.</span><span class=\"ds-card-total\">-2</span></div></div>",
+      "css": ".ds-card { position: relative; max-width: 320px; background: hsl(42 45% 91%); color: hsl(38 30% 14%); border: 1px solid hsl(38 25% 78%); border-radius: 14px; padding: 20px; font-family: 'Manrope', system-ui, sans-serif; } .ds-card-stamp { position: absolute; top: -12px; right: -12px; display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 0 12px; border-radius: 9999px; background: radial-gradient(circle at 30% 30%, hsl(42 52% 59%) 0%, hsl(42 60% 48%) 70%); color: hsl(38 30% 12%); font-weight: 700; font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; } .ds-card-band { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed hsl(38 25% 78%); font-weight: 700; font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: hsl(38 20% 38%); } .ds-card-row { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; } .ds-card-name { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 17px; } .ds-card-total { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 17px; color: hsl(148 45% 40%); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Cream-tinted field with a brass focus ring. 16px font on phone widths to prevent iOS auto-zoom.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Course name\" />",
+      "css": ".ds-input { width: 100%; height: 40px; padding: 0 12px; background: hsl(42 45% 93%); color: hsl(38 30% 14%); border: 1px solid hsl(38 25% 72%); border-radius: 10px; font-family: 'Manrope', system-ui, sans-serif; font-size: 16px; } .ds-input::placeholder { color: hsl(38 20% 50%); } .ds-input:focus-visible { outline: none; border-color: hsl(42 60% 60%); box-shadow: 0 0 0 1px hsl(42 60% 60%); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Steward's Scorecard",
+    "overview": "The whole system points at one object: a cream paper scorecard a club steward hands you across the counter, brass clip still warm, dashed dividers printed crisp, every number set in tabular figures. Not a 1920s parody, not country-club costume. A working instrument that happens to be beautiful. The structural law underneath is dark shell, light surface: a forest-green app frame holds cream card surfaces where the actual scoring happens. The shell carries the brand; the cards carry the work. Brass is the seam, the stamp and the clip, used at roughly 10% and never decoratively. Color strategy is Committed: forest and cream each carry 30 to 60% of any screen, and the identity lives in that contrast, not in a lone accent. It rejects the PGA-Tour-broadcast aesthetic above all: flatter, quieter, more printed-paper than rendered-pixel.",
+    "keyCharacteristics": [
+      "Two-surface architecture: forest shell, cream cards, brass seam.",
+      "Printed-paper voice: dashed dividers, dotted-leader rows, UPPERCASE letter-spaced chrome, tabular numerals everywhere a number lives.",
+      "Mobile-first, single-thumb, sun-legible. The shell caps at 512px on every viewport.",
+      "Live without alarming: silent refresh, a single pulsing brass-green dot, positions that slide rather than flash.",
+      "Heritage as material, not theme: it should feel handed to you, not rendered for you."
+    ],
+    "rules": [
+      { "name": "The Two-Surface Rule", "body": "Forest shell, cream card, always. Never invert it (light shell with dark cards). Never collapse it (cream-on-cream, forest-on-forest). A card on top of a card is forbidden. This single contrast is the brand.", "section": "colors" },
+      { "name": "The Two-Brass Rule", "body": "Bright Brass (hsl(42 52% 59%)) is forest-context only. On cream, brass steps to Brass Ink (hsl(42 60% 32%)) so labels stay AA-legible. Bright brass text on a cream card is a contrast bug, not a style choice.", "section": "colors" },
+      { "name": "The Reserved-Brass Rule", "body": "One brass moment per screen region. Brass is the stamp; brass-on-brass-on-brass dilutes it. If brass is showing up only to add color, remove it.", "section": "colors" },
+      { "name": "The No-Gray Rule", "body": "Gray on color is banned. Use cream-on-forest, ink-on-cream, brass-muted-on-forest. Never text-gray-500 on a forest panel.", "section": "colors" },
+      { "name": "The Serif-Heading Rule", "body": "All h1/h2/h3 are Fraunces, enforced globally in the base layer. Never override a heading to sans.", "section": "typography" },
+      { "name": "The Chrome-Caps Rule", "body": "The printed-scorecard voice is achieved with UPPERCASE Manrope at 8-10px and letter-spacing 0.18-0.32em. A system pattern, not a one-off.", "section": "typography" },
+      { "name": "The Italic-Brass Rule", "body": "Serif italic in brass on forest, at section-headline scale only. The one emotional flourish. Never on UI labels or body copy.", "section": "typography" },
+      { "name": "The No-Gradient-Text Rule", "body": "background-clip: text over a gradient is forbidden. Brass on forest is already the most expressive treatment; emphasis comes from weight, size, and italic.", "section": "typography" },
+      { "name": "The Borders-Over-Shadows Rule", "body": "Reach for a dashed cream border or the paper-band header strip before a shadow. Printed paper has edges, not glows. Only the brass CTA's drop is allowed to be expressive.", "section": "elevation" },
+      { "name": "The Flat-Card Rule", "body": "Cards sit flat on the forest at rest. The cream-on-forest contrast is the elevation. Stacking shadows on every card reads as web-app, not scorecard.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the forest shell / cream card / brass seam split on every screen. It is the brand.",
+      "Do use tabular numerals on every score, total, and handicap, and align the 18-hole grid to 60px repeat(9, minmax(0,1fr)) 44px.",
+      "Do step brass down to Brass Ink (hsl(42 60% 32%)) for any label or eyebrow printed on cream, and verify AA before shipping.",
+      "Do pair every score color with a number (and a glyph where space allows) so color is never the only signal.",
+      "Do prefer dashed cream borders and the paper-band header strip over drop shadows.",
+      "Do let leaderboards refresh silently, signalled only by the single pulsing brass-green dot. Positions slide; they do not flash.",
+      "Do keep primary actions in the thumb-reachable bottom two-thirds, touch targets 44x44pt minimum, body inputs 16px minimum on phone.",
+      "Do respect prefers-reduced-motion: the society-rise entry skips to its end state and the live dot reduces to static.",
+      "Do address the group, not the user. Title Case for page titles and CTAs, sentence case for body and helper text."
+    ],
+    "donts": [
+      "Don't build Tour-broadcast chrome: no 3D leaderboards, beveled position numbers, sponsor-tower lockups, or gradient-fill team colors. The primary anti-reference.",
+      "Don't ship the hero-metric template (big number, small label, supporting stats, gradient accent), forbidden even on the landing.",
+      "Don't use identical icon-title-text card grids. Vary rhythm deliberately.",
+      "Don't reach for casino or sportsbook loudness on the money surfaces: no felt-green textures, neon, or bookie-odds typography.",
+      "Don't use the bright-green health-app palette. The only true green is Birdie (hsl(148 45% 40%)), reserved for score cells and the live dot.",
+      "Don't use a side-stripe colored border greater than 1px as an accent. It clashes with the cream-paper metaphor.",
+      "Don't use gradient text, decorative glassmorphism, em dashes, exclamation points, or emoji.",
+      "Don't invert or collapse the two-surface rule, nest a card inside a card, or stack shadows on every card.",
+      "Don't add confetti, fireworks, or balloon celebrations on score entry or position changes. Live without alarming.",
+      "Don't ship generic shadcn neutral grays. Replace them with the tinted-neutral tokens before merging."
+    ]
+  }
+}

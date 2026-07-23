@@ -50,3 +50,12 @@ Thumbs.db
 
 # Superpowers brainstorming workspace
 .superpowers/
+
+# Local environment (secrets: DATABASE_URL, JWT_SECRET, Twilio, etc.)
+.env
+.env.*
+!.env.example
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/worktrees/
