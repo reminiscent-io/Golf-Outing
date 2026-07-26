@@ -8,6 +8,7 @@
     "test-golf-course-api": "tsx ./src/test-golf-course-api.ts",
     "migrate-add-slot-index": "tsx ./src/migrate-add-slot-index.ts",
     "backfill-handicap-history": "tsx ./src/backfill-handicap-history.ts",
+    "twilio-doctor": "tsx ./src/twilio-verify-doctor.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

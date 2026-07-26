@@ -9,7 +9,8 @@ import {
 import { ser } from "../lib/serialize";
 import { logger } from "../lib/logger";
 import { startVerification, checkVerification } from "../lib/twilio";
-import { normalizePhone } from "../lib/otp";
+import { verifyErrorResponse } from "../lib/verify-response";
+import { normalizePhone, maskPhone } from "../lib/otp";
 import { signSession } from "../lib/jwt";
 import { requireAuth, type AuthedRequest } from "../middlewares/require-auth";
 
@@ -39,6 +40,20 @@ function checkRate(phone: string): { ok: true } | { ok: false; retryAfterMs: num
   return { ok: true };
 }
 
+/**
+ * Give back the slot consumed by `checkRate` when the send failed for a reason
+ * that isn't the caller's fault (our credentials are broken, or we never
+ * reached Twilio). No SMS went out, so throttling the user for 30s — and
+ * burning their 5-per-15-minutes budget — would just compound the outage.
+ */
+function releaseRate(phone: string): void {
+  const state = rateMap.get(phone);
+  if (!state) return;
+  state.recent.pop();
+  state.last = state.recent[state.recent.length - 1] ?? 0;
+  rateMap.set(phone, state);
+}
+
 router.post("/auth/request-otp", async (req, res): Promise<void> => {
   const parsed = RequestOtpBody.safeParse(req.body);
   if (!parsed.success) {
@@ -63,8 +78,18 @@ router.post("/auth/request-otp", async (req, res): Promise<void> => {
   try {
     await startVerification(phone);
   } catch (err) {
-    logger.error({ err, phone }, "Failed to start Twilio Verify");
-    res.status(502).json({ error: "Failed to send verification code" });
+    const mapped = verifyErrorResponse(err, "start");
+    if (mapped.body.code === "config" || mapped.body.code === "network") {
+      releaseRate(phone);
+    }
+    logger.error(
+      { err, phone: maskPhone(phone), responseStatus: mapped.status, kind: mapped.body.code },
+      "Failed to start Twilio Verify"
+    );
+    if (mapped.retryAfterSeconds != null) {
+      res.setHeader("Retry-After", String(mapped.retryAfterSeconds));
+    }
+    res.status(mapped.status).json(mapped.body);
     return;
   }
 
@@ -94,8 +119,15 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
   try {
     valid = await checkVerification(phone, code);
   } catch (err) {
-    logger.error({ err, phone }, "Twilio Verify check threw");
-    res.status(502).json({ error: "Verification service unavailable" });
+    const mapped = verifyErrorResponse(err, "check");
+    logger.error(
+      { err, phone: maskPhone(phone), responseStatus: mapped.status, kind: mapped.body.code },
+      "Twilio Verify check threw"
+    );
+    if (mapped.retryAfterSeconds != null) {
+      res.setHeader("Retry-After", String(mapped.retryAfterSeconds));
+    }
+    res.status(mapped.status).json(mapped.body);
     return;
   }
   if (!valid) {

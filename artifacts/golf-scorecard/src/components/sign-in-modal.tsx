@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { useRequestOtp, useVerifyOtp } from "@workspace/api-client-react";
+import { useRequestOtp, useVerifyOtp, ApiError } from "@workspace/api-client-react";
 import { setSession, type AuthUser } from "@/lib/auth";
+
+// The API explains failures in the `error` field; show that rather than the
+// "HTTP 502 …" envelope ApiError builds for its own message.
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    const data = err.data as { error?: string } | null;
+    if (data?.error) return data.error;
+  }
+  return err instanceof Error ? err.message : fallback;
+}
 
 type Props = {
   open: boolean;
@@ -80,10 +90,7 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
           setStep("code");
           setResendAt(Date.now() + 30_000);
         },
-        onError: (err: unknown) => {
-          const msg = err instanceof Error ? err.message : "Failed to send code";
-          setError(msg);
-        },
+        onError: (err: unknown) => setError(errorMessage(err, "Failed to send code")),
       }
     );
   }
@@ -95,7 +102,7 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
       { data: { phone: normalized } },
       {
         onSuccess: () => setResendAt(Date.now() + 30_000),
-        onError: (err: unknown) => setError(err instanceof Error ? err.message : "Failed to resend"),
+        onError: (err: unknown) => setError(errorMessage(err, "Failed to resend")),
       }
     );
   }
@@ -129,10 +136,7 @@ export function SignInModal({ open, onClose, onSignedIn, title }: Props) {
           setSession({ token: resp.token, expiresAt: resp.expiresAt, user: resp.user });
           onSignedIn(resp.user);
         },
-        onError: (err: unknown) => {
-          const msg = err instanceof Error ? err.message : "Wrong code";
-          setError(msg);
-        },
+        onError: (err: unknown) => setError(errorMessage(err, "Wrong code")),
       }
     );
   }

@@ -60,6 +60,8 @@ Auth (phone+OTP sign-in):
 - `JWT_SECRET` — HMAC secret used to sign 30d session JWTs in [jwt.ts](artifacts/api-server/src/lib/jwt.ts). Required at startup in **all** environments — the server exits if it's missing (see `REQUIRED_ENV` in [index.ts](artifacts/api-server/src/index.ts)).
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` — Twilio Verify credentials used by [twilio.ts](artifacts/api-server/src/lib/twilio.ts). Verify owns code generation, SMS delivery, and validation; we only call `startVerification` / `checkVerification`. If any are unset, the dev server still boots but **skips OTP sends and rejects every code** — fail-closed, no bypass code — so signing in locally requires real Twilio credentials. In production all three are required at startup.
 
+Debugging sign-in: `pnpm --filter @workspace/scripts run twilio-doctor [+15551234567]` checks the credentials and the Verify service (no SMS, no charge) and, given a number, sends a real code and prints Twilio's exact error code. Verify failures are classified in [twilio.ts](artifacts/api-server/src/lib/twilio.ts) (`classifyTwilioError`) and mapped to status codes in [verify-response.ts](artifacts/api-server/src/lib/verify-response.ts), so a bad number is a 400, missing credentials a 500, Twilio's per-number send cap a 429, unreachable Twilio a 504, and only unclassified Twilio failures a 502. The server logs `twilioCode` plus an operator `hint` on every failure; API responses never carry that detail.
+
 Optional: `BASE_PATH` (Vite base for subpath deploys, defaults `/`), `LOG_LEVEL`, `NODE_ENV`, `REPL_ID` (enables Replit cartographer/dev-banner plugins when non-production).
 
 ## Conventions to respect

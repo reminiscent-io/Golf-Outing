@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
 import { startAutoCloseSweeper } from "./lib/auto-close";
+import { verifyConfigStatus } from "./lib/twilio";
 
 // Fail-fast: refuse to start if required secrets are absent.
 // This prevents the server from booting into an insecure state where forged
@@ -18,6 +19,21 @@ if (missingEnv.length > 0) {
     `FATAL: Missing required environment variable(s): ${missingEnv.join(", ")}. Server will not start.\n`
   );
   process.exit(1);
+}
+
+// Report Twilio Verify config at boot so a broken sign-in is diagnosable from
+// the startup logs alone, without waiting for a user to hit a 5xx.
+const verifyConfig = verifyConfigStatus();
+if (!verifyConfig.configured) {
+  logger.warn(
+    { missing: verifyConfig.missing },
+    "Twilio Verify is NOT configured — OTP sends are skipped and all codes are rejected"
+  );
+} else {
+  logger.info("Twilio Verify credentials present");
+}
+for (const warning of verifyConfig.warnings) {
+  logger.warn({ warning }, "Twilio Verify credential looks wrong");
 }
 
 const rawPort = process.env["PORT"];
