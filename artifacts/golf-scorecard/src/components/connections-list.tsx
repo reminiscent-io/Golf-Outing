@@ -9,6 +9,7 @@ import {
 
 const BRASS = "hsl(42 52% 59%)";
 const FAINT = "hsl(42 25% 60%)";
+const INK = "hsl(158 30% 18%)";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -63,7 +64,7 @@ function PendingRow({ p }: { readonly p: ConnectionPending }) {
         <span aria-hidden="true" className="grid place-items-center h-9 w-9 rounded-full text-xs font-semibold"
               style={{ background: "hsl(42 20% 86%)", color: "hsl(42 30% 38%)" }}>{initials(p.name)}</span>
         <span className="flex-1 min-w-0">
-          <span className="block font-serif text-[15px] truncate" style={{ color: "hsl(158 30% 18%)" }}>{p.name}</span>
+          <span className="block font-serif text-[15px] truncate" style={{ color: INK }}>{p.name}</span>
           <span className="block text-xs font-sans" style={{ color: FAINT }}>
             {p.sharedRounds} round{p.sharedRounds === 1 ? "" : "s"} together{p.hasInvite ? " · invite sent" : ""}
           </span>
@@ -75,7 +76,7 @@ function PendingRow({ p }: { readonly p: ConnectionPending }) {
         </button>
         {!p.hasPhone && (
           <button type="button" onClick={() => setShowPhone(v => !v)}
-                  className="text-[11px] font-sans px-2 py-1" style={{ color: FAINT }}>Add phone</button>
+                  className="text-[11px] font-sans px-2 py-1" style={{ color: INK }}>Add phone</button>
         )}
       </div>
       {showPhone && (
@@ -119,7 +120,7 @@ export function ConnectionsList() {
                   <span aria-hidden="true" className="grid place-items-center h-9 w-9 rounded-full text-xs font-semibold"
                         style={{ background: "hsl(158 35% 20%)", color: BRASS }}>{initials(a.name)}</span>
                   <span className="flex-1 min-w-0">
-                    <span className="block font-serif text-[15px] truncate" style={{ color: "hsl(158 30% 18%)" }}>{a.name}</span>
+                    <span className="block font-serif text-[15px] truncate" style={{ color: INK }}>{a.name}</span>
                     <span className="block text-xs font-sans" style={{ color: FAINT }}>{a.sharedRounds} round{a.sharedRounds === 1 ? "" : "s"} together</span>
                   </span>
                 </Link>
