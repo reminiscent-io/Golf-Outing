@@ -435,7 +435,7 @@ export default function RoundPage() {
   const queryClient = useQueryClient();
   const [subTab, setSubTab] = useState<SubTab>("scorecard");
   const [resultsInfoOpen, setResultsInfoOpen] = useState(false);
-  const [groupCompleteModalOpen, setGroupCompleteModalOpen] = useState(false);
+  const [completeModalOpen, setCompleteModalOpen] = useState(false);
 
   const { data: round, isLoading: roundLoading } = useGetRound(tripId, roundId, {
     query: { queryKey: getGetRoundQueryKey(tripId, roundId), enabled: !!tripId && !!roundId },
@@ -545,7 +545,22 @@ export default function RoundPage() {
           queryClient.invalidateQueries({ queryKey: getGetRoundQueryKey(tripId, roundId) });
           queryClient.invalidateQueries({ queryKey: getListRoundsQueryKey(tripId) });
           queryClient.invalidateQueries({ queryKey: getGetTripLeaderboardQueryKey(tripId) });
-          setGroupCompleteModalOpen(false);
+          setCompleteModalOpen(false);
+        },
+      },
+    );
+  }
+
+  // Round-level completion, used when the viewer isn't assigned to a group.
+  function setRoundComplete(completed: boolean) {
+    updateRound.mutate(
+      { tripId, roundId, data: { completedAt: completed ? new Date().toISOString() : null } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetRoundQueryKey(tripId, roundId) });
+          queryClient.invalidateQueries({ queryKey: getListRoundsQueryKey(tripId) });
+          queryClient.invalidateQueries({ queryKey: getGetTripLeaderboardQueryKey(tripId) });
+          setCompleteModalOpen(false);
         },
       },
     );
@@ -558,6 +573,13 @@ export default function RoundPage() {
   const currentUserId = session?.user.id;
   const canDeleteRound = !!currentUserId && (
     round?.createdByUserId === currentUserId ||
+    trip?.createdByUserId === currentUserId
+  );
+  // The API lets any player in the round — or the trip creator — mark it
+  // complete; observers only ever read.
+  const canCompleteRound = !!currentUserId && !isObserver && (
+    myPlayerId !== undefined ||
+    (players ?? []).some(p => p.userId === currentUserId) ||
     trip?.createdByUserId === currentUserId
   );
 
@@ -665,6 +687,24 @@ export default function RoundPage() {
     const pending = offline.pendingScores.get(playerId);
     if (pending?.has(holeIdx)) return pending.get(holeIdx) ?? null;
     return scoresMap.get(playerId)?.[holeIdx] ?? null;
+  }
+
+  // Blank cells across a set of players — in a scramble the grid is per team, so
+  // count the team rows those players sit in instead. Drives both the "holes
+  // still blank" warning and the call-to-action styling on the complete bar.
+  function blankHolesFor(playerIds: number[]): number {
+    const blanksIn = (holes: (number | null)[] | undefined) =>
+      Array.from({ length: 18 }, (_, h) => holes?.[h] ?? null).filter(v => v == null).length;
+    if (scrambleEnabled) {
+      const ids = new Set(playerIds);
+      return scrambleTeams
+        .filter(t => t.playerIds.some(id => ids.has(id)))
+        .reduce((acc, t) => acc + blanksIn(scrambleScoresByKey.get(t.key)), 0);
+    }
+    return playerIds.reduce(
+      (acc, pid) => acc + blanksIn(Array.from({ length: 18 }, (_, h) => getScore(pid, h))),
+      0,
+    );
   }
 
   function getScrambleScore(teamKey: string, holeIdx: number): number | null {
@@ -1369,17 +1409,21 @@ export default function RoundPage() {
         </div>
       )}
 
-      {/* Per-group "round complete" action bar — only for a signed-in player who
-          belongs to a group. Completing here affects only this player's group,
-          never the other foursomes sharing the scorecard. */}
-      {subTab === "scorecard" && myGroupNumber !== undefined && (() => {
-        const groupPlayersForBar = (players ?? []).filter(p => groupPlayerIds.has(p.id));
-        const groupHolesRemaining = groupPlayersForBar.reduce((acc, p) => {
-          const s = scoresMap.get(p.id) || [];
-          return acc + Array.from({ length: 18 }, (_, h) => s[h]).filter(v => v == null).length;
-        }, 0);
-        const groupAllScored = groupPlayersForBar.length > 0 && groupHolesRemaining === 0;
-        const completedByName = myGroupCompletion?.completedByUserId != null
+      {/* "Round complete" action bar, pinned to the bottom of the scorecard.
+          A player assigned to a group completes only their own group (the other
+          foursomes on this scorecard are untouched); everyone else completes the
+          round itself. It stays clickable with holes still blank — only the
+          styling changes, going gold once every cell in scope is filled. */}
+      {subTab === "scorecard" && canCompleteRound && (() => {
+        const grouped = myGroupNumber !== undefined;
+        const scopedPlayers = grouped
+          ? (players ?? []).filter(p => groupPlayerIds.has(p.id))
+          : (players ?? []);
+        const holesRemaining = blankHolesFor(scopedPlayers.map(p => p.id));
+        const allScored = scopedPlayers.length > 0 && holesRemaining === 0;
+        const completed = grouped ? myGroupCompleted : round?.completedAt != null;
+        const pending = grouped ? putGroupCompletion.isPending : updateRound.isPending;
+        const completedByName = grouped && myGroupCompletion?.completedByUserId != null
           ? (players ?? []).find(p => p.userId === myGroupCompletion!.completedByUserId)?.name ?? null
           : null;
         return (
@@ -1388,31 +1432,40 @@ export default function RoundPage() {
             style={{ background: "hsl(158 60% 11%)", borderTop: "1px solid hsl(158 40% 18%)" }}
           >
             <div className="max-w-5xl mx-auto">
-              {myGroupCompleted ? (
+              {completed ? (
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-xs font-sans" style={{ color: "hsl(148 45% 70%)" }}>
-                    <span className="font-semibold">Group {myGroupNumber} round complete</span>
+                    <span className="font-semibold">
+                      {grouped ? `Group ${myGroupNumber} round complete` : "Round complete"}
+                    </span>
                     {completedByName && <span style={{ color: "hsl(42 20% 55%)" }}> · marked by {completedByName.split(" ")[0]}</span>}
                   </div>
                   <button
                     type="button"
-                    onClick={() => setGroupComplete(false)}
-                    disabled={putGroupCompletion.isPending}
+                    onClick={() => (grouped ? setGroupComplete(false) : setRoundComplete(false))}
+                    disabled={pending}
                     className="px-4 py-2 rounded-lg font-sans font-semibold text-xs transition-all hover:opacity-90"
                     style={{ background: "hsl(158 35% 20%)", color: "hsl(42 35% 70%)" }}
                   >
-                    {putGroupCompletion.isPending ? "..." : "Reopen"}
+                    {pending ? "..." : "Reopen"}
                   </button>
                 </div>
               ) : (
                 <button
                   type="button"
-                  onClick={() => setGroupCompleteModalOpen(true)}
-                  disabled={putGroupCompletion.isPending}
+                  onClick={() => setCompleteModalOpen(true)}
+                  disabled={pending}
                   className="w-full py-3 rounded-xl font-sans font-semibold text-sm transition-all hover:opacity-90"
-                  style={{ background: "hsl(148 40% 35%)", color: "white" }}
+                  style={allScored
+                    ? { background: "hsl(42 52% 59%)", color: "hsl(38 30% 12%)", boxShadow: "0 0 0 1px hsl(42 52% 59%), 0 6px 18px -8px hsl(42 52% 59%)" }
+                    : { background: "hsl(158 35% 20%)", color: "hsl(42 35% 70%)", border: "1px solid hsl(158 30% 30%)" }}
                 >
-                  {groupAllScored ? `Complete round for Group ${myGroupNumber}` : `Complete round for Group ${myGroupNumber}…`}
+                  {grouped ? `Mark Group ${myGroupNumber} round complete` : "Mark round complete"}
+                  {!allScored && holesRemaining > 0 && (
+                    <span className="font-normal" style={{ color: "hsl(42 20% 55%)" }}>
+                      {" "}· {holesRemaining} blank
+                    </span>
+                  )}
                 </button>
               )}
             </div>
@@ -1420,18 +1473,19 @@ export default function RoundPage() {
         );
       })()}
 
-      {/* Confirmation modal for completing the current player's group */}
-      {groupCompleteModalOpen && myGroupNumber !== undefined && (() => {
-        const groupPlayersForModal = (players ?? []).filter(p => groupPlayerIds.has(p.id));
-        const groupHolesRemaining = groupPlayersForModal.reduce((acc, p) => {
-          const s = scoresMap.get(p.id) || [];
-          return acc + Array.from({ length: 18 }, (_, h) => s[h]).filter(v => v == null).length;
-        }, 0);
+      {/* Confirmation for the bar above — group-scoped or round-scoped */}
+      {completeModalOpen && canCompleteRound && (() => {
+        const grouped = myGroupNumber !== undefined;
+        const scopedPlayers = grouped
+          ? (players ?? []).filter(p => groupPlayerIds.has(p.id))
+          : (players ?? []);
+        const holesRemaining = blankHolesFor(scopedPlayers.map(p => p.id));
+        const pending = grouped ? putGroupCompletion.isPending : updateRound.isPending;
         return (
           <div
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
             style={{ background: "rgba(0,0,0,0.55)" }}
-            onClick={() => !putGroupCompletion.isPending && setGroupCompleteModalOpen(false)}
+            onClick={() => !pending && setCompleteModalOpen(false)}
           >
             <div
               className="w-full max-w-sm rounded-2xl p-5"
@@ -1439,22 +1493,24 @@ export default function RoundPage() {
               onClick={e => e.stopPropagation()}
             >
               <h3 className="font-serif text-lg mb-1" style={{ color: "hsl(38 30% 14%)" }}>
-                Complete round for Group {myGroupNumber}?
+                {grouped ? `Complete round for Group ${myGroupNumber}?` : "Mark this round complete?"}
               </h3>
               <p className="text-sm font-sans mb-2" style={{ color: "hsl(38 22% 35%)" }}>
-                This marks your group's round as finished. Other groups on this scorecard are not affected,
-                and you can still edit scores or reopen the round afterwards.
+                {grouped
+                  ? "This marks your group's round as finished. Other groups on this scorecard are not affected, and you can still edit scores or reopen the round afterwards."
+                  : "This marks the round as finished and posts it to the feed. You can still edit scores or reopen the round afterwards."}
               </p>
-              {!scrambleEnabled && groupHolesRemaining > 0 && (
+              {holesRemaining > 0 && (
                 <p className="text-xs font-sans mb-4 rounded-lg px-3 py-2" style={{ background: "hsl(38 50% 88%)", color: "hsl(28 45% 32%)" }}>
-                  Heads up: {groupHolesRemaining} hole{groupHolesRemaining === 1 ? "" : "s"} still blank across your group.
+                  Heads up: {holesRemaining} hole{holesRemaining === 1 ? "" : "s"} still blank
+                  {grouped ? " across your group." : " on the scorecard."}
                 </p>
               )}
               <div className="flex gap-2 mt-3">
                 <button
                   type="button"
-                  onClick={() => setGroupCompleteModalOpen(false)}
-                  disabled={putGroupCompletion.isPending}
+                  onClick={() => setCompleteModalOpen(false)}
+                  disabled={pending}
                   className="flex-1 py-2.5 rounded-xl font-sans font-semibold text-sm transition-all hover:opacity-90"
                   style={{ background: "hsl(38 20% 82%)", color: "hsl(38 30% 25%)" }}
                 >
@@ -1462,12 +1518,12 @@ export default function RoundPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setGroupComplete(true)}
-                  disabled={putGroupCompletion.isPending}
+                  onClick={() => (grouped ? setGroupComplete(true) : setRoundComplete(true))}
+                  disabled={pending}
                   className="flex-1 py-2.5 rounded-xl font-sans font-semibold text-sm transition-all hover:opacity-90"
                   style={{ background: "hsl(148 40% 35%)", color: "white" }}
                 >
-                  {putGroupCompletion.isPending ? "Completing…" : "Complete round"}
+                  {pending ? "Completing…" : "Complete round"}
                 </button>
               </div>
             </div>
@@ -2049,23 +2105,8 @@ export default function RoundPage() {
             </div>
           </div>
 
-          {/* Round-level mark-complete — only when there are no groups. Grouped
-              rounds complete per group (see the scorecard bar) and roll up to
-              the round automatically once every group is done. */}
-          {(() => {
-            const hasGroups = (groupsData?.assignments?.length ?? 0) > 0;
-            const holesScoredAcrossField = scoresMap.size === 0 ? 0 : Math.max(...Array.from(scoresMap.values()).map(h => h.filter((s): s is number => s != null).length));
-            return !hasGroups && (round as { completedAt?: string | null } | undefined)?.completedAt == null && holesScoredAcrossField >= 9 ? (
-              <button
-                type="button"
-                onClick={() => round && updateRound.mutate({ tripId, roundId: round.id, data: { completedAt: new Date().toISOString() } })}
-                className="w-full py-3 rounded-xl font-sans font-semibold text-sm transition-all hover:opacity-90"
-                style={{ background: "hsl(148 40% 35%)", color: "white" }}
-              >
-                Mark round complete
-              </button>
-            ) : null;
-          })()}
+          {/* Completing a round happens on the scorecard's bottom action bar —
+              per group when groups exist, round-level otherwise. */}
 
           <button
             onClick={handleSaveSetup}
