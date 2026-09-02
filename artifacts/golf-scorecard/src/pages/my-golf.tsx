@@ -7,6 +7,7 @@ import { MyRoundsList } from "@/components/my-rounds-list";
 import { MyTripsList } from "@/components/my-trips-list";
 import { SoloRoundModal } from "@/components/solo-round-modal";
 import { ConnectionsList } from "@/components/connections-list";
+import { roundPath } from "@/lib/round-nav";
 
 type Tab = "rounds" | "trips" | "connections";
 
@@ -96,7 +97,7 @@ function MyGolfContent({ session }: Readonly<{ session: AuthSession }>) {
       <SoloRoundModal
         open={logRoundOpen}
         onClose={() => setLogRoundOpen(false)}
-        onCreated={({ tripId, roundId }) => navigate(tripId == null ? `/rounds/${roundId}` : `/trips/${tripId}/rounds/${roundId}`)}
+        onCreated={({ tripId, roundId }) => navigate(roundPath(tripId, roundId))}
       />
     </div>
   );

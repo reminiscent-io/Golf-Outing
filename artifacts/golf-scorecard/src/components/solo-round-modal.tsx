@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCreateRoundV2 } from "@workspace/api-client-react";
 import { X } from "lucide-react";
 import { CourseSearchField } from "@/components/course-search-field";
@@ -20,6 +20,19 @@ export function SoloRoundModal({ open, onClose, onCreated }: Props) {
   const [par, setPar] = useState<number[] | null>(null);
   const [holeHcp, setHoleHcp] = useState<number[] | null>(null);
   const create = useCreateRoundV2();
+  // Don't let a stray tap or keypress dismiss the sheet while the round is
+  // being created — the request would still land, leaving a round the user
+  // thinks they cancelled.
+  const busy = create.isPending;
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !busy) onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, busy, onClose]);
 
   if (!open) return null;
 
@@ -62,11 +75,29 @@ export function SoloRoundModal({ open, onClose, onCreated }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
-      <form onSubmit={submit} className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-card p-5">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
+      onClick={() => { if (!busy) onClose(); }}
+    >
+      <form
+        onSubmit={submit}
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="solo-round-title"
+        className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-card p-5"
+      >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-serif text-lg text-card-foreground">Log a round</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-1"><X size={18} /></button>
+          <h2 id="solo-round-title" className="font-serif text-lg text-card-foreground">Log a round</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            aria-label="Close"
+            className="-m-2 p-2 rounded-full text-muted-foreground transition-colors hover:text-card-foreground disabled:opacity-40"
+          >
+            <X size={20} />
+          </button>
         </div>
         <label className="block text-[10px] font-sans font-semibold uppercase tracking-[0.32em] text-muted-foreground mb-2">Course</label>
         <div className="mb-3">
