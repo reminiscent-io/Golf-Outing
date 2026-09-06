@@ -6,6 +6,7 @@ import { getFeed, type FeedPage, type FeedItem, useListMyBuddies, getListMyBuddi
 import { FeedCard } from "@/components/feed-card";
 import { useAuthSession } from "@/lib/auth";
 import { SoloRoundModal } from "@/components/solo-round-modal";
+import { roundPath } from "@/lib/round-nav";
 
 type Tab = "buddies" | "mine" | "all";
 
@@ -134,7 +135,7 @@ export default function FeedPage() {
       >
         <Plus size={22} aria-hidden />
       </button>
-      <SoloRoundModal open={soloOpen} onClose={() => setSoloOpen(false)} onCreated={({ tripId, roundId }) => navigate(`/trips/${tripId}/rounds/${roundId}`)} />
+      <SoloRoundModal open={soloOpen} onClose={() => setSoloOpen(false)} onCreated={({ tripId, roundId }) => navigate(roundPath(tripId, roundId))} />
     </div>
   );
 }
