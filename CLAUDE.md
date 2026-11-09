@@ -49,6 +49,8 @@ Running locally:
 
 Per-package typecheck: `pnpm --filter <name> run typecheck`.
 
+Vercel build: `node scripts/vercel-build.mjs` — builds both packages and writes `.vercel/output/` (static SPA + one Express function at `/api`, plus the auto-close cron). See [docs/deploy-vercel.md](docs/deploy-vercel.md).
+
 ## Environment variables
 
 See [.env](.env) for the local set. Required:
@@ -59,6 +61,8 @@ See [.env](.env) for the local set. Required:
 Auth (phone+OTP sign-in):
 - `JWT_SECRET` — HMAC secret used to sign 30d session JWTs in [jwt.ts](artifacts/api-server/src/lib/jwt.ts). Required at startup in **all** environments — the server exits if it's missing (see `REQUIRED_ENV` in [index.ts](artifacts/api-server/src/index.ts)).
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` — Twilio Verify credentials used by [twilio.ts](artifacts/api-server/src/lib/twilio.ts). Verify owns code generation, SMS delivery, and validation; we only call `startVerification` / `checkVerification`. If any are unset, the dev server still boots but **skips OTP sends and rejects every code** — fail-closed, no bypass code — so signing in locally requires real Twilio credentials. In production all three are required at startup.
+
+Vercel only: `CRON_SECRET` — bearer token Vercel Cron sends to `GET /api/cron/auto-close` (see [cron.ts](artifacts/api-server/src/routes/cron.ts)). Unset means that route always 401s; local dev and Replit use the in-process hourly sweeper instead.
 
 Optional: `BASE_PATH` (Vite base for subpath deploys, defaults `/`), `LOG_LEVEL`, `NODE_ENV`, `REPL_ID` (enables Replit cartographer/dev-banner plugins when non-production).
 
@@ -76,6 +80,10 @@ Optional: `BASE_PATH` (Vite base for subpath deploys, defaults `/`), `LOG_LEVEL`
 - **Trigram name search**: `users.full_name` has a GIN index using `gin_trgm_ops` (see [users.ts](lib/db/src/schema/users.ts)). The index requires the `pg_trgm` extension — `db push` does **not** create extensions, so run `CREATE EXTENSION IF NOT EXISTS pg_trgm;` against `DATABASE_URL` once per database before pushing.
 - **Auth middleware**: routes requiring a signed-in user import `requireAuth` from [require-auth.ts](artifacts/api-server/src/middlewares/require-auth.ts) (sets `req.user.id`); routes that branch on optional auth use `optional-auth.ts`.
 
-## Replit notes
+## Hosting
+
+Moving from Replit to Vercel: [docs/deploy-vercel.md](docs/deploy-vercel.md). The API has two entries: [index.ts](artifacts/api-server/src/index.ts) (long-running `listen()` + hourly sweeper, for local dev and Replit) and [serverless.ts](artifacts/api-server/src/serverless.ts) (Vercel Function handler). Shared startup checks live in [startup.ts](artifacts/api-server/src/lib/startup.ts).
+
+### Replit notes
 
 This repo runs on Replit ([.replit](.replit), `deploymentTarget = "autoscale"`). The `[agent] expertMode = true` flag means Replit's agent is configured to trust manual package-manager operations — pnpm is the sole allowed tool. Port 8080 is the external entry; ports 8081 and 20768 are also mapped.

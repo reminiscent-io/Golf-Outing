@@ -15,7 +15,12 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: [
+      // Long-running server (local dev, Replit)
+      path.resolve(artifactDir, "src/index.ts"),
+      // Vercel Function handler, packaged by scripts/vercel-build.mjs
+      path.resolve(artifactDir, "src/serverless.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",

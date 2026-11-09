@@ -18,6 +18,7 @@ import roundCommentsRouter from "./round-comments";
 import roundSocialRouter from "./round-social";
 import feedRouter from "./feed";
 import connectionsRouter from "./connections";
+import cronRouter from "./cron";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(roundKudosRouter);
 router.use(roundCommentsRouter);
 router.use(roundSocialRouter);
 router.use(feedRouter);
+router.use(cronRouter);
 
 export default router;
